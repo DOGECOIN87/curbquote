@@ -4,12 +4,19 @@ import { once } from 'node:events';
 import { MockLanguageModelV4 } from 'ai/test';
 import { DEFAULT_INPUT } from '../estimate.js';
 import { DEFAULT_PROJECT } from '../project.js';
-import { runProjectAgent, createProjectTools } from '../lib/agent.mjs';
+import { runProjectAgent, createProjectTools, hasAgentCredentials } from '../lib/agent.mjs';
 import { createAssistantHandler, createRequestLimiter } from '../api/assistant.js';
 import { createAppServer } from '../lib/web.mjs';
 
 const snapshot = () => ({ inputs: { ...DEFAULT_INPUT }, options: { ...DEFAULT_PROJECT }, confirmed: [] });
 const usage = { inputTokens: { total: 20, noCache: 20 }, outputTokens: { total: 20, text: 20 } };
+test('deployed OIDC availability recognizes request-context tokens without exposing their value', () => {
+  const symbol = Symbol.for('@vercel/request-context'), previous = globalThis[symbol];
+  try {
+    globalThis[symbol] = { get: () => ({ headers: { 'x-vercel-oidc-token': 'test-token-not-a-real-credential' } }) };
+    assert.equal(hasAgentCredentials(), true);
+  } finally { if (previous === undefined) delete globalThis[symbol]; else globalThis[symbol] = previous; }
+});
 
 test('real SDK agent loop inspects, proposes and compares using deterministic tools', async () => {
   let step = 0;

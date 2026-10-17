@@ -31,8 +31,8 @@ The model ID `openai/gpt-6-luna` was checked against the live Gateway catalog on
 
 ## Runtime and authentication
 
-- Node 22.x; pinned AI SDK 7.0.143 and Zod production dependencies. The SDK's installed version-matched docs were used for the agent implementation.
-- On Vercel, enable project OIDC tokens; the SDK uses the runtime `VERCEL_OIDC_TOKEN`. No provider key is shipped to the browser or committed. The project OIDC setting is enabled for the hosted prototype.
+- Node 22.x; pinned AI SDK 7.0.143, Zod and `@vercel/oidc` production dependencies. The SDK's installed version-matched docs were used for the agent implementation.
+- On Vercel, enable project OIDC tokens; the SDK uses the current request-context token, with `VERCEL_OIDC_TOKEN` as the local fallback. Availability checks use `getVercelOidcTokenSync()` rather than checking only process environment variables. No provider key is shipped to the browser or committed. The project OIDC setting is enabled for the hosted prototype.
 - Local development runs all automatic tools without credentials. To exercise AI locally, supply an existing `AI_GATEWAY_API_KEY` or valid linked-project OIDC token through the process environment. A plain Node server does not automatically load `.env.local`.
 - `GET /api/assistant` checks credentials and the Gateway credit endpoint without inference. It exposes only `ai`/`planner` availability and a safe message, never credit balances or credentials. It cannot guarantee that a subsequent model request will succeed.
 - Account verification, credits, model access, outages or project budgets may prevent inference. The page labels fallback as **Automatic planner** and still runs deterministic planning. No payment method, credits purchase, budget increase or paid upgrade is activated by this change.

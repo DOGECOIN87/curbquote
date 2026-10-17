@@ -1,5 +1,6 @@
 /** One complete report shared by downloads and print, including the exact price snapshot. */
-export function buildEstimateSummary(result, { address = '', matchedAddress = '', generatedAt = new Date().toISOString() } = {}) {
+import { propertySourceLines } from './property-data.js';
+export function buildEstimateSummary(result, { address = '', matchedAddress = '', generatedAt = new Date().toISOString(), propertyData } = {}) {
   const { inputs: i, geometry: g, assumptions: a, pricing: p } = result;
   const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const range = pair => pair.map(n => dollars.format(n)).join(' – ');
@@ -12,6 +13,7 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Pricing: ${p.version}${p.customized ? ' (edited)' : ''} — illustrative example rates, not contractor pricing`,
     `Address entered: ${singleLine(address) || '(not provided)'}`,
     `Census address-range match: ${singleLine(matchedAddress) || 'Not matched'}`,
+    ...propertySourceLines(propertyData),
     ...(result.project ? [
       `Selected projects: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).join(', ')}`,
       `Product tier: ${result.productNames.tier}`,

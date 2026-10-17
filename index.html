@@ -14,7 +14,7 @@
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="/" aria-label="CurbQuote home"><span class="brand-icon" aria-hidden="true"><span></span></span>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
-      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button><span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.4</span></div>
+      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button><span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.5</span></div>
     </header>
     <main>
       <section class="hero" aria-labelledby="hero-title">
@@ -55,6 +55,21 @@
             <label for="property-address">Property street address</label>
             <div class="address-entry"><input type="text" id="property-address" name="property-address" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="123 Main St, Austin, TX 78701" spellcheck="false"><button type="button" id="verify-address" class="secondary-button">Find address <span aria-hidden="true">↗</span></button></div>
             <div class="field-help" id="address-status" role="status" aria-live="polite">Address lookup is optional. Census location matching does not measure your home.</div>
+            <div class="property-source-section">
+              <p id="property-status" class="field-help" role="status" aria-live="polite">Property facts use a separately configured, authorized source. No source data is assumed from the address.</p>
+              <div id="property-record" class="property-record" hidden>
+                <h3>Review the property record</h3><p id="property-source" class="studio-help"></p>
+                <dl id="property-facts" class="property-facts"></dl>
+                <p id="property-permissions" class="studio-help"></p>
+                <div id="property-import-controls">
+                  <label class="property-identity"><input id="property-identity" type="checkbox"><span>I checked the returned street address, city and unit. This is my property.</span></label>
+                  <fieldset id="property-fields" class="property-field-picker"><legend>Details to use in this estimate</legend></fieldset>
+                  <button type="button" id="apply-property" class="secondary-button" disabled>Use selected details</button>
+                </div>
+                <ul id="property-warnings" class="project-warnings"></ul>
+              </div>
+              <div id="property-applied" class="property-applied" hidden><p id="property-applied-note" class="studio-help"></p><button type="button" id="undo-property" class="outline-button">Undo imported details</button></div>
+            </div>
           </section>
           <section class="form-section project-section" aria-labelledby="project-heading">
             <div class="section-head"><span class="step-number">02</span><div><h2 id="project-heading">Build your project</h2><p>Choose the work, materials and finish that fit your plans.</p></div></div>

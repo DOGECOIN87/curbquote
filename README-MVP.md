@@ -14,7 +14,7 @@ npm run check
 
 Run `npm ci --ignore-scripts` before development or checks. The AI SDK and Zod are pinned production dependencies for the server-side assistant; Playwright is a pinned development dependency for browser regression tests. The automatic planner works without AI credentials.
 
-Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the eleven browser assets into `dist/`; `/api/geocode` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
+Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the thirteen browser assets into `dist/`; `/api/geocode`, `/api/property` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
 
 ```sh
 npm ci --ignore-scripts
@@ -26,6 +26,8 @@ LIVE_GEOCODE=1 npm run test:browser  # opt-in live Census smoke test
 Browser checks produce screenshots and a check list in the ignored `qa-output/` directory. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select a preinstalled Chromium executable. GitHub Actions runs both the unit/integration suite and the browser checks.
 
 ## Working homeowner flow
+
+- Find an address and request separately authorized property facts. Review source and freshness, then select permitted story/year details. Source values, homeowner corrections and attribution survive supported saves/exports. Restricted grants remain temporary display-only. No live provider is configured by default; see [property adapter setup](docs/09-property-data-adapter.md).
 
 - Describe a goal, compare material/tier plans, search a target budget, and optionally explore phased work. Apply a calculated proposal with undo. Track unconfirmed home details, restore an automatic device draft and download a contractor discussion brief. A bounded AI tool-calling assistant can perform these estimate tasks and optional Census matching when Gateway authentication and credits are available; an explicitly labeled automatic planner handles comparisons and supported goal patterns without AI. See [automated planning and agent setup](docs/08-agentic-planning.md).
 
@@ -49,7 +51,7 @@ See [the prototype implementation notes](docs/07-functional-prototype.md) for cu
 
 ## Known limitations and pre-launch blockers
 
-1. No real parcel/footprint or assessor attributes. Photos are supplied and marked by the homeowner, not measured automatically. **Address lookup does not supply dimensions.** Connecting a licensed provider requires rights review and validation in each market.
+1. A configurable authorized-provider adapter exists, but no live provider or credentials are supplied. There is no automatic footprint or assessor integration by default. Photos are supplied and marked by the homeowner, not measured automatically. **Address lookup does not supply dimensions.** Connecting a licensed provider requires rights review and validation in each market.
 2. No contractor price book, labor/material adders, taxes, permit fees, tear-off, trim, labor complexity, accessibility, RRP work or region calibration.
 3. Accuracy is untested. Compare estimates against completed jobs (see `data/backtest-template.csv`) before showing customer-facing dollar claims. Current ±18% is a scenario assumption only.
 4. API lookups send the entered address to the U.S. Census through your hosting environment; hosting access logs may record request URLs. Do not claim end-to-end address confidentiality. Add hosting log controls and a privacy policy before production.

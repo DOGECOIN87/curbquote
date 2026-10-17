@@ -5,6 +5,7 @@ import { PhotoEditor } from './photo-editor.js';
 import { isAddressMatch, validateAddress } from './address.js';
 import { buildEstimateSummary } from './summary.js';
 import { setupAssistant } from './assistant-ui.js';
+import { setupPropertyLookup } from './property-ui.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -27,6 +28,7 @@ let selectedColor = DEFAULT_PROJECT.color;
 let activeProjectId = null;
 let projectLoadSerial = 0;
 let assistant;
+let propertyLookup;
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 const projectDialog = byId('projects-dialog');
 byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
@@ -63,7 +65,7 @@ function readInputs() {
 }
 function refreshReport() {
   byId('print-report-content').textContent = lastResult ? buildEstimateSummary(lastResult, {
-    address: addressEl.value.trim(), matchedAddress: matched?.matchedAddress, generatedAt
+    address: addressEl.value.trim(), matchedAddress: matched?.matchedAddress, generatedAt, propertyData: propertyLookup?.context()
   }) : 'CURBQUOTE / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.';
   byId('save-summary').disabled = !lastResult;
   byId('print-summary').disabled = !lastResult;
@@ -91,6 +93,7 @@ function paintResult(result) {
   refreshReport();
 }
 function calculate({ scroll = false, focus = false } = {}) {
+  propertyLookup?.edited('stories'); propertyLookup?.edited('yearBuilt');
   if (invalidField) {
     invalidField.removeAttribute('aria-invalid');
     invalidField.removeAttribute('aria-errormessage');
@@ -134,6 +137,8 @@ form.addEventListener('submit', event => {
   calculate({ scroll: true, focus: true });
 });
 form.addEventListener('input', event => {
+  if (event.target === addressEl) propertyLookup?.clear({ restoreInputs: true });
+  else propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
   if (event.target === addressEl) {
     lookupSerial++;
@@ -299,7 +304,7 @@ byId('save-project-form').addEventListener('submit', async event => {
   if (!name) { byId('saved-project-status').textContent = 'Give your project a name.'; return; }
   const button = event.submitter; button.disabled = true;
   try {
-    const project = { id: activeProjectId || crypto.randomUUID(), name, address: addressEl.value.trim(), updatedAt:new Date().toISOString(), inputs:readInputs(), options:projectOptions(), planning: assistant?.metadata() };
+    const project = { id: activeProjectId || crypto.randomUUID(), name, address: addressEl.value.trim(), updatedAt:new Date().toISOString(), inputs:readInputs(), options:projectOptions(), planning: assistant?.metadata(), propertyData: propertyLookup?.context() };
     saveProject(window.localStorage, project); activeProjectId = project.id;
     let photoMessage = '';
     try { const photo = editor.snapshot(); if (photo) await savePhoto(project.id, photo); else await deletePhoto(project.id); }
@@ -317,6 +322,7 @@ async function restoreProject(project) {
   for (const key of ['sidingProduct','windowProduct','doorProduct','coveragePercent']) byId(key).value = project.options[key];
   form.querySelector(`[name="tier"][value="${project.options.tier}"]`).checked = true;
   selectedColor = project.options.color; addressEl.value = project.address; activeProjectId = project.id;
+  propertyLookup?.restore(project.propertyData);
   addressStatus.textContent = 'Saved address restored. Use Find address to request a fresh Census match.'; addressStatus.className = 'field-help';
   editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close();
   assistant?.restore(project.planning);
@@ -326,6 +332,7 @@ async function restoreProject(project) {
 }
 byId('new-project').addEventListener('click', () => {
   projectLoadSerial++; lookupSerial++; lookupController?.abort(); matched = null; activeProjectId = null;
+  propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
   addressStatus.textContent = 'Address lookup is optional. Census matching does not measure your home.'; addressStatus.className = 'field-help';
@@ -335,7 +342,7 @@ byId('new-project').addEventListener('click', () => {
 window.addEventListener('storage', event => { if (event.key === 'curbquote.projects.v1') renderSavedProjects(); });
 syncProjectControls(); renderSavedProjects(); hasCalculated = true; calculate();
 assistant = setupAssistant({
-  read: () => ({ inputs: readInputs(), options: projectOptions() }),
+  read: () => ({ inputs: readInputs(), options: projectOptions(), propertyData: propertyLookup?.context() }),
   getAddress: () => addressEl.value.trim(),
   focusField: field => { const input = byId(field); if (!input) return; input.scrollIntoView({ block: 'center', behavior: 'instant' }); input.focus(); },
   apply: snapshot => {
@@ -345,16 +352,29 @@ assistant = setupAssistant({
     form.querySelector(`[name="tier"][value="${snapshot.options.tier}"]`).checked = true;
     selectedColor = snapshot.options.color;
     if (Object.hasOwn(snapshot, 'address')) {
+      propertyLookup?.clear();
       lookupSerial++; lookupController?.abort(); matched = null; addressEl.value = snapshot.address;
       lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
       addressStatus.textContent = 'Address restored. Use Find address for a fresh location match.'; addressStatus.className = 'field-help';
     }
+    if (Object.hasOwn(snapshot, 'propertyData') || Object.hasOwn(snapshot, 'address')) propertyLookup?.restore(snapshot.propertyData);
     syncProjectControls(); hasCalculated = true; calculate();
   },
   applyLocation: location => {
     if (!isAddressMatch(location)) return;
+    propertyLookup?.clear({ restoreInputs: true });
     lookupSerial++; lookupController?.abort(); matched = location; addressEl.value = location.matchedAddress;
     lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
     addressStatus.textContent = `Approximate Census location: ${location.matchedAddress}. No building measurement retrieved.`; addressStatus.className = 'field-help success'; refreshReport();
-  }
+  },
+  showProperty: payload => { if (payload?.record && typeof payload.address === 'string') propertyLookup?.show(payload.record, payload.address); }
+});
+propertyLookup = setupPropertyLookup({
+  getAddress: () => addressEl.value.trim(), getInputs: readInputs,
+  applyInputs: patch => {
+    estimateProject({ ...readInputs(), ...patch }, projectOptions());
+    for (const [field, value] of Object.entries(patch)) { byId(field).value = value; assistant?.changed(field); }
+    hasCalculated = true; calculate();
+  },
+  onChange: () => { assistant?.changed(); refreshReport(); }
 });

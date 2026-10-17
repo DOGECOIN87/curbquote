@@ -1,6 +1,7 @@
 import { DEFAULT_INPUT, InputError } from './estimate.js';
 import { PRODUCTS, TIERS, catalogRates, estimateProject, validateProject } from './project.js';
 import { buildEstimateSummary } from './summary.js';
+import { validatePropertyContext, propertySourceLines } from './property-data.js';
 
 export const DETAIL_FIELDS = Object.freeze(['lengthFt', 'widthFt', 'stories', 'storyHeightFt', 'gables', 'gableRiseFt', 'masonryPercent', 'existingWindows', 'existingDoors', 'replaceWindows', 'replaceDoors', 'yearBuilt']);
 export const FIELD_NAMES = Object.freeze({ lengthFt: 'Footprint length', widthFt: 'Footprint width', stories: 'Stories', storyHeightFt: 'Height per story', gables: 'Gable ends', gableRiseFt: 'Gable rise', masonryPercent: 'Masonry share', existingWindows: 'Total exterior windows', existingDoors: 'Total exterior doors', replaceWindows: 'Windows to replace', replaceDoors: 'Doors to replace', yearBuilt: 'Year built' });
@@ -19,7 +20,8 @@ export function validateSnapshot(value) {
   estimateProject(value.inputs, options);
   const inputs = Object.fromEntries(Object.keys(DEFAULT_INPUT).map(key => [key, value.inputs[key]]));
   const confirmed = Array.isArray(value.confirmed) ? [...new Set(value.confirmed.filter(key => DETAIL_FIELDS.includes(key)))] : [];
-  return { inputs, options, confirmed };
+  const propertyData = validatePropertyContext(value.propertyData);
+  return { inputs, options, confirmed, ...(propertyData ? { propertyData } : {}) };
 }
 
 export function reviewProject(value) {
@@ -33,7 +35,7 @@ export function reviewProject(value) {
   if (missing.length) warnings.unshift(`${missing.length} relevant home details still use unconfirmed values. This is a scenario, not a measured property estimate.`);
   if (result.leadPaintReview) warnings.push('The entered year is before 1978. Arrange a professional lead-safe review before work. Remediation is not priced.');
   if (result.pricing.customized) warnings.push('Your current estimate uses edited example prices. Comparison plans use the versioned demonstration catalog.');
-  return { total: result.total, modelVersion: result.modelVersion, priceVersion: result.pricing.version, confirmedCount: [...new Set(needed)].length - missing.length, requiredCount: [...new Set(needed)].length, questions, warnings };
+  return { total: result.total, modelVersion: result.modelVersion, priceVersion: result.pricing.version, confirmedCount: [...new Set(needed)].length - missing.length, requiredCount: [...new Set(needed)].length, questions, warnings, sourceNotes: propertySourceLines(state.propertyData) };
 }
 
 export function proposalSnapshot(value, details = {}, optionChanges = {}) {
@@ -44,7 +46,7 @@ export function proposalSnapshot(value, details = {}, optionChanges = {}) {
     // Saved excluded trades have zeroed calculation rates. Re-enabling them must not price new work at zero.
     if (options[kind] && !state.options[kind]) for (const [key, rate] of Object.entries(rates)) if (key.startsWith(prefix)) inputs[key] = rate;
   }
-  return validateSnapshot({ inputs, options, confirmed: state.confirmed.filter(key => !Object.hasOwn(details, key)) });
+  return validateSnapshot({ inputs, options, confirmed: state.confirmed.filter(key => !Object.hasOwn(details, key)), propertyData: state.propertyData });
 }
 
 function makePlan(inputs, options, label, budget, current) {
@@ -126,5 +128,5 @@ export function parseProjectGoal(text, value) {
 
 export function buildContractorBrief(value, { address = '', goal = '', budget = null } = {}) {
   const state = validateSnapshot(value), review = reviewProject(state);
-  return `CURBQUOTE / CONTRACTOR DISCUSSION BRIEF\nPrepared ${new Date().toISOString().slice(0, 10)}\n\nGoal: ${String(goal).slice(0, 1800) || 'Exterior renovation'}\nTarget budget: ${budget ? `$${budget.toLocaleString('en-US')}` : 'Not specified'}\n\n${buildEstimateSummary(estimateProject(state.inputs, state.options), { address })}\n\nDETAILS TO VERIFY\n${review.questions.length ? review.questions.map(question => `- ${question.message}`).join('\n') : '- Home details marked homeowner-confirmed; professional field verification is still required.'}\n\nQUESTIONS FOR THE CONTRACTOR\n- Verify dimensions, openings, substrate condition and access on site.\n- Itemize removal, disposal, trim, flashing, permits and taxes.\n- Provide product specifications, labor scope, warranty and written exclusions.\n- Confirm any lead-safe requirements and remediation allowances.\n\nNo appointment has been requested. No homeowner information has been sent to a contractor.`;
+  return `CURBQUOTE / CONTRACTOR DISCUSSION BRIEF\nPrepared ${new Date().toISOString().slice(0, 10)}\n\nGoal: ${String(goal).slice(0, 1800) || 'Exterior renovation'}\nTarget budget: ${budget ? `$${budget.toLocaleString('en-US')}` : 'Not specified'}\n\n${buildEstimateSummary(estimateProject(state.inputs, state.options), { address, propertyData: state.propertyData })}\n\nDETAILS TO VERIFY\n${review.questions.length ? review.questions.map(question => `- ${question.message}`).join('\n') : '- Home details marked homeowner-confirmed; professional field verification is still required.'}\n\nQUESTIONS FOR THE CONTRACTOR\n- Verify dimensions, openings, substrate condition and access on site.\n- Itemize removal, disposal, trim, flashing, permits and taxes.\n- Provide product specifications, labor scope, warranty and written exclusions.\n- Confirm any lead-safe requirements and remediation allowances.\n\nNo appointment has been requested. No homeowner information has been sent to a contractor.`;
 }

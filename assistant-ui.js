@@ -7,7 +7,7 @@ const price = pair => pair.map(value => money.format(value)).join(' – ');
 const el = id => document.getElementById(id);
 const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text) node.textContent = text; return node; };
 
-export function setupAssistant({ read, apply, focusField, getAddress, applyLocation }) {
+export function setupAssistant({ read, apply, focusField, getAddress, applyLocation, showProperty }) {
   let confirmed = [], history = [], undo = null, comparisonSnapshot = '', serial = 0, controller = null, saveTimer, paused = false;
   const state = () => validateSnapshot({ ...read(), confirmed });
   const fingerprint = () => JSON.stringify(read());
@@ -131,6 +131,7 @@ export function setupAssistant({ read, apply, focusField, getAddress, applyLocat
       if (payload.comparisons) for (const plan of payload.comparisons.plans) { validateSnapshot({ ...plan, confirmed }); plan.total = estimateProject(plan.inputs, plan.options).total; }
       if (payload.proposal || payload.comparisons) renderPlans(payload.comparisons, payload.proposal);
       if (payload.location) applyLocation(payload.location);
+      if (payload.property) showProperty?.(payload.property);
       activity(payload.activity); conversation('assistant', payload.text); el('assistant-mode').textContent = 'AI assistant';
       status('Assistant finished. Review the calculated proposals and missing details.');
     } catch {

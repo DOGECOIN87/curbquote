@@ -6,9 +6,12 @@ import { chromium } from 'playwright';
 import { createGeocodeHandler } from '../api/geocode.js';
 import { resolveAddress } from '../lib/geocode.mjs';
 import { createAppServer } from '../lib/web.mjs';
+import { createPropertyHandler } from '../api/property.js';
+import { resolveProperty } from '../lib/property.mjs';
+import { propertyEnv, providerObject, propertyRecord } from './fixtures/property.mjs';
 const live = process.env.LIVE_GEOCODE === '1';
 const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
-const server = createAppServer(live ? {} : {
+const server = createAppServer({ ...(live ? {} : {
   geocodeHandler: createGeocodeHandler(value => resolveAddress(value, async url => {
     assert.equal(new URL(url).hostname, 'geocoding.geo.census.gov');
     return { ok: true, json: async () => ({ result: { addressMatches: [{
@@ -16,7 +19,11 @@ const server = createAppServer(live ? {} : {
       coordinates: { x: -76.9, y: 38.84 }
     }] } }) };
   }))
-});
+}), dataHandler: createPropertyHandler({ allow: () => true, available: () => ({ configured: true, provider: 'Synthetic test provider', reason: 'Synthetic test source configured.' }), resolve: address => resolveProperty(address, { env: propertyEnv(), fetchJson: async url => {
+  assert.equal(url.hostname, 'api.example.com');
+  assert.equal(url.searchParams.get('address'), address);
+  return { status: 200, payload: providerObject() };
+} }) }) });
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
@@ -25,7 +32,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, re
 const checks = [];
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
-page.on('console', message => { if (message.type() === 'error' && !message.text().includes('status of 404') && !message.text().includes('status of 503') && !message.text().includes('status of 500')) errors.push(message.text()); });
+page.on('console', message => { if (message.type() === 'error' && ![404, 500, 502, 503].some(status => message.text().includes(`status of ${status}`))) errors.push(message.text()); });
 try {
   await page.goto(base);
   await page.locator('#calculate').click();
@@ -290,6 +297,85 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: join(outputDir, 'assistant-phone.png'), fullPage: true });
   checks.push('Assistant, open measurement review and planning controls fit all 10 responsive viewports');
+  await page.unroute('**/api/assistant');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator('#open-projects').click(); await page.locator('#new-project').click();
+  await page.locator('#property-address').fill('123 Test St, Austin, TX 78701');
+  await page.locator('#verify-address').click();
+  await page.waitForFunction(() => !document.querySelector('#property-record').hidden);
+  assert.match(await page.locator('#property-source').textContent(), /Synthetic test provider/);
+  assert.equal(await page.locator('#stories').inputValue(), '2');
+  assert.equal(await page.locator('#yearBuilt').inputValue(), '1998');
+  assert.equal(await page.locator('#apply-property').isDisabled(), true);
+  await page.locator('#property-identity').check(); await page.locator('#apply-property').click();
+  assert.equal(await page.locator('#stories').inputValue(), '1');
+  assert.equal(await page.locator('#yearBuilt').inputValue(), '1965');
+  assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  assert.equal(await page.locator('#widthFt').inputValue(), '34');
+  assert.equal(await page.locator('#existingWindows').inputValue(), '12');
+  assert.equal(await page.locator('#lead-notice').isVisible(), true);
+  assert.match(await page.locator('#source-stories').textContent(), /Synthetic test provider/);
+  checks.push('Browser → property API → normalized fixture provider → reviewed story/year import leaves exterior dimensions and openings untouched');
+  await page.locator('#yearBuilt').fill('1975');
+  assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
+  const sourceBriefPromise = page.waitForEvent('download'); await page.locator('#download-brief').click();
+  const sourceBrief = await readFile(await (await sourceBriefPromise).path(), 'utf8');
+  assert.match(sourceBrief, /Synthetic test provider/); assert.match(sourceBrief, /source reported 1965; homeowner correction 1975/);
+  await page.clock.runFor(600); await page.reload(); await page.locator('#restore-draft').click();
+  assert.equal(await page.locator('#stories').inputValue(), '1'); assert.equal(await page.locator('#yearBuilt').inputValue(), '1975');
+  assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
+  await page.locator('#save-project').click(); await page.locator('#project-name').fill('Source profile');
+  await page.locator('#save-project-form button[type="submit"]').click();
+  await page.waitForFunction(() => !document.querySelector('#projects-dialog').open);
+  await page.reload(); await page.locator('#open-projects').click(); await page.getByRole('button', { name: 'Open project', exact: true }).click();
+  assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
+  await page.screenshot({ path: join(outputDir, 'property-source-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: join(outputDir, 'property-source-phone.png'), fullPage: true });
+  checks.push('Original source facts and homeowner corrections survive automatic drafts, named project reload and contractor brief export');
+  await page.locator('#property-address').fill('999 Other St, Austin, TX 78701');
+  assert.equal(await page.locator('#property-applied').isVisible(), false);
+  assert.equal(await page.locator('#stories').inputValue(), '2'); assert.equal(await page.locator('#yearBuilt').inputValue(), '1998');
+  assert.doesNotMatch(await page.locator('#print-report-content').textContent(), /Synthetic test provider/);
+  checks.push('Changing the property address clears attribution and restores the inputs from before the import');
+  let releaseProperty, sawProperty;
+  const propertyGate = new Promise(resolve => { releaseProperty = resolve; });
+  const propertySeen = new Promise(resolve => { sawProperty = resolve; });
+  await page.route('**/api/property', async route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { configured: true } });
+    if (route.request().postDataJSON().address.startsWith('123')) { sawProperty(); await propertyGate; await route.fulfill({ json: propertyRecord({ parcel_id: 'OLD-PROPERTY-RECORD' }) }).catch(() => {}); }
+    else await route.fulfill({ json: propertyRecord({ address: '999 OTHER ST, AUSTIN, TX 78701', parcel_id: 'NEW-PROPERTY-RECORD' }) });
+  });
+  await page.locator('#property-address').fill('123 Test St, Austin, TX 78701'); await page.locator('#verify-address').click(); await propertySeen;
+  await page.locator('#property-address').fill('999 Other St, Austin, TX 78701'); await page.locator('#verify-address').click();
+  await page.waitForFunction(() => document.querySelector('#property-facts').textContent.includes('NEW-PROPERTY-RECORD'));
+  releaseProperty(); await page.waitForTimeout(30);
+  assert.doesNotMatch(await page.locator('#property-facts').textContent(), /OLD-PROPERTY-RECORD/);
+  await page.unroute('**/api/property');
+  checks.push('Late property responses cannot attach a previous address record to the current project');
+  await page.route('**/api/property', route => route.fulfill({ json: propertyRecord({ parcel_id: 'RESTRICTED-PARCEL-DO-NOT-STORE' }, { retentionDays: 7, permissions: { mayStore: false, mayDisplay: true, mayProcessWithAI: false, mayExport: false } }) }));
+  await page.locator('#verify-address').click();
+  await page.waitForFunction(() => document.querySelector('#property-facts').textContent.includes('RESTRICTED-PARCEL-DO-NOT-STORE'));
+  assert.equal(await page.locator('#property-import-controls').isVisible(), false);
+  assert.match(await page.locator('#property-permissions').textContent(), /Display only/);
+  await page.clock.runFor(600);
+  assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage }).includes('RESTRICTED-PARCEL-DO-NOT-STORE')), false);
+  assert.doesNotMatch(await page.locator('#print-report-content').textContent(), /RESTRICTED-PARCEL/);
+  for (const [width, height] of matrix) { await page.setViewportSize({ width, height }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Property record overflow at ${width}`); }
+  await page.unroute('**/api/property');
+  checks.push('Restricted source facts are display-only, excluded from local storage and reports, and fit all 10 viewports');
+  const expiresAt = await page.evaluate(() => new Date(Date.now() + 5000).toISOString());
+  await page.route('**/api/property', route => route.fulfill({ json: propertyRecord({ parcel_id: 'EXPIRING-SOURCE-FACT' }, { retentionDays: 1, expiresAt }) }));
+  await page.locator('#verify-address').click(); await page.waitForFunction(() => document.querySelector('#property-facts').textContent.includes('EXPIRING-SOURCE-FACT'));
+  await page.clock.runFor(5100);
+  assert.equal(await page.locator('#property-record').isVisible(), false); assert.equal(await page.locator('#property-facts').textContent(), '');
+  assert.match(await page.locator('#property-status').textContent(), /expired/);
+  await page.unroute('**/api/property');
+  await page.route('**/api/property', route => route.fulfill({ status: 502, contentType: 'text/html', body: '<h1>provider unavailable</h1>' }));
+  await page.locator('#verify-address').click(); await page.waitForFunction(() => document.querySelector('#property-status').textContent.includes('could not be read'));
+  assert.equal(await page.locator('#results').isVisible(), true); await page.unroute('**/api/property');
+  checks.push('Expiring source records are cleared from the DOM; malformed provider responses leave manual estimating usable');
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({media:'print'});
   await page.screenshot({path:join(outputDir,'print-report.png'),fullPage:true});
   assert.deepEqual(errors, []);

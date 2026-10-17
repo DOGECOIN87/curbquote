@@ -1,5 +1,6 @@
 import { estimateProject, validateProject } from './project.js';
 import { DETAIL_FIELDS } from './planning.js';
+import { validatePropertyContext } from './property-data.js';
 
 const KEY = 'curbquote.projects.v1';
 export function readProjects(storage) {
@@ -21,7 +22,12 @@ export function validateSavedProject(project) {
     budget: typeof p.budget === 'string' ? p.budget.slice(0, 16) : '',
     allowPhasing: p.allowPhasing === true
   } : undefined;
-  return { id: project.id, name: project.name.trim(), address: project.address, updatedAt: project.updatedAt, inputs: { ...project.inputs, ...result.inputs }, options, ...(planning ? { planning } : {}) };
+  const propertyData = validatePropertyContext(project.propertyData);
+  const inputs = { ...project.inputs, ...result.inputs };
+  // Stories are unused for window/door budgets, but valid profile facts must survive a save.
+  const stories = Number(project.inputs.stories);
+  if (!options.siding && Number.isInteger(stories) && stories >= 1 && stories <= 4) inputs.stories = stories;
+  return { id: project.id, name: project.name.trim(), address: project.address, updatedAt: project.updatedAt, inputs, options, ...(planning ? { planning } : {}), ...(propertyData ? { propertyData } : {}) };
 }
 export function saveProject(storage, project) {
   const valid = validateSavedProject(project);

@@ -14,7 +14,7 @@
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="/" aria-label="CurbQuote home"><span class="brand-icon" aria-hidden="true"><span></span></span>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
-      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button><span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.3</span></div>
+      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button><span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.4</span></div>
     </header>
     <main>
       <section class="hero" aria-labelledby="hero-title">
@@ -31,6 +31,21 @@
           <span class="measurement-line measurement-horizontal">48 FT</span><span class="measurement-line measurement-vertical">2 STORIES</span>
           <span class="graphic-caption">YOUR HOME, YOUR NUMBERS. <b>01 / 04</b></span>
         </div>
+      </section>
+      <section id="project-assistant" class="assistant-panel" aria-labelledby="assistant-heading">
+        <div class="assistant-header"><div><span class="result-kicker">LESS FORM FILLING. MORE FORWARD MOTION.</span><h2 id="assistant-heading">Your renovation copilot<span aria-hidden="true"> ✳</span></h2><p>Tell us your goal. Compare plans, check the details, and turn a budget into a next step.</p></div><span id="assistant-mode" class="assistant-mode">Automatic planner</span></div>
+        <form id="assistant-form" novalidate>
+          <label for="project-goal">What would you like to do?</label>
+          <textarea id="project-goal" maxlength="1800" rows="2" placeholder="Replace 6 windows and 1 door. Compare practical options for my budget." aria-describedby="assistant-privacy"></textarea>
+          <div class="assistant-controls"><div><label for="project-budget">Target budget <span class="unit">USD</span></label><input id="project-budget" type="number" min="100" max="10000000" step="100" inputmode="numeric" placeholder="e.g. 25000"></div><label class="phase-choice"><input id="allow-phasing" type="checkbox"><span>Allow phased work <small>Compare smaller scopes as a first phase</small></span></label><button type="submit" id="run-assistant" class="primary-button">Run assistant <span aria-hidden="true">↗</span></button></div>
+          <p id="assistant-privacy" class="assistant-help">AI requests send your message and current estimate details to the AI service. Photos stay in your browser. Automatic comparisons work without AI. Address lookup confirms location only.</p>
+        </form>
+        <div class="assistant-shortcuts" aria-label="Automatic project tools"><button type="button" id="compare-plans" class="outline-button">Compare plans</button><button type="button" id="review-project" class="outline-button">Check missing details</button><button type="button" id="download-brief" class="outline-button">Download contractor brief ↓</button><button type="button" id="undo-plan" class="outline-button" hidden>Undo plan change ↶</button><span id="draft-status" role="status"></span><button type="button" id="restore-draft" class="outline-button" hidden>Restore draft</button><button type="button" id="discard-draft" class="outline-button" hidden>Discard draft</button></div>
+        <p id="assistant-status" class="assistant-help" role="status" aria-live="polite">Start with a goal, or compare the current example project.</p>
+        <div id="assistant-conversation" class="assistant-conversation" aria-label="Assistant conversation" aria-live="polite"></div>
+        <ol id="assistant-activity" class="assistant-activity" aria-label="Completed assistant actions" hidden></ol>
+        <div id="plan-comparison" class="plan-comparison" aria-label="Calculated project plans" hidden></div>
+        <details id="detail-review" class="detail-review"><summary id="detail-review-summary">Home details still need confirmation</summary><p class="assistant-help">Only mark details you have checked. Homeowner confirmation is not a professional measurement. Editing a value marks it unconfirmed again.</p><div id="detail-questions" class="detail-questions"></div><ul id="project-warnings" class="project-warnings"></ul></details>
       </section>
       <div class="section-label"><span>THE ESTIMATE WORKSPACE</span><span>01 — GET STARTED</span></div>
       <div class="workspace">

@@ -11,5 +11,5 @@ export async function buildPublicAssets(destination = join(projectRoot, 'dist'))
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   await buildPublicAssets();
-  console.log(`Built ${PUBLIC_ASSETS.length} public browser assets in dist/. API remains in api/geocode.js.`);
+  console.log(`Built ${PUBLIC_ASSETS.length} public browser assets in dist/. Node APIs remain in api/.`);
 }

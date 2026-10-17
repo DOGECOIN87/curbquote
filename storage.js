@@ -1,4 +1,5 @@
 import { estimateProject, validateProject } from './project.js';
+import { DETAIL_FIELDS } from './planning.js';
 
 const KEY = 'curbquote.projects.v1';
 export function readProjects(storage) {
@@ -13,7 +14,14 @@ export function validateSavedProject(project) {
   if (!project || typeof project.id !== 'string' || !/^[a-z0-9-]{8,80}$/i.test(project.id) || typeof project.name !== 'string' || !project.name.trim() || project.name.length > 80 || typeof project.address !== 'string' || project.address.length > 120 || typeof project.updatedAt !== 'string' || !Number.isFinite(Date.parse(project.updatedAt))) throw new Error('A saved project is invalid.');
   const options = validateProject(project.options);
   const result = estimateProject(project.inputs, options);
-  return { id: project.id, name: project.name.trim(), address: project.address, updatedAt: project.updatedAt, inputs: { ...project.inputs, ...result.inputs }, options };
+  const p = project.planning;
+  const planning = p && typeof p === 'object' ? {
+    confirmed: Array.isArray(p.confirmed) ? [...new Set(p.confirmed.filter(key => DETAIL_FIELDS.includes(key)))] : [],
+    goal: typeof p.goal === 'string' ? p.goal.slice(0, 1800) : '',
+    budget: typeof p.budget === 'string' ? p.budget.slice(0, 16) : '',
+    allowPhasing: p.allowPhasing === true
+  } : undefined;
+  return { id: project.id, name: project.name.trim(), address: project.address, updatedAt: project.updatedAt, inputs: { ...project.inputs, ...result.inputs }, options, ...(planning ? { planning } : {}) };
 }
 export function saveProject(storage, project) {
   const valid = validateSavedProject(project);

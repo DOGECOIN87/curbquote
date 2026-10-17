@@ -1,6 +1,6 @@
 {
   "name": "curbquote",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Transparent homeowner-guided exterior renovation estimate prototype",
@@ -9,12 +9,16 @@
     "build": "node scripts/build.mjs",
     "test": "node --test",
     "test:browser": "node qa/browser.mjs",
-    "check": "node --check main.js && node --check estimate.js && node --check address.js && node --check summary.js && node --check project.js && node --check storage.js && node --check photo-editor.js && node --check qa/browser.mjs && node --check lib/geocode.mjs && node --check lib/web.mjs && node --check api/geocode.js && node --check scripts/dev-server.mjs && node --check scripts/build.mjs && npm test && npm run build"
+    "check": "node --check planning.js && node --check assistant-ui.js && node --check lib/agent.mjs && node --check api/assistant.js && node --check main.js && node --check estimate.js && node --check address.js && node --check summary.js && node --check project.js && node --check storage.js && node --check photo-editor.js && node --check qa/browser.mjs && node --check lib/geocode.mjs && node --check lib/web.mjs && node --check api/geocode.js && node --check scripts/dev-server.mjs && node --check scripts/build.mjs && npm test && npm run build"
   },
   "engines": {
     "node": "22.x"
   },
   "devDependencies": {
     "playwright": "1.62.1"
+  },
+  "dependencies": {
+    "ai": "7.0.143",
+    "zod": "4.6.7"
   }
 }

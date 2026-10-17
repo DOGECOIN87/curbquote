@@ -74,20 +74,20 @@ export function validateInput(candidate) {
 }
 
 function roundMoney(n) { return Math.round(n); }
-export function estimateExterior(input) {
+export function estimateExterior(input, { siding = true, coveragePercent = 100 } = {}) {
   const p = validateInput(input);
   const perimeterFt = 2 * (p.lengthFt + p.widthFt);
   const grossWallsSqFt = perimeterFt * p.stories * p.storyHeightFt;
   const gableSqFt = p.gables * (Math.min(p.lengthFt, p.widthFt) * p.gableRiseFt / 2);
   const grossSqFt = grossWallsSqFt + gableSqFt;
   const openingsSqFt = p.existingWindows * ASSUMPTIONS.windowOpeningSqFt + p.existingDoors * ASSUMPTIONS.doorOpeningSqFt;
-  if (openingsSqFt > grossSqFt) {
+  if (siding && openingsSqFt > grossSqFt) {
     throw new InputError('Assumed window and door openings exceed the wall area. Check the dimensions and opening counts.', 'existingWindows');
   }
   // Apply masonry to solid walls so openings in masonry are not also deducted from siding.
-  const solidWallsSqFt = grossSqFt - openingsSqFt;
+  const solidWallsSqFt = Math.max(0, grossSqFt - openingsSqFt);
   const masonrySqFt = solidWallsSqFt * p.masonryPercent / 100;
-  const sidingNetSqFt = solidWallsSqFt - masonrySqFt;
+  const sidingNetSqFt = siding ? (solidWallsSqFt - masonrySqFt) * coveragePercent / 100 : 0;
   const sidingOrderSqFt = sidingNetSqFt * (1 + ASSUMPTIONS.wasteFraction);
   const sidingLowSqFt = sidingOrderSqFt * (1 - GEOMETRY_VARIATION);
   const sidingHighSqFt = sidingOrderSqFt * (1 + GEOMETRY_VARIATION);

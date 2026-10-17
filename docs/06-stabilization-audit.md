@@ -1,5 +1,7 @@
 # Phase A — repository audit and stabilization
 
+Historical audit for commit `c5f9b64`. The subsequent functional prototype, including project scope selection, saved projects and local photo concepts, is described in [07-functional-prototype.md](07-functional-prototype.md).
+
 Date: October 17, 2026. Baseline: `d16d71f348b60a19f0e24c34ca79c646a7c0adb0` on `research/feasibility-report`, draft PR #1 targeting `main`. The repository contained the MVP and research described in the handover; it was not replaced with a different framework.
 
 ## Baseline evidence

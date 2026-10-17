@@ -7,16 +7,18 @@ Status: working MVP prototype plus draft research (October 2026). The estimator 
 
 ## Working prototype
 
-A mobile-friendly siding, windows, and doors budget estimator now lives in this repository. It uses **homeowner-entered measurements and illustrative prices**; optional U.S. Census address matching provides a rough location only, not building geometry or a parcel survey. **No accuracy calibration or production deployment has been completed.**
+A mobile-friendly siding, windows, and doors budget estimator now lives in this repository. It uses **homeowner-entered measurements and illustrative prices**; optional U.S. Census address matching provides a rough location only, not building geometry or a parcel survey. **Accuracy is not calibrated against completed jobs.** The functional prototype now includes project scopes, materials/tiers, device-local saved projects, and a manually marked photo color preview.
 
 ```bash
 npm run dev       # http://localhost:3000
-npm run check     # syntax checks, 21 automated tests, public build
+npm run check     # syntax checks, 27 automated tests, public build
 ```
 
 See [README-MVP.md](README-MVP.md) for usage, assumptions, limitations, and pre-launch requirements. Pricing shown in the prototype is editable example data, not a contractor price book.
 
 The [Phase A audit](docs/06-stabilization-audit.md) records the source review, fixes, browser verification, and remaining launch blockers. Reproducible Chromium checks run in CI using a fixture provider; a separate opt-in live check can call Census.
+
+See [the functional prototype notes](docs/07-functional-prototype.md) for the implemented flows, browser storage behavior and hosting setup.
 
 ## Planned customer journey (not current capabilities)
 

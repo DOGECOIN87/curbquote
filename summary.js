@@ -12,12 +12,19 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Pricing: ${p.version}${p.customized ? ' (edited)' : ''} — illustrative example rates, not contractor pricing`,
     `Address entered: ${singleLine(address) || '(not provided)'}`,
     `Census address-range match: ${singleLine(matchedAddress) || 'Not matched'}`,
+    ...(result.project ? [
+      `Selected projects: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).join(', ')}`,
+      `Product tier: ${result.productNames.tier}`,
+      `Products: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).map(key => result.productNames[key]).join('; ')}`,
+      `Siding coverage: ${result.project.siding ? result.project.coveragePercent + '%' : 'not selected'}; color concept: ${result.productNames.color}`
+    ] : []),
     '',
     `Budget range: ${range(result.total)}`,
-    `Siding: ${range(result.items.siding)}`,
+    `Siding: ${result.project?.siding === false ? 'Not selected' : range(result.items.siding)}`,
     `Windows (${i.replaceWindows}): ${range(result.items.windows)}`,
     `Doors (${i.replaceDoors}): ${range(result.items.doors)}`,
     '',
+    ...(result.project?.siding === false ? ['Building geometry is not used for this window/door-only budget.'] : [
     `Footprint: ${i.lengthFt} ft by ${i.widthFt} ft; ${i.stories} stories; ${i.storyHeightFt} ft/story`,
     `Gables: ${i.gables}; base assumed ${Math.min(i.lengthFt, i.widthFt)} ft; rise ${i.gableRiseFt} ft`,
     `Existing openings: ${i.existingWindows} windows, ${i.existingDoors} doors`,
@@ -27,6 +34,7 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Net siding: ${g.sidingNetSqFt.toFixed(2)} sq ft; with ${a.wasteFraction * 100}% waste: ${g.sidingOrderSqFt.toFixed(2)} sq ft`,
     `Siding quantity scenario: ±${a.geometryVariation * 100}% (illustrative, not a confidence interval)`,
     `Siding cost uses unrounded sq ft, not the ${g.squares} whole 100-sq-ft squares shown for reference.`,
+    ]),
     `Prices (USD): siding ${i.sidingLowPerSqFt}–${i.sidingHighPerSqFt}/sq ft; windows ${i.windowLowEach}–${i.windowHighEach}/each; doors ${i.doorLowEach}–${i.doorHighEach}/each`,
     'Rounding: each line-item endpoint is rounded to whole dollars, then line items are summed.',
     `Year built: ${i.yearBuilt}${result.leadPaintReview ? ' (review lead-safe renovation requirements; cost not included)' : ''}`,

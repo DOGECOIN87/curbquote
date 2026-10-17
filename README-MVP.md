@@ -14,7 +14,7 @@ npm run check
 
 Development, calculation tests and the static build use only Node built-ins. Playwright is a pinned development dependency for browser regression tests. There are no production npm dependencies.
 
-Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the six browser assets into `dist/`; `/api/geocode` remains a Node function from `api/geocode.js`. Do not use a static-only host for geocoding. A hosted Vercel deployment has **not** been verified yet.
+Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the nine browser assets into `dist/`; `/api/geocode` remains a Node function from `api/geocode.js`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
 
 ```sh
 npm ci --ignore-scripts
@@ -25,23 +25,33 @@ LIVE_GEOCODE=1 npm run test:browser  # opt-in live Census smoke test
 
 Browser checks produce screenshots and a check list in the ignored `qa-output/` directory. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select a preinstalled Chromium executable. GitHub Actions runs both the unit/integration suite and the browser checks.
 
-## What works
+## Working homeowner flow
+
+- Select siding, windows, doors or a combination. Set partial siding coverage and replacement counts.
+- Choose among three materials/styles per product line and Standard, Enhanced or Premium tiers. Editable example rates update the budget immediately; the catalog is explicitly illustrative and versioned.
+- Pick siding colors in the example-home illustration. Upload your own JPEG/PNG/WebP, mark wall polygons, and preview a color overlay only inside those areas. Download the resulting PNG. This is a manual color concept, not automatic measurement, AI segmentation or a manufacturer-accurate visualization.
+- Save, reopen, update and delete named projects on this device. Exact inputs/options use localStorage; photos and wall selections use IndexedDB. Records survive reload on the same site origin. There is no account, cloud sync or server photo storage; clearing browser/site data removes projects and photos.
+- Download/print an itemized estimate with scope, selections, model, exact rates, assumptions and exclusions.
+
+See [the prototype implementation notes](docs/07-functional-prototype.md) for current scope and validation.
+
+## Estimation and address behavior
 
 - User enters a U.S. street address and optionally asks for a match from the **U.S. Census Geocoding Services API** (`/api/geocode`). Coordinates are **address-range approximations**, not property boundaries, verified parcel data, building size, ownership or measurements. Geocoder may fail; estimator still functions.
 - User supplies **length, width, stories, wall height, gables, brick/stone share, existing openings, requested replacements and year built**. Defaults are demonstration values, **not pulled from their property**.
 - The model computes approximate gross wall area, deducts assumed openings, applies brick/stone share to the remaining solid walls, adds **10% waste**, and applies an **illustrative ±18% siding quantity scenario**, **not an empirically calibrated confidence interval**. Openings larger than the wall area are rejected.
-- Low/high price settings are editable and are **example values, not local pricing research**. Reports record `manual-geometry-v2`, the baseline `illustrative-usd-v1` price version, whether rates were edited, and the exact numeric rates. This is not a contractor price-book system. No backend stores estimates; download is handled entirely in the browser.
+- Low/high price settings are editable and are **example values, not local pricing research**. Reports record `manual-geometry-v2`, the selected `demo-products-2026-10-v1` catalog version, whether rates were edited, and the exact numeric rates. This is not a contractor price-book system. No backend stores estimates; download is handled entirely in the browser.
 - If year built is prior to 1978, display an **EPA lead-safe work review** notice.
 - Download or print the same complete summary, including dimensions, address-match status, pricing and calculation assumptions. Invalid fields clear printable costs; correcting a field restores live calculations. The website never requests a phone number or marketing consent.
 - Address errors distinguish invalid input (400), no/multiple matches (422), invalid upstream data (502), service failure (503), and timeout (504). The upstream request has a seven-second budget and the browser has a nine-second deadline. Address edits cancel stale browser requests. Manual estimation stays available.
 
 ## Known limitations and pre-launch blockers
 
-1. No real parcel/footprint or assessor attributes, and no photo ingestion. **Address lookup does not supply dimensions.** Connecting a licensed provider requires rights review and validation in each market.
+1. No real parcel/footprint or assessor attributes. Photos are supplied and marked by the homeowner, not measured automatically. **Address lookup does not supply dimensions.** Connecting a licensed provider requires rights review and validation in each market.
 2. No contractor price book, labor/material adders, taxes, permit fees, tear-off, trim, labor complexity, accessibility, RRP work or region calibration.
 3. Accuracy is untested. Compare estimates against completed jobs (see `data/backtest-template.csv`) before showing customer-facing dollar claims. Current ±18% is a scenario assumption only.
 4. API lookups send the entered address to the U.S. Census through your hosting environment; hosting access logs may record request URLs. Do not claim end-to-end address confidentiality. Add hosting log controls and a privacy policy before production.
-5. No durable profiles, login, photo visualization, back-end rate limits, or hosted deployment verification. Provider outage handling is implemented; production API usage still needs durable abuse protection and monitoring.
+5. No cloud profiles, login, back-end rate limits or production operations. Provider outage handling is implemented; production API usage still needs durable abuse protection and monitoring.
 6. The prototype is not validated for state-specific contractor or consumer-estimate regulations; obtain legal review before launch.
 
 ## Estimator formulas
@@ -60,7 +70,7 @@ doors = replaced_door_count × [user_low_rate, user_high_rate]
 project_range = siding_range + window_range + door_range
 ```
 
-Each cost endpoint is rounded to whole dollars before line items are summed. Whole siding squares are `ceil(order_sqft / 100)` for reference; costs use unrounded square feet. The model covers all remaining siding, with no partial-wall or siding opt-out selector yet.
+Each cost endpoint is rounded to whole dollars before line items are summed. Whole siding squares are `ceil(order_sqft / 100)` for reference; costs use unrounded square feet. Selected siding coverage applies to the estimated net siding area; unselected product lines have zero cost. Window/door-only budgets do not use building dimensions.
 
 The 15/21 sq ft opening areas are crude defaults. The rectangular footprint and equal gable-base assumptions are exposed in the form and report. Do not use these numbers to order siding or certify a contract. See `docs/02-estimation.md` for the proposed validated estimation methods.
 

@@ -1,0 +1,13 @@
+{
+  "name": "curbquote",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Transparent homeowner-guided exterior renovation estimate prototype",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "test": "node --test",
+    "check": "node --check main.js && node --check estimate.js && node --check lib/geocode.mjs && node --check api/geocode.js && node --check scripts/dev-server.mjs && npm test"
+  },
+  "engines": {"node": ">=20"}
+}

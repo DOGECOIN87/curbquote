@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102e35">
+  <meta name="description" content="Build a transparent preliminary exterior siding, window, and door renovation estimate. No account required.">
+  <title>CurbQuote — Know the scope before the quote</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/main.js"></script>
+</head>
+<body>
+  <a href="#estimate-form" class="skip-link">Skip to estimator</a>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="CurbQuote home"><span class="brand-icon" aria-hidden="true"><span></span></span>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
+      <span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.1</span>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-line"></span> A SMARTER START TO RENOVATION</div>
+          <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
+          <p>Explore a preliminary budget for your home's siding, windows, and doors. Add what you know, see exactly how the numbers are calculated.</p>
+          <div class="hero-meta"><span class="meta-tick">✓</span> No sign-up required <span class="meta-divider"></span> <span class="meta-tick">✓</span> Estimates stay in this browser tab</div>
+        </div>
+        <div class="hero-graphic" aria-hidden="true">
+          <div class="graphic-grid"></div><div class="graphic-disc"></div>
+          <div class="house-roof"></div><div class="house-body"><div class="house-window left"><i></i></div><div class="house-window right"><i></i></div><div class="house-door"><i></i></div></div>
+          <div class="house-ground"></div>
+          <span class="measurement-line measurement-horizontal">48 FT</span><span class="measurement-line measurement-vertical">2 STORIES</span>
+          <span class="graphic-caption">YOUR HOME, YOUR NUMBERS. <b>01 / 03</b></span>
+        </div>
+      </section>
+      <div class="section-label"><span>THE ESTIMATE WORKSPACE</span><span>01 — GET STARTED</span></div>
+      <div class="workspace">
+        <form id="estimate-form" class="entry-panel" novalidate>
+          <section class="form-section address-section" aria-labelledby="address-heading">
+            <div class="section-head"><span class="step-number">01</span><div><h2 id="address-heading">Find your property</h2><p>Try a U.S. street address to confirm its approximate location.</p></div></div>
+            <label for="property-address">Property street address</label>
+            <div class="address-entry"><input type="text" id="property-address" name="property-address" autocomplete="street-address" maxlength="120" placeholder="123 Main St, Austin, TX 78701" spellcheck="false"><button type="button" id="verify-address" class="secondary-button">Find address <span aria-hidden="true">↗</span></button></div>
+            <div class="field-help" id="address-status" role="status" aria-live="polite">Address lookup is optional. Census location matching does not measure your home.</div>
+          </section>
+          <section class="form-section" aria-labelledby="measure-heading">
+            <div class="section-head"><span class="step-number">02</span><div><h2 id="measure-heading">Tell us about the home</h2><p>Use your best-known dimensions. Example values are prefilled so you can test the tool.</p></div></div>
+            <div class="mini-heading">BUILDING FOOTPRINT</div>
+            <div class="field-grid field-grid-3">
+              <div><label for="lengthFt">Length <span class="unit">ft</span></label><input id="lengthFt" name="lengthFt" type="number" inputmode="decimal" min="10" max="350" step="0.5" required value="48"></div>
+              <div><label for="widthFt">Width <span class="unit">ft</span></label><input id="widthFt" name="widthFt" type="number" inputmode="decimal" min="10" max="350" step="0.5" required value="34"></div>
+              <div><label for="stories">Stories</label><select id="stories" name="stories"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+            </div>
+            <div class="field-grid field-grid-3">
+              <div><label for="storyHeightFt">Height / story <span class="unit">ft</span></label><input id="storyHeightFt" name="storyHeightFt" type="number" inputmode="decimal" min="7" max="16" step="0.5" value="9"></div>
+              <div><label for="gables">Gable ends</label><input id="gables" name="gables" type="number" min="0" max="12" step="1" value="2"></div>
+              <div><label for="gableRiseFt">Gable rise <span class="unit">ft</span></label><input id="gableRiseFt" name="gableRiseFt" type="number" min="0" max="20" step="0.5" value="6"></div>
+            </div>
+            <div class="field-grid field-grid-2">
+              <div><label for="masonryPercent">Exterior brick / stone <span class="unit">%</span></label><input id="masonryPercent" name="masonryPercent" type="number" min="0" max="100" step="1" value="20"></div>
+              <div><label for="yearBuilt">Year built</label><input id="yearBuilt" name="yearBuilt" type="number" min="1700" max="2100" step="1" value="1998"></div>
+            </div>
+            <div class="mini-heading with-gap">OPENINGS & REPLACEMENTS</div>
+            <div class="field-grid field-grid-2">
+              <div><label for="existingWindows">Total exterior windows</label><input id="existingWindows" name="existingWindows" type="number" min="0" max="150" step="1" value="12"></div>
+              <div><label for="replaceWindows">Windows to replace</label><input id="replaceWindows" name="replaceWindows" type="number" min="0" max="150" step="1" value="6"></div>
+              <div><label for="existingDoors">Total exterior doors</label><input id="existingDoors" name="existingDoors" type="number" min="0" max="50" step="1" value="2"></div>
+              <div><label for="replaceDoors">Doors to replace</label><input id="replaceDoors" name="replaceDoors" type="number" min="0" max="50" step="1" value="1"></div>
+            </div>
+            <p class="micro-note">We use approximate window and door opening areas to estimate siding coverage. Count all exterior openings, even if you're not replacing them.</p>
+          </section>
+          <section class="form-section pricing-section" aria-labelledby="pricing-heading">
+            <div class="section-head"><span class="step-number">03</span><div><h2 id="pricing-heading">Set your price assumptions</h2><p>These are illustrative starting values—not verified local contractor prices.</p></div></div>
+            <details id="price-details"><summary>View & edit example unit prices <span aria-hidden="true">⌄</span></summary>
+              <div class="price-grid">
+                <div class="price-category"><strong>Siding <small>installed / sq ft</small></strong><div class="field-grid field-grid-2"><div><label for="sidingLowPerSqFt">Low $</label><input id="sidingLowPerSqFt" name="sidingLowPerSqFt" type="number" min="0" max="100" step="0.5" value="7"></div><div><label for="sidingHighPerSqFt">High $</label><input id="sidingHighPerSqFt" name="sidingHighPerSqFt" type="number" min="0" max="100" step="0.5" value="14"></div></div></div>
+                <div class="price-category"><strong>Windows <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="windowLowEach">Low $</label><input id="windowLowEach" name="windowLowEach" type="number" min="0" max="20000" step="50" value="500"></div><div><label for="windowHighEach">High $</label><input id="windowHighEach" name="windowHighEach" type="number" min="0" max="20000" step="50" value="1300"></div></div></div>
+                <div class="price-category"><strong>Doors <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="doorLowEach">Low $</label><input id="doorLowEach" name="doorLowEach" type="number" min="0" max="30000" step="50" value="1200"></div><div><label for="doorHighEach">High $</label><input id="doorHighEach" name="doorHighEach" type="number" min="0" max="30000" step="50" value="3000"></div></div></div>
+              </div>
+            </details>
+            <p id="form-error" class="error-message" role="alert" hidden></p>
+            <button id="calculate" type="submit" class="primary-button">Calculate my estimate <span aria-hidden="true">↗</span></button>
+            <span class="privacy-hint">No account or saved estimates. Address lookup sends the address to U.S. Census.</span>
+          </section>
+        </form>
+        <aside class="result-panel" aria-label="Estimate results">
+          <div class="result-heading"><span class="result-kicker">YOUR PROJECT SNAPSHOT</span><span class="live-indicator"><span></span> WORKING ESTIMATE</span></div>
+          <div id="empty-state" class="empty-state"><div class="empty-symbol" aria-hidden="true">▤</div><h2>Your numbers, in focus.</h2><p>Confirm your home details and calculate to build an itemized range.</p><div class="empty-lines" aria-hidden="true"><span></span><span></span><span></span></div></div>
+          <div id="results" hidden>
+            <div class="total-card"><span class="total-eyebrow">PRELIMINARY PROJECT RANGE</span><div id="total-range" class="total-range">—</div><p>Illustrative budget, not a contractor quote</p></div>
+            <div class="result-subtitle">COST BREAKDOWN <span>ESTIMATED RANGE</span></div>
+            <div class="line-item"><div class="item-icon siding-icon">▥</div><div class="item-label"><strong>Siding</strong><span id="siding-qty">—</span></div><strong id="siding-range" class="item-price">—</strong></div>
+            <div class="line-item"><div class="item-icon window-icon">⊞</div><div class="item-label"><strong>Windows</strong><span id="window-qty">—</span></div><strong id="window-range" class="item-price">—</strong></div>
+            <div class="line-item"><div class="item-icon door-icon">▯</div><div class="item-label"><strong>Doors</strong><span id="door-qty">—</span></div><strong id="door-range" class="item-price">—</strong></div>
+            <div class="scope-section"><div class="scope-title">HOW THIS WAS CALCULATED</div><dl class="scope-table"><div><dt>Exterior wall perimeter</dt><dd id="perimeter">—</dd></div><div><dt>Gross walls + gables</dt><dd id="gross-area">—</dd></div><div><dt>Net siding area</dt><dd id="net-area">—</dd></div><div><dt>Order qty + 10% waste</dt><dd id="order-area">—</dd></div><div><dt>Illustrative variation</dt><dd>±18% siding quantity</dd></div></dl></div>
+            <div id="lead-notice" class="notice" hidden><strong>Pre-1978 building: lead-safe review</strong><span>Lead-safe work requirements may affect scope and cost. This model does not price lead remediation.</span></div>
+            <div class="notice muted-notice"><strong>What's not included?</strong><span>Permits, taxes, specialty trim, disposal, rot, lead-safe work, unusual geometry, and site-specific labor adjustments. Verify measurements before ordering.</span></div>
+            <div class="result-actions"><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div>
+          </div>
+          <div class="result-footer"><span class="tiny-orbit" aria-hidden="true">◉</span><span>Built for transparency, not guesswork.</span></div>
+        </aside>
+      </div>
+    </main>
+    <footer class="site-footer"><span>© 2026 CURBQUOTE / EARLY PROTOTYPE</span><span>DATA: U.S. CENSUS (OPTIONAL) · INPUTS: HOMEOWNER</span></footer>
+  </div>
+</body>
+</html>

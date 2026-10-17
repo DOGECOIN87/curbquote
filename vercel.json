@@ -1,0 +1,4 @@
+{
+  "version": 2,
+  "functions": { "api/geocode.js": { "maxDuration": 10 } }
+}

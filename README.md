@@ -3,7 +3,18 @@
 **Instant exterior estimates (siding, windows, doors) from a homeowner's address, with a
 path to showing the homeowner's actual house with new products on it.**
 
-Status: research and planning (October 2026). No application code yet.
+Status: working MVP prototype plus draft research (October 2026). The estimator is a homeowner-guided planning tool, not a verified address-to-measurement service or a binding contractor quote.
+
+## Working prototype
+
+A mobile-friendly siding, windows, and doors budget estimator now lives in this repository. It uses **homeowner-entered measurements and illustrative prices**; optional U.S. Census address matching provides a rough location only, not building geometry or a parcel survey. **No accuracy calibration or production deployment has been completed.**
+
+```bash
+npm run dev       # http://localhost:3000
+npm run check     # syntax checks + seven automated tests
+```
+
+See [README-MVP.md](README-MVP.md) for usage, assumptions, limitations, and pre-launch requirements. Pricing shown in the prototype is editable example data, not a contractor price book.
 
 ## The idea
 

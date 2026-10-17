@@ -92,7 +92,7 @@ flowchart LR
 | Footprint + lidar | Every address | Free (open data). You pay only compute/storage |
 | Street View display | Every address (optional) | About $0.007 each after the free threshold |
 | LLM vision on photos | Signed-in users who upload | Typically cents per photo. Check current model pricing |
-| EagleView / Hover | Qualified or booked leads only | ~$18–$67.50+ per EagleView report; ~$29–$139 per Hover project (reported) |
+| EagleView / Hover | Qualified or booked leads only | EagleView residential reports start at $40 (Walls), $67.50 (Walls, Windows & Doors) or $91 (Full House), per [official pricing](https://www.eagleview.com/pricing/); ~$29–$139 per Hover project (third-party reported, verify) |
 | Generative renders | Visualization users | ~$0.01–$0.24 per image |
 
 Most cost will be engineering time, not data.

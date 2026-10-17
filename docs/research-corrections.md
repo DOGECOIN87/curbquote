@@ -1,10 +1,10 @@
 # Research corrections and implementation audit — October 17, 2026
 
-This file supplements the existing Claude Code research in PR #1. Its corrections should be incorporated into `docs/01-data-sources.md`, `docs/04-architecture-and-roadmap.md`, and `README.md` before the research is promoted from draft. This does not constitute an exhaustive legal or commercial verification of every cited vendor.
+This file supplements the existing Claude Code research in PR #1. The EagleView pricing corrections and MVP status edits have been incorporated into `docs/01-data-sources.md`, `docs/04-architecture-and-roadmap.md`, and `README.md`. This does not constitute an exhaustive legal or commercial verification of every cited vendor. See `06-stabilization-audit.md` for the subsequent application audit.
 
 ## Confirmed pricing error (EagleView)
 
-The draft lists EagleView **Walls $18, Walls/Windows/Doors $24.25, precise Walls $40, Full House $67.50**. These mix distinct roofing and wall products and are materially incorrect.
+The original draft listed EagleView **Walls $18, Walls/Windows/Doors $24.25, precise Walls $40, Full House $67.50**. These mixed distinct roofing and wall products and were corrected.
 
 Current vendor-published **residential** price tiers (checked Oct. 17, 2026):
 
@@ -16,7 +16,7 @@ Current vendor-published **residential** price tiers (checked Oct. 17, 2026):
 
 EagleView's **$18 Bid Perfect** and **$24.25 Premium Gold** prices are **roofing** products; they must not be used as a wall measurement cost in the roadmap's unit-economics model. Platinum prices require contacting the vendor. See: https://www.eagleview.com/pricing/ and https://www.eagleview.com/product/residential-property-reports-for-construction/ . Prices may change and do not include negotiated partner rates.
 
-### Required research text edits
+### Applied research text edits
 
 1. `docs/01-data-sources.md`: replace the EagleView price table row with the corrected residential tiers and vendor links above; label prices vendor-published, not paid/guaranteed.
 2. `docs/04-architecture-and-roadmap.md`: change the `EagleView / Hover` unit-cost range (currently `$18–$67.50+`) to separate the Walls $40 / Walls, Windows & Doors $67.50–$78 / Full House $91–$105 tiers. Hover prices are still unverified.

@@ -14,7 +14,7 @@
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="/" aria-label="CurbQuote home"><span class="brand-icon" aria-hidden="true"><span></span></span>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
-      <span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.1</span>
+      <span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.2</span>
     </header>
     <main>
       <section class="hero" aria-labelledby="hero-title">
@@ -22,7 +22,7 @@
           <div class="eyebrow"><span class="eyebrow-line"></span> A SMARTER START TO RENOVATION</div>
           <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
           <p>Explore a preliminary budget for your home's siding, windows, and doors. Add what you know, see exactly how the numbers are calculated.</p>
-          <div class="hero-meta"><span class="meta-tick">✓</span> No sign-up required <span class="meta-divider"></span> <span class="meta-tick">✓</span> Estimates stay in this browser tab</div>
+          <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick">✓</span>No sign-up required</span><span class="meta-divider"></span><span class="hero-benefit"><span class="meta-tick">✓</span>Estimates stay in this browser tab</span></div>
         </div>
         <div class="hero-graphic" aria-hidden="true">
           <div class="graphic-grid"></div><div class="graphic-disc"></div>
@@ -38,7 +38,7 @@
           <section class="form-section address-section" aria-labelledby="address-heading">
             <div class="section-head"><span class="step-number">01</span><div><h2 id="address-heading">Find your property</h2><p>Try a U.S. street address to confirm its approximate location.</p></div></div>
             <label for="property-address">Property street address</label>
-            <div class="address-entry"><input type="text" id="property-address" name="property-address" autocomplete="street-address" maxlength="120" placeholder="123 Main St, Austin, TX 78701" spellcheck="false"><button type="button" id="verify-address" class="secondary-button">Find address <span aria-hidden="true">↗</span></button></div>
+            <div class="address-entry"><input type="text" id="property-address" name="property-address" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="123 Main St, Austin, TX 78701" spellcheck="false"><button type="button" id="verify-address" class="secondary-button">Find address <span aria-hidden="true">↗</span></button></div>
             <div class="field-help" id="address-status" role="status" aria-live="polite">Address lookup is optional. Census location matching does not measure your home.</div>
           </section>
           <section class="form-section" aria-labelledby="measure-heading">
@@ -55,9 +55,10 @@
               <div><label for="gableRiseFt">Gable rise <span class="unit">ft</span></label><input id="gableRiseFt" name="gableRiseFt" type="number" min="0" max="20" step="0.5" value="6"></div>
             </div>
             <div class="field-grid field-grid-2">
-              <div><label for="masonryPercent">Exterior brick / stone <span class="unit">%</span></label><input id="masonryPercent" name="masonryPercent" type="number" min="0" max="100" step="1" value="20"></div>
+              <div><label for="masonryPercent">Brick / stone share <span class="unit">%</span></label><input id="masonryPercent" name="masonryPercent" aria-describedby="masonry-help" type="number" min="0" max="100" step="1" value="20"></div>
               <div><label for="yearBuilt">Year built</label><input id="yearBuilt" name="yearBuilt" type="number" min="1700" max="2100" step="1" value="1998"></div>
             </div>
+            <p id="masonry-help" class="micro-note">Brick / stone share means the percentage of solid wall area after windows and doors are removed. Gables use the shorter footprint dimension as their base.</p>
             <div class="mini-heading with-gap">OPENINGS & REPLACEMENTS</div>
             <div class="field-grid field-grid-2">
               <div><label for="existingWindows">Total exterior windows</label><input id="existingWindows" name="existingWindows" type="number" min="0" max="150" step="1" value="12"></div>
@@ -65,7 +66,7 @@
               <div><label for="existingDoors">Total exterior doors</label><input id="existingDoors" name="existingDoors" type="number" min="0" max="50" step="1" value="2"></div>
               <div><label for="replaceDoors">Doors to replace</label><input id="replaceDoors" name="replaceDoors" type="number" min="0" max="50" step="1" value="1"></div>
             </div>
-            <p class="micro-note">We use approximate window and door opening areas to estimate siding coverage. Count all exterior openings, even if you're not replacing them.</p>
+            <p class="micro-note">We assume 15 sq ft per window and 21 sq ft per door. Count all exterior openings, even if you're not replacing them. This model covers all remaining siding; enter zero replacements for windows or doors you want to keep.</p>
           </section>
           <section class="form-section pricing-section" aria-labelledby="pricing-heading">
             <div class="section-head"><span class="step-number">03</span><div><h2 id="pricing-heading">Set your price assumptions</h2><p>These are illustrative starting values—not verified local contractor prices.</p></div></div>
@@ -82,15 +83,19 @@
           </section>
         </form>
         <aside class="result-panel" aria-label="Estimate results">
+          <p id="result-status" class="sr-only" role="status" aria-live="polite"></p>
           <div class="result-heading"><span class="result-kicker">YOUR PROJECT SNAPSHOT</span><span class="live-indicator"><span></span> WORKING ESTIMATE</span></div>
           <div id="empty-state" class="empty-state"><div class="empty-symbol" aria-hidden="true">▤</div><h2>Your numbers, in focus.</h2><p>Confirm your home details and calculate to build an itemized range.</p><div class="empty-lines" aria-hidden="true"><span></span><span></span><span></span></div></div>
           <div id="results" hidden>
+            <p id="result-address" class="result-address"></p>
             <div class="total-card"><span class="total-eyebrow">PRELIMINARY PROJECT RANGE</span><div id="total-range" class="total-range">—</div><p>Illustrative budget, not a contractor quote</p></div>
             <div class="result-subtitle">COST BREAKDOWN <span>ESTIMATED RANGE</span></div>
             <div class="line-item"><div class="item-icon siding-icon">▥</div><div class="item-label"><strong>Siding</strong><span id="siding-qty">—</span></div><strong id="siding-range" class="item-price">—</strong></div>
             <div class="line-item"><div class="item-icon window-icon">⊞</div><div class="item-label"><strong>Windows</strong><span id="window-qty">—</span></div><strong id="window-range" class="item-price">—</strong></div>
             <div class="line-item"><div class="item-icon door-icon">▯</div><div class="item-label"><strong>Doors</strong><span id="door-qty">—</span></div><strong id="door-range" class="item-price">—</strong></div>
             <div class="scope-section"><div class="scope-title">HOW THIS WAS CALCULATED</div><dl class="scope-table"><div><dt>Exterior wall perimeter</dt><dd id="perimeter">—</dd></div><div><dt>Gross walls + gables</dt><dd id="gross-area">—</dd></div><div><dt>Net siding area</dt><dd id="net-area">—</dd></div><div><dt>Order qty + 10% waste</dt><dd id="order-area">—</dd></div><div><dt>Illustrative variation</dt><dd>±18% siding quantity</dd></div></dl></div>
+            <p class="calculation-note">Siding cost uses unrounded square feet, with 10% waste and the ±18% quantity scenario. Whole squares are shown for reference. This range is not a confidence interval.</p>
+            <p id="pricing-source" class="calculation-note"></p>
             <div id="lead-notice" class="notice" hidden><strong>Pre-1978 building: lead-safe review</strong><span>Lead-safe work requirements may affect scope and cost. This model does not price lead remediation.</span></div>
             <div class="notice muted-notice"><strong>What's not included?</strong><span>Permits, taxes, specialty trim, disposal, rot, lead-safe work, unusual geometry, and site-specific labor adjustments. Verify measurements before ordering.</span></div>
             <div class="result-actions"><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div>
@@ -101,5 +106,6 @@
     </main>
     <footer class="site-footer"><span>© 2026 CURBQUOTE / EARLY PROTOTYPE</span><span>DATA: U.S. CENSUS (OPTIONAL) · INPUTS: HOMEOWNER</span></footer>
   </div>
+  <section id="print-report" class="print-report" aria-label="Printable preliminary estimate"><pre id="print-report-content"></pre></section>
 </body>
 </html>

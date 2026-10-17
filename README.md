@@ -1,7 +1,7 @@
 # CurbQuote
 
-**Instant exterior estimates (siding, windows, doors) from a homeowner's address, with a
-path to showing the homeowner's actual house with new products on it.**
+**Transparent exterior renovation budgets from homeowner-entered measurements, with a
+roadmap toward licensed property data and visualization.**
 
 Status: working MVP prototype plus draft research (October 2026). The estimator is a homeowner-guided planning tool, not a verified address-to-measurement service or a binding contractor quote.
 
@@ -11,12 +11,14 @@ A mobile-friendly siding, windows, and doors budget estimator now lives in this 
 
 ```bash
 npm run dev       # http://localhost:3000
-npm run check     # syntax checks + seven automated tests
+npm run check     # syntax checks, 21 automated tests, public build
 ```
 
 See [README-MVP.md](README-MVP.md) for usage, assumptions, limitations, and pre-launch requirements. Pricing shown in the prototype is editable example data, not a contractor price book.
 
-## The idea
+The [Phase A audit](docs/06-stabilization-audit.md) records the source review, fixes, browser verification, and remaining launch blockers. Reproducible Chromium checks run in CI using a fixture provider; a separate opt-in live check can call Census.
+
+## Planned customer journey (not current capabilities)
 
 1. A homeowner enters their address.
 2. The system pulls property details and building geometry.

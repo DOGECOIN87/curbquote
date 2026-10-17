@@ -1,5 +1,7 @@
 # 4. Architecture and phased roadmap
 
+This is a target architecture. The current framework-free MVP uses homeowner measurements, editable example rates and an illustrative quantity scenario; it has no property-data integration, calibrated P10/P50/P90 model, accounts, or contractor price-book service. See [the stabilization audit](06-stabilization-audit.md) for verified implementation status.
+
 ## Design principles
 
 1. **Range, not a number.** Every quantity and price is a P10/P50/P90 range with stated assumptions.

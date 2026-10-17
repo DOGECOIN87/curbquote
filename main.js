@@ -2,10 +2,11 @@ import { DEFAULT_INPUT } from './estimate.js';
 import { DEFAULT_PROJECT, COLORS, catalogRates, estimateProject } from './project.js';
 import { readProjects, saveProject, deleteProject, savePhoto, loadPhoto, deletePhoto } from './storage.js';
 import { PhotoEditor } from './photo-editor.js';
-import { isAddressMatch, validateAddress } from './address.js';
+import { isAddressMatch, validateAddress, isAutomaticAddressReady } from './address.js';
 import { buildEstimateSummary } from './summary.js';
 import { setupAssistant } from './assistant-ui.js';
 import { setupPropertyLookup } from './property-ui.js';
+import { setupPropertyPreview } from './property-preview.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -23,12 +24,17 @@ let generatedAt = '';
 let matched = null;
 let lookupSerial = 0;
 let lookupController = null;
+let lookupTimer = null;
+let addressComposing = false;
 let invalidField = null;
 let selectedColor = DEFAULT_PROJECT.color;
 let activeProjectId = null;
 let projectLoadSerial = 0;
 let assistant;
 let propertyLookup;
+const propertyPreview = setupPropertyPreview({ onPhoto: () => {
+  showStudioTab(true); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus();
+} });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 const projectDialog = byId('projects-dialog');
 byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
@@ -137,21 +143,8 @@ form.addEventListener('submit', event => {
   calculate({ scroll: true, focus: true });
 });
 form.addEventListener('input', event => {
-  if (event.target === addressEl) propertyLookup?.clear({ restoreInputs: true });
-  else propertyLookup?.edited(event.target.id);
+  propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
-  if (event.target === addressEl) {
-    lookupSerial++;
-    lookupController?.abort();
-    matched = null;
-    lookupButton.disabled = false;
-    lookupButton.removeAttribute('aria-busy');
-    addressEl.removeAttribute('aria-invalid');
-    addressStatus.textContent = 'Address not matched. You can still estimate manually.';
-    addressStatus.className = 'field-help';
-    refreshReport();
-    return;
-  }
   if (event.target.matches('#sidingProduct,#windowProduct,#doorProduct,[name="tier"]')) setCatalogRates();
   if (event.target.matches('[id^="scope-"]')) {
     const rates = catalogRates({ ...projectOptions(), siding: true, coveragePercent: 100 });
@@ -164,7 +157,32 @@ form.addEventListener('input', event => {
   // Keep recalculating after invalid edits so correcting a field restores the results.
   if (hasCalculated) calculate();
 });
-lookupButton.addEventListener('click', async () => {
+function cancelAddressLookup() {
+  clearTimeout(lookupTimer); lookupTimer = null;
+  lookupSerial++; lookupController?.abort(); lookupController = null; matched = null;
+  lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
+  propertyPreview.clear();
+}
+function scheduleAddressLookup() {
+  if (addressComposing || !isAutomaticAddressReady(addressEl.value)) return;
+  addressStatus.textContent = 'Address ready. Loading your property preview automatically…';
+  lookupTimer = setTimeout(() => lookupAddress({ automatic: true }), 700);
+}
+function addressChanged() {
+  cancelAddressLookup(); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
+  addressEl.removeAttribute('aria-invalid'); addressStatus.className = 'field-help';
+  addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. The aerial view will load automatically.' : 'Your aerial preview loads as you type a complete U.S. address. Location is approximate.';
+  refreshReport(); scheduleAddressLookup();
+}
+addressEl.addEventListener('input', addressChanged);
+addressEl.addEventListener('compositionstart', () => { addressComposing = true; cancelAddressLookup(); });
+addressEl.addEventListener('compositionend', () => { addressComposing = false; addressChanged(); });
+addressEl.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.isComposing && !addressComposing) { event.preventDefault(); lookupAddress(); }
+});
+lookupButton.addEventListener('click', () => lookupAddress());
+async function lookupAddress({ automatic = false } = {}) {
+  clearTimeout(lookupTimer); lookupTimer = null;
   let address;
   try { address = validateAddress(addressEl.value); }
   catch (error) {
@@ -186,6 +204,8 @@ lookupButton.addEventListener('click', async () => {
   addressEl.removeAttribute('aria-invalid');
   addressStatus.className = 'field-help';
   addressStatus.textContent = 'Checking the Census address range…';
+  propertyPreview.searching();
+  if (!automatic) propertyLookup?.lookup();
   try {
     const response = await fetch(`/api/geocode?${new URLSearchParams({ address })}`, {
       headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal
@@ -197,6 +217,8 @@ lookupButton.addEventListener('click', async () => {
     if (!isAddressMatch(payload)) throw new Error('Address lookup returned incomplete location data. Try again or estimate manually.');
     if (serial !== lookupSerial) return;
     matched = payload;
+    propertyPreview.show(payload);
+    if (automatic) propertyLookup?.lookup({ automatic: true });
     addressStatus.textContent = `Approximate location matched: ${payload.matchedAddress}. This is not a building measurement or ownership check.`;
     addressStatus.className = 'field-help success';
     refreshReport();
@@ -207,6 +229,7 @@ lookupButton.addEventListener('click', async () => {
       ? 'Address lookup timed out. You can still estimate manually.'
       : error instanceof TypeError ? 'Address lookup could not connect. You can still estimate manually.' : error.message;
     addressStatus.className = 'field-help error';
+    propertyPreview.failed(addressStatus.textContent);
     refreshReport();
   } finally {
     clearTimeout(timeout);
@@ -216,7 +239,7 @@ lookupButton.addEventListener('click', async () => {
       lookupController = null;
     }
   }
-});
+}
 
 byId('save-summary').addEventListener('click', () => {
   if (!calculate({ focus: true })) return;
@@ -315,15 +338,15 @@ byId('save-project-form').addEventListener('submit', async event => {
 });
 async function restoreProject(project) {
   const serial = ++projectLoadSerial;
-  lookupSerial++; lookupController?.abort(); matched = null;
-  lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
+  cancelAddressLookup();
   for (const [key,value] of Object.entries(project.inputs)) if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
   for (const kind of ['siding','windows','doors']) byId(`scope-${kind}`).checked = project.options[kind];
   for (const key of ['sidingProduct','windowProduct','doorProduct','coveragePercent']) byId(key).value = project.options[key];
   form.querySelector(`[name="tier"][value="${project.options.tier}"]`).checked = true;
   selectedColor = project.options.color; addressEl.value = project.address; activeProjectId = project.id;
   propertyLookup?.restore(project.propertyData);
-  addressStatus.textContent = 'Saved address restored. Use Find address to request a fresh Census match.'; addressStatus.className = 'field-help';
+  addressStatus.textContent = 'Saved address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
+  scheduleAddressLookup();
   editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close();
   assistant?.restore(project.planning);
   try { const photo = await loadPhoto(project.id); if (serial === projectLoadSerial && photo) { await editor.setPhoto(photo.blob,photo.areas); if (serial === projectLoadSerial) showStudioTab(true); } }
@@ -331,11 +354,11 @@ async function restoreProject(project) {
   if (serial === projectLoadSerial) notify(`“${project.name}” restored.`);
 }
 byId('new-project').addEventListener('click', () => {
-  projectLoadSerial++; lookupSerial++; lookupController?.abort(); matched = null; activeProjectId = null;
+  projectLoadSerial++; cancelAddressLookup(); activeProjectId = null;
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
-  addressStatus.textContent = 'Address lookup is optional. Census matching does not measure your home.'; addressStatus.className = 'field-help';
+  addressStatus.textContent = 'Your aerial preview loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab(false); projectDialog.close(); notify('New project started with clearly labeled example measurements.');
   assistant?.restore();
 });
@@ -353,9 +376,9 @@ assistant = setupAssistant({
     selectedColor = snapshot.options.color;
     if (Object.hasOwn(snapshot, 'address')) {
       propertyLookup?.clear();
-      lookupSerial++; lookupController?.abort(); matched = null; addressEl.value = snapshot.address;
-      lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
-      addressStatus.textContent = 'Address restored. Use Find address for a fresh location match.'; addressStatus.className = 'field-help';
+      cancelAddressLookup(); addressEl.value = snapshot.address;
+      addressStatus.textContent = 'Address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
+      scheduleAddressLookup();
     }
     if (Object.hasOwn(snapshot, 'propertyData') || Object.hasOwn(snapshot, 'address')) propertyLookup?.restore(snapshot.propertyData);
     syncProjectControls(); hasCalculated = true; calculate();
@@ -363,8 +386,8 @@ assistant = setupAssistant({
   applyLocation: location => {
     if (!isAddressMatch(location)) return;
     propertyLookup?.clear({ restoreInputs: true });
-    lookupSerial++; lookupController?.abort(); matched = location; addressEl.value = location.matchedAddress;
-    lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
+    cancelAddressLookup(); matched = location; addressEl.value = location.matchedAddress;
+    propertyPreview.show(location);
     addressStatus.textContent = `Approximate Census location: ${location.matchedAddress}. No building measurement retrieved.`; addressStatus.className = 'field-help success'; refreshReport();
   },
   showProperty: payload => { if (payload?.record && typeof payload.address === 'string') propertyLookup?.show(payload.record, payload.address); }

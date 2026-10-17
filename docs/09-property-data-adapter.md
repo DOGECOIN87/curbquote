@@ -4,7 +4,7 @@ This implements the supplied provider-neutral importer design inside the existin
 
 ## Implemented flow
 
-1. **Find address** starts two independent requests: existing Census address-range matching and `POST /api/property` for a configured authorized property API. A failure in either leaves manual estimating available.
+1. **Find property** starts two independent requests: existing Census address-range matching and `POST /api/property` for a configured authorized property API. In v0.6, a complete typed address also starts Census matching automatically; a successful match requests property facts only when a provider is configured. A failure in either leaves manual estimating available.
 2. The property adapter validates the configured grant and permitted purpose, contacts only the configured HTTPS origin and normalizes only allowed canonical fields.
 3. The homeowner sees the returned address, source provider, retrieval time, separately reported source-update time and permitted facts. Multiple records require a more specific address rather than selecting the first one.
 4. The homeowner checks the record's address/unit, selects compatible fields and uses **Use selected details**. Only a whole-number story count from 1–4 and a construction year from 1700–2100 can enter the current estimator. Other facts are reference information.

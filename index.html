@@ -14,7 +14,7 @@
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="/" aria-label="CurbQuote home"><span class="brand-icon" aria-hidden="true"><span></span></span>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
-      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button><span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.5</span></div>
+      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button><span class="header-tag"><span class="status-led"></span> PROTOTYPE / V0.6</span></div>
     </header>
     <main>
       <section class="hero" aria-labelledby="hero-title">
@@ -22,16 +22,47 @@
           <div class="eyebrow"><span class="eyebrow-line"></span> A SMARTER START TO RENOVATION</div>
           <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
           <p>Explore a preliminary budget for your home's siding, windows, and doors. Add what you know, see exactly how the numbers are calculated.</p>
+          <div class="address-section">
+            <h2 id="address-heading" class="sr-only">Find your property</h2>
+            <label for="property-address">Start with your property address</label>
+            <div class="address-entry"><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button">Find property <span aria-hidden="true">↗</span></button></div>
+            <div class="field-help" id="address-status" role="status" aria-live="polite">Your aerial preview loads as you type a complete U.S. address. Location is approximate.</div>
+          </div>
           <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick">✓</span>No sign-up required</span><span class="meta-divider"></span><span class="hero-benefit"><span class="meta-tick">✓</span>Save projects on this device</span></div>
         </div>
-        <div class="hero-graphic" aria-hidden="true">
-          <div class="graphic-grid"></div><div class="graphic-disc"></div>
-          <div class="house-roof"></div><div class="house-body"><div class="house-window left"><i></i></div><div class="house-window right"><i></i></div><div class="house-door"><i></i></div></div>
-          <div class="house-ground"></div>
-          <span class="measurement-line measurement-horizontal">48 FT</span><span class="measurement-line measurement-vertical">2 STORIES</span>
-          <span class="graphic-caption">YOUR HOME, YOUR NUMBERS. <b>01 / 04</b></span>
-        </div>
+        <section class="property-preview" aria-labelledby="aerial-heading">
+          <div class="aerial-header"><div><span class="aerial-kicker">A NEW PERSPECTIVE</span><h2 id="aerial-heading">Your property, in view.</h2></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
+          <p id="aerial-address" class="aerial-address">Start with your address</p>
+          <div id="aerial-stage" class="aerial-stage" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
+            <div id="aerial-images" class="aerial-images"></div>
+            <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 24l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address. An aerial view will appear automatically.</p></div>
+            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#caff8c" fill-opacity=".18" stroke="#caff8c" stroke-width="2"/><circle r="7" fill="#caff8c" stroke="#102e35" stroke-width="3"/></g></svg>
+          </div>
+          <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
+            <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
+            <div class="aerial-tool-group"><button type="button" data-pan="-.3,0" aria-label="Move view west">←</button><button type="button" data-pan="0,-.3" aria-label="Move view north">↑</button><button type="button" data-pan="0,.3" aria-label="Move view south">↓</button><button type="button" data-pan=".3,0" aria-label="Move view east">→</button></div>
+          </div>
+          <div class="aerial-meta"><span id="aerial-width">AERIAL PREVIEW</span><a href="https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer" target="_blank" rel="noopener noreferrer">Imagery: USGS / USDA ↗</a></div>
+          <p id="aerial-status" class="aerial-status" role="status" aria-live="polite">An aerial view helps you recognize the building. It does not supply renovation measurements.</p>
+          <p id="aerial-instructions" class="sr-only">Use the arrow buttons or arrow keys to pan. Click or tap the image to center a building. Mouse users can also drag. The dot stays at the approximate address location.</p>
+          <div class="aerial-actions"><button type="button" id="aerial-retry" hidden>Retry imagery ↻</button><button type="button" id="aerial-photo">Use my exterior photo ↗</button><span>Image age and coverage vary.</span></div>
+        </section>
       </section>
+      <div class="property-source-section source-below-hero">
+        <p id="property-status" class="field-help" role="status" aria-live="polite">Property facts use a separately configured, authorized source. No source data is assumed from the address.</p>
+        <div id="property-record" class="property-record" hidden>
+          <h3>Review the property record</h3><p id="property-source" class="studio-help"></p>
+          <dl id="property-facts" class="property-facts"></dl>
+          <p id="property-permissions" class="studio-help"></p>
+          <div id="property-import-controls">
+            <label class="property-identity"><input id="property-identity" type="checkbox"><span>I checked the returned street address, city and unit. This is my property.</span></label>
+            <fieldset id="property-fields" class="property-field-picker"><legend>Details to use in this estimate</legend></fieldset>
+            <button type="button" id="apply-property" class="secondary-button" disabled>Use selected details</button>
+          </div>
+          <ul id="property-warnings" class="project-warnings"></ul>
+        </div>
+        <div id="property-applied" class="property-applied" hidden><p id="property-applied-note" class="studio-help"></p><button type="button" id="undo-property" class="outline-button">Undo imported details</button></div>
+      </div>
       <section id="project-assistant" class="assistant-panel" aria-labelledby="assistant-heading">
         <div class="assistant-header"><div><span class="result-kicker">LESS FORM FILLING. MORE FORWARD MOTION.</span><h2 id="assistant-heading">Your renovation copilot<span aria-hidden="true"> ✳</span></h2><p>Tell us your goal. Compare plans, check the details, and turn a budget into a next step.</p></div><span id="assistant-mode" class="assistant-mode">Automatic planner</span></div>
         <form id="assistant-form" novalidate>
@@ -50,27 +81,6 @@
       <div class="section-label"><span>THE ESTIMATE WORKSPACE</span><span>01 — GET STARTED</span></div>
       <div class="workspace">
         <form id="estimate-form" class="entry-panel" novalidate>
-          <section class="form-section address-section" aria-labelledby="address-heading">
-            <div class="section-head"><span class="step-number">01</span><div><h2 id="address-heading">Find your property</h2><p>Try a U.S. street address to confirm its approximate location.</p></div></div>
-            <label for="property-address">Property street address</label>
-            <div class="address-entry"><input type="text" id="property-address" name="property-address" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="123 Main St, Austin, TX 78701" spellcheck="false"><button type="button" id="verify-address" class="secondary-button">Find address <span aria-hidden="true">↗</span></button></div>
-            <div class="field-help" id="address-status" role="status" aria-live="polite">Address lookup is optional. Census location matching does not measure your home.</div>
-            <div class="property-source-section">
-              <p id="property-status" class="field-help" role="status" aria-live="polite">Property facts use a separately configured, authorized source. No source data is assumed from the address.</p>
-              <div id="property-record" class="property-record" hidden>
-                <h3>Review the property record</h3><p id="property-source" class="studio-help"></p>
-                <dl id="property-facts" class="property-facts"></dl>
-                <p id="property-permissions" class="studio-help"></p>
-                <div id="property-import-controls">
-                  <label class="property-identity"><input id="property-identity" type="checkbox"><span>I checked the returned street address, city and unit. This is my property.</span></label>
-                  <fieldset id="property-fields" class="property-field-picker"><legend>Details to use in this estimate</legend></fieldset>
-                  <button type="button" id="apply-property" class="secondary-button" disabled>Use selected details</button>
-                </div>
-                <ul id="property-warnings" class="project-warnings"></ul>
-              </div>
-              <div id="property-applied" class="property-applied" hidden><p id="property-applied-note" class="studio-help"></p><button type="button" id="undo-property" class="outline-button">Undo imported details</button></div>
-            </div>
-          </section>
           <section class="form-section project-section" aria-labelledby="project-heading">
             <div class="section-head"><span class="step-number">02</span><div><h2 id="project-heading">Build your project</h2><p>Choose the work, materials and finish that fit your plans.</p></div></div>
             <fieldset class="scope-picker"><legend class="mini-heading">WHAT ARE YOU IMPROVING?</legend>

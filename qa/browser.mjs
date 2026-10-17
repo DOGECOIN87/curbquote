@@ -9,17 +9,16 @@ import { createAppServer } from '../lib/web.mjs';
 import { createPropertyHandler } from '../api/property.js';
 import { resolveProperty } from '../lib/property.mjs';
 import { propertyEnv, providerObject, propertyRecord } from './fixtures/property.mjs';
-const live = process.env.LIVE_GEOCODE === '1';
 const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
-const server = createAppServer({ ...(live ? {} : {
+const server = createAppServer({
   geocodeHandler: createGeocodeHandler(value => resolveAddress(value, async url => {
     assert.equal(new URL(url).hostname, 'geocoding.geo.census.gov');
     return { ok: true, json: async () => ({ result: { addressMatches: [{
       matchedAddress: '4600 SILVER HILL RD, WASHINGTON, DC, 20233',
       coordinates: { x: -76.9, y: 38.84 }
     }] } }) };
-  }))
-}), dataHandler: createPropertyHandler({ allow: () => true, available: () => ({ configured: true, provider: 'Synthetic test provider', reason: 'Synthetic test source configured.' }), resolve: address => resolveProperty(address, { env: propertyEnv(), fetchJson: async url => {
+  })),
+  dataHandler: createPropertyHandler({ allow: () => true, available: () => ({ configured: true, provider: 'Synthetic test provider', reason: 'Synthetic test source configured.' }), resolve: address => resolveProperty(address, { env: propertyEnv(), fetchJson: async url => {
   assert.equal(url.hostname, 'api.example.com');
   assert.equal(url.searchParams.get('address'), address);
   return { status: 200, payload: providerObject() };
@@ -31,10 +30,104 @@ const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_C
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', acceptDownloads: true });
 const checks = [];
 const errors = [];
+const imageryPattern = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage?**';
+const fixtureImagery = '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600"><rect width="960" height="600" fill="#536d47"/><path d="M0 280H960M510 0V600" stroke="#aaa99c" stroke-width="70"/><g fill="#c0b6a1" stroke="#394d3f" stroke-width="7"><path d="M160 100h180v110H160zM630 370h180v130H630zM620 60h140v140H620z"/></g><text x="35" y="565" fill="white" font-family="Arial" font-size="24">SYNTHETIC IMAGERY FIXTURE · NOT A REAL PROPERTY</text></svg>';
+await page.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error' && ![404, 500, 502, 503].some(status => message.text().includes(`status of ${status}`))) errors.push(message.text()); });
 try {
   await page.goto(base);
+  let automaticRequests = 0;
+  const countAutomatic = request => { if (request.url().includes('/api/geocode?')) automaticRequests++; };
+  page.on('request', countAutomatic);
+  await page.clock.install();
+  await page.locator('#property-address').fill('123 Main Street');
+  await page.clock.runFor(900);
+  assert.equal(automaticRequests, 0);
+  await page.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
+  await page.clock.runFor(500);
+  assert.equal(automaticRequests, 0);
+  await page.clock.runFor(250);
+  await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  assert.equal(automaticRequests, 1);
+  assert.match(await page.locator('#aerial-address').textContent(), /SILVER HILL RD/);
+  assert.equal(await page.locator('#aerial-controls').isVisible(), true);
+  assert.equal(await page.locator('#aerial-marker').getAttribute('hidden'), null);
+  assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  assert.match(await page.locator('#aerial-status').textContent(), /approximate Census/);
+  checks.push('A complete typed address automatically loads aerial imagery after one debounce; street fragments make no lookup');
+  await page.locator('#aerial-zoom-in').click();
+  await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('113'));
+  const zoomUrl = await page.locator('#aerial-images img').getAttribute('src');
+  await page.locator('[data-pan=".3,0"]').click();
+  await page.waitForFunction(previous => document.querySelector('#aerial-images img')?.getAttribute('src') !== previous, zoomUrl);
+  await page.locator('#aerial-recenter').click();
+  await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('180'));
+  await page.locator('#aerial-stage').focus(); await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => document.querySelector('#aerial-controls').hidden === false);
+  const beforeTap = await page.locator('#aerial-images img').getAttribute('src');
+  await page.locator('#aerial-stage').click({ position: { x: 70, y: 70 } });
+  await page.waitForFunction(previous => {
+    const image = document.querySelector('#aerial-images img'); return image?.complete && image.getAttribute('src') !== previous;
+  }, beforeTap);
+  const beforeDrag = await page.locator('#aerial-images img').getAttribute('src'), dragBounds = await page.locator('#aerial-stage').boundingBox();
+  await page.mouse.move(dragBounds.x + dragBounds.width / 2, dragBounds.y + dragBounds.height / 2); await page.mouse.down();
+  await page.mouse.move(dragBounds.x + dragBounds.width / 2 + 60, dragBounds.y + dragBounds.height / 2, { steps: 4 }); await page.mouse.up();
+  await page.waitForFunction(previous => {
+    const image = document.querySelector('#aerial-images img'); return image?.complete && image.getAttribute('src') !== previous;
+  }, beforeDrag);
+  checks.push('Aerial zoom, pan, recenter and keyboard controls change the view without changing estimate dimensions');
+  await page.locator('#property-address').fill('999 New');
+  assert.equal(await page.locator('#aerial-images img').count(), 0);
+  assert.equal(await page.locator('#aerial-controls').isVisible(), false);
+  await page.evaluate(() => document.querySelector('#property-address').dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
+  await page.locator('#property-address').fill('999 Test St, Austin, TX 78701');
+  await page.clock.runFor(900);
+  assert.equal(automaticRequests, 1);
+  await page.evaluate(() => document.querySelector('#property-address').dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })));
+  await page.clock.runFor(750);
+  await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  assert.equal(automaticRequests, 2);
+  await page.locator('#property-address').fill('');
+  page.off('request', countAutomatic);
+  checks.push('Address edits remove old imagery immediately; input composition waits until text entry is complete');
+  await page.unroute(imageryPattern);
+  await page.route(imageryPattern, route => route.fulfill({ contentType: 'application/json', body: '{"error":"imagery unavailable"}' }));
+  await page.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
+  await page.clock.runFor(750);
+  await page.waitForFunction(() => !document.querySelector('#aerial-retry').hidden);
+  assert.equal(await page.locator('#aerial-images img').count(), 0);
+  assert.equal(await page.locator('#results').isVisible(), true);
+  await page.unroute(imageryPattern);
+  await page.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await page.locator('#aerial-retry').click();
+  await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  checks.push('Unavailable imagery shows a retry and photo fallback while the estimator stays usable; retry restores the image');
+  let releaseImage, sawImage;
+  const imageSeen = new Promise(resolve => { sawImage = resolve; });
+  const imageGate = new Promise(resolve => { releaseImage = resolve; });
+  await page.unroute(imageryPattern);
+  await page.route(imageryPattern, async route => { sawImage(); await imageGate; await route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }).catch(() => {}); });
+  await page.locator('#aerial-zoom-in').click(); await imageSeen;
+  await page.clock.runFor(25100);
+  assert.equal(await page.locator('#aerial-retry').isVisible(), true);
+  await page.locator('#property-address').fill('999 New'); releaseImage();
+  await page.waitForTimeout(30);
+  assert.equal(await page.locator('#aerial-images img').count(), 0);
+  assert.match(await page.locator('#aerial-address').textContent(), /Start with/);
+  await page.unroute(imageryPattern);
+  await page.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await page.route('**/api/geocode?**', route => route.fulfill({ json: { matchedAddress: '123 TEST ST, HONOLULU, HI, 96813', coordinates: { lat: 21.3, lon: -157.8 } } }));
+  await page.locator('#property-address').fill('123 Test St, Honolulu, HI 96813');
+  await page.clock.runFor(750);
+  await page.waitForFunction(() => document.querySelector('#aerial-placeholder-title').textContent.includes('No aerial coverage'));
+  assert.equal(await page.locator('#aerial-images img').count(), 0);
+  await page.locator('#aerial-photo').click();
+  assert.equal(await page.locator('#photo-panel').isVisible(), true);
+  await page.unroute('**/api/geocode?**');
+  await page.locator('#illustration-tab').click(); await page.locator('#property-address').fill('');
+  await page.clock.resume();
+  checks.push('Slow imagery times out, late images cannot cross addresses, unsupported coverage is explicit, and the photo fallback opens');
   await page.locator('#calculate').click();
   assert.equal(await page.locator('#total-range').textContent(), '$19,020 – $53,453');
   checks.push('Default manual estimate reconciles with the tested calculation');
@@ -72,7 +165,7 @@ try {
   await page.waitForFunction(() => !document.querySelector('#verify-address').disabled, undefined, { timeout: 12000 });
   assert.match(await page.locator('#address-status').textContent(), /Approximate location matched/);
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
-  checks.push(`${live ? 'Live Census' : 'Fixture provider'} browser → Node API → matched-address display, without changing dimensions`);
+  checks.push('Fixture provider browser → Node API → matched-address display, without changing dimensions');
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#save-summary').click();
   const download = await downloadPromise;
@@ -117,7 +210,6 @@ try {
   checks.push('Editing an address cancels the pending lookup and late responses cannot overwrite the new match');
   await page.unroute('**/api/geocode?**');
   await page.route('**/api/geocode?**', async () => {});
-  await page.clock.install();
   await page.locator('#verify-address').click();
   await page.clock.runFor(9100);
   await page.waitForFunction(() => document.querySelector('#address-status').textContent.includes('timed out'));
@@ -381,7 +473,7 @@ try {
   assert.deepEqual(errors, []);
   checks.push('No JavaScript exceptions or CSP errors');
   await writeFile(join(outputDir,'checks.json'),JSON.stringify({checks,matrix},null,2));
-  console.log(JSON.stringify({passed:checks.length,provider:live ? 'live Census' : 'fixture',checks,matrix},null,2));
+  console.log(JSON.stringify({passed:checks.length,provider:'fixture',checks,matrix},null,2));
 } finally {
   await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
 }

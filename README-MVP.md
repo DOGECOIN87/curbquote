@@ -14,20 +14,22 @@ npm run check
 
 Run `npm ci --ignore-scripts` before development or checks. The AI SDK and Zod are pinned production dependencies for the server-side assistant; Playwright is a pinned development dependency for browser regression tests. The automatic planner works without AI credentials.
 
-Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the thirteen browser assets into `dist/`; `/api/geocode`, `/api/property` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
+Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the fifteen browser assets into `dist/`; `/api/geocode`, `/api/property` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
 
 ```sh
 npm ci --ignore-scripts
 npx playwright install --with-deps chromium
-npm run test:browser           # fixture-backed; no Census network dependency
-LIVE_GEOCODE=1 npm run test:browser  # opt-in live Census smoke test
+npm run test:browser           # fixture-backed; no Census or USGS network dependency
+LIVE_PROPERTY_PREVIEW=1 npm run test:preview:live  # opt-in live address → aerial preview smoke
 ```
 
 Browser checks produce screenshots and a check list in the ignored `qa-output/` directory. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select a preinstalled Chromium executable. GitHub Actions runs both the unit/integration suite and the browser checks.
 
 ## Working homeowner flow
 
-- Find an address and request separately authorized property facts. Review source and freshness, then select permitted story/year details. Source values, homeowner corrections and attribution survive supported saves/exports. Restricted grants remain temporary display-only. No live provider is configured by default; see [property adapter setup](docs/09-property-data-adapter.md).
+- Type a complete U.S. address. After a 700 ms pause, Census matching brings a USGS/USDA aerial view into the top of the page. Zoom, pan, tap to center a building, or recenter the approximate address point. Coverage currently includes the contiguous U.S.; image age and availability vary. The view does not identify or measure a specific building. See [live property previews](docs/10-live-property-preview.md).
+
+- Separately authorized property facts load automatically after a successful match when a source is configured; Find property also requests them directly. Review source and freshness, then select permitted story/year details. Source values, homeowner corrections and attribution survive supported saves/exports. Restricted grants remain temporary display-only. No live provider is configured by default; see [property adapter setup](docs/09-property-data-adapter.md).
 
 - Describe a goal, compare material/tier plans, search a target budget, and optionally explore phased work. Apply a calculated proposal with undo. Track unconfirmed home details, restore an automatic device draft and download a contractor discussion brief. A bounded AI tool-calling assistant can perform these estimate tasks and optional Census matching when Gateway authentication and credits are available; an explicitly labeled automatic planner handles comparisons and supported goal patterns without AI. See [automated planning and agent setup](docs/08-agentic-planning.md).
 
@@ -41,7 +43,7 @@ See [the prototype implementation notes](docs/07-functional-prototype.md) for cu
 
 ## Estimation and address behavior
 
-- User enters a U.S. street address and optionally asks for a match from the **U.S. Census Geocoding Services API** (`/api/geocode`). Coordinates are **address-range approximations**, not property boundaries, verified parcel data, building size, ownership or measurements. Geocoder may fail; estimator still functions.
+- A complete-looking U.S. street address automatically requests a match after a 700 ms pause from the **U.S. Census Geocoding Services API** (`/api/geocode`). Coordinates are **address-range approximations**, not property boundaries, verified parcel data, building size, ownership or measurements. Find property and Enter can also search immediately. Geocoder may fail; estimator still functions. The resulting aerial preview is a view of the surrounding area, not a street-level photo, 3D model or automatic building measurement.
 - User supplies **length, width, stories, wall height, gables, brick/stone share, existing openings, requested replacements and year built**. Defaults are demonstration values, **not pulled from their property**.
 - The model computes approximate gross wall area, deducts assumed openings, applies brick/stone share to the remaining solid walls, adds **10% waste**, and applies an **illustrative ±18% siding quantity scenario**, **not an empirically calibrated confidence interval**. Openings larger than the wall area are rejected.
 - Low/high price settings are editable and are **example values, not local pricing research**. Reports record `manual-geometry-v2`, the selected `demo-products-2026-10-v1` catalog version, whether rates were edited, and the exact numeric rates. This is not a contractor price-book system. No backend stores estimates; download is handled entirely in the browser.
@@ -54,7 +56,7 @@ See [the prototype implementation notes](docs/07-functional-prototype.md) for cu
 1. A configurable authorized-provider adapter exists, but no live provider or credentials are supplied. There is no automatic footprint or assessor integration by default. Photos are supplied and marked by the homeowner, not measured automatically. **Address lookup does not supply dimensions.** Connecting a licensed provider requires rights review and validation in each market.
 2. No contractor price book, labor/material adders, taxes, permit fees, tear-off, trim, labor complexity, accessibility, RRP work or region calibration.
 3. Accuracy is untested. Compare estimates against completed jobs (see `data/backtest-template.csv`) before showing customer-facing dollar claims. Current ±18% is a scenario assumption only.
-4. API lookups send the entered address to the U.S. Census through your hosting environment; hosting access logs may record request URLs. Do not claim end-to-end address confidentiality. Add hosting log controls and a privacy policy before production.
+4. Automatic API lookups send the entered address to the U.S. Census through your hosting environment; hosting access logs may record request URLs. Aerial requests send map coordinates and the browser's network address to USGS, with no HTTP referrer. The application does not persist/export the aerial images or send them to AI. Do not claim end-to-end address confidentiality. Add hosting log controls and a privacy policy before production.
 5. No cloud profiles, homeowner login or production operations. The AI endpoint has a per-instance request guard, not a durable distributed rate limit. Provider outage handling is implemented; production API usage still needs durable abuse protection and monitoring.
 6. The prototype is not validated for state-specific contractor or consumer-estimate regulations; obtain legal review before launch.
 
@@ -84,6 +86,7 @@ Version 2 explicitly defines masonry percentage as a share of **solid walls afte
 
 ## Sources and safety
 
+- [USGS NAIP imagery service and public-domain data description](https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/info/iteminfo?f=pjson)
 - [U.S. Census geocoding API](https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html)
 - [EPA Renovation, Repair and Painting rule for contractors](https://www.epa.gov/lead/renovation-repair-and-painting-program-contractors)
 - [EagleView current pricing](https://www.eagleview.com/pricing/) (research context only; not built into example rates)

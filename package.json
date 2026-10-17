@@ -1,6 +1,6 @@
 {
   "name": "curbquote",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "Transparent homeowner-guided exterior renovation estimate prototype",
@@ -9,8 +9,9 @@
     "build": "node scripts/build.mjs",
     "test": "node --test",
     "test:browser": "node qa/browser.mjs",
-    "check": "node --check scripts/property-ingest.mjs && node --check property-data.js && node --check property-ui.js && node --check lib/property.mjs && node --check lib/property-transport.mjs && node --check lib/rate-limit.mjs && node --check api/property.js && node --check planning.js && node --check assistant-ui.js && node --check lib/agent.mjs && node --check api/assistant.js && node --check main.js && node --check estimate.js && node --check address.js && node --check summary.js && node --check project.js && node --check storage.js && node --check photo-editor.js && node --check qa/browser.mjs && node --check lib/geocode.mjs && node --check lib/web.mjs && node --check api/geocode.js && node --check scripts/dev-server.mjs && node --check scripts/build.mjs && npm test && npm run build",
-    "test:python": "python3 -m unittest discover -s tests/python"
+    "check": "node --check scripts/property-ingest.mjs && node --check property-view.js && node --check property-preview.js && node --check property-data.js && node --check property-ui.js && node --check lib/property.mjs && node --check lib/property-transport.mjs && node --check lib/rate-limit.mjs && node --check api/property.js && node --check planning.js && node --check assistant-ui.js && node --check lib/agent.mjs && node --check api/assistant.js && node --check main.js && node --check estimate.js && node --check address.js && node --check summary.js && node --check project.js && node --check storage.js && node --check photo-editor.js && node --check qa/live-property-preview.mjs && node --check qa/browser.mjs && node --check lib/geocode.mjs && node --check lib/web.mjs && node --check api/geocode.js && node --check scripts/dev-server.mjs && node --check scripts/build.mjs && npm test && npm run build",
+    "test:python": "python3 -m unittest discover -s tests/python",
+    "test:preview:live": "node qa/live-property-preview.mjs"
   },
   "engines": {
     "node": "22.x"

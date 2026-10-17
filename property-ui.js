@@ -64,8 +64,13 @@ export function setupPropertyLookup({ getAddress, getInputs, applyInputs, onChan
     if (!Object.keys(suggestions).length) warnings.append(node('li', 'No compatible story count or year was returned. Other facts are reference information only.'));
     syncApply(); expire(); status('Property record returned. Check the address and source details before using it.');
   }
-  async function lookup() {
+  async function lookup({ automatic = false } = {}) {
     let address; try { address = validateAddress(getAddress()); } catch { return; }
+    if (automatic) {
+      const before = serial;
+      await availability;
+      if (!configured || before !== serial || !sameAddress(address, getAddress())) return;
+    }
     cancel(); pending = null; byId('property-record').hidden = true;
     const requestSerial = serial, abort = new AbortController(); controller = abort;
     const deadline = setTimeout(() => abort.abort(), 8500);
@@ -81,7 +86,6 @@ export function setupPropertyLookup({ getAddress, getInputs, applyInputs, onChan
       status(abort.signal.aborted ? 'Property lookup timed out. You can still enter details manually.' : error instanceof TypeError || error instanceof SyntaxError ? 'Property data could not be read. You can still estimate manually.' : error.message);
     } finally { clearTimeout(deadline); if (controller === abort) controller = null; }
   }
-  byId('verify-address').addEventListener('click', lookup);
   byId('property-identity').addEventListener('change', syncApply);
   byId('property-fields').addEventListener('change', syncApply);
   byId('apply-property').addEventListener('click', () => {
@@ -100,7 +104,8 @@ export function setupPropertyLookup({ getAddress, getInputs, applyInputs, onChan
   byId('undo-property').addEventListener('click', () => { clear({ restoreInputs: true }); status('Imported details undone. Previous inputs restored.'); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) expire(); });
   const initialSerial = serial;
-  fetch('/api/property', { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then(response => response.json()).then(value => { if (initialSerial === serial && !pending && !context && typeof value.reason === 'string') status(value.reason); }).catch(() => {});
+  let configured = false;
+  const availability = fetch('/api/property', { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then(response => response.json()).then(value => { configured = value.configured === true; if (initialSerial === serial && !pending && !context && typeof value.reason === 'string') status(value.reason); }).catch(() => {});
   return {
     lookup, show, clear,
     context: () => context ? validatePropertyContext(context) : undefined,
@@ -111,6 +116,6 @@ export function setupPropertyLookup({ getAddress, getInputs, applyInputs, onChan
       else if (Number.isInteger(value) && context.corrections[field]?.value !== value && (field === 'stories' ? value >= 1 && value <= 4 : value >= 1700 && value <= 2100)) context.corrections[field] = { value, updatedAt: new Date().toISOString(), actor: 'homeowner' };
       sourceNote();
     },
-    restore: value => { clear(); if (!value) return; const valid = validatePropertyContext(value); if (!sameAddress(valid.lookupAddress, getAddress())) return; context = valid; sourceNote(); status('Saved source attribution restored. Use Find address for fresh property facts.'); }
+    restore: value => { clear(); if (!value) return; const valid = validatePropertyContext(value); if (!sameAddress(valid.lookupAddress, getAddress())) return; context = valid; sourceNote(); status('Saved source attribution restored. Use Find property for fresh property facts.'); }
   };
 }

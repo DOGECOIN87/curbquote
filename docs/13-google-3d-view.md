@@ -35,7 +35,16 @@ Google's logo and data attributions on screen.
 5. Set `GOOGLE_MAP_TILES_KEY` in Vercel's environment variables. Locally, set it in `.env.local`
    (see `.env.example`).
 
-`GET /api/map3d` returns `{ configured: false }` or `{ configured: true, provider, key }`. It's a
+**Testing without Google billing.** Set `CESIUM_ION_TOKEN` instead:
+- **The token:** a Cesium ion token with only the `assets:read` scope, restricted to your site's URLs.
+- **What it does:** CesiumJS then requests the same Google tiles through Cesium ion. The free
+  Community plan allows 1,000 a month, for personal use and evaluation only, so not for launch.
+- **Which credential is used:** a Google key wins when both are set, and the ion token is then
+  never sent to the browser.
+- **Treat it as public:** like the Google key, it reaches the browser. Never paste either one into
+  a chat or a screenshot.
+
+`GET /api/map3d` returns `{ configured: false }`, `{ configured: true, provider, key }` or `{ configured: true, provider, ionToken }`. It's a
 browser key by design: Google's tiles are requested from the browser, so the key's restrictions
 and quota are what protect it.
 
@@ -48,9 +57,9 @@ viewing.
 The page's Content Security Policy widened only as far as CesiumJS needs. Development
 (`lib/web.mjs`) and Vercel (`vercel.json`) use the same policy:
 
-- `connect-src` adds `https://tile.googleapis.com`.
-- `img-src` adds `blob:` and Cesium's hosted Google logo,
-  `https://assets.ion.cesium.com/google-credit.png`.
+- `connect-src` adds `https://tile.googleapis.com`, plus `https://api.cesium.com` and `https://assets.ion.cesium.com` for the ion option.
+- `img-src` adds `blob:` and `https://assets.ion.cesium.com`, which hosts the Google logo and the
+  ion credit images.
 - `script-src` adds `'wasm-unsafe-eval'`, for the mesh decoder. `worker-src` allows `'self'` and
   `blob:`.
 - Exactly three CesiumJS inline styles are allowed by hash. **No `unsafe-eval` and no

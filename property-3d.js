@@ -17,10 +17,13 @@ export function setupProperty3D({ stage, onFailure }) {
   container.className = 'aerial-3d'; container.hidden = true;
   container.setAttribute('aria-label', 'Google 3D view around the approximate address location');
   stage.append(container);
-  let key = null, Cesium = null, widget = null, marker = null, ready = null, serial = 0, open = false;
+  let key = null, ionToken = null, Cesium = null, widget = null, marker = null, ready = null, serial = 0, open = false;
   const available = fetch('/api/map3d', { headers: { Accept: 'application/json' }, cache: 'no-store' })
     .then(response => response.ok ? response.json() : {})
-    .then(config => { key = config?.configured && typeof config.key === 'string' ? config.key : null; return Boolean(key) && webgl2Available(); })
+    .then(config => {
+      if (config?.configured) { key = typeof config.key === 'string' ? config.key : null; ionToken = key ? null : typeof config.ionToken === 'string' ? config.ionToken : null; }
+      return Boolean(key || ionToken) && webgl2Available();
+    })
     .catch(() => false);
   function destroy() {
     try { widget?.destroy(); } catch { /* already torn down */ }
@@ -38,7 +41,9 @@ export function setupProperty3D({ stage, onFailure }) {
       Cesium.GoogleMaps.getDefaultCredit = () => new Cesium.Credit(`<img alt="Google" src="${GOOGLE_LOGO}" class="google-credit">`, true);
       widget = new Cesium.CesiumWidget(container, { baseLayer: false, globe: false, skyBox: false, requestRenderMode: true, showRenderLoopErrors: false });
       widget.scene.renderError.addEventListener((_, error) => { destroy(); close(); onFailure?.(error); });
-      widget.scene.primitives.add(await Cesium.createGooglePhotorealistic3DTileset({ key }, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }));
+      // Without a Google key, CesiumJS requests the same tiles through Cesium ion with the configured token.
+      if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
+      widget.scene.primitives.add(await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }));
       marker = widget.scene.primitives.add(new Cesium.PointPrimitiveCollection()).add({
         pixelSize: 14, color: Cesium.Color.fromCssColorString('#caff8c'), outlineColor: Cesium.Color.fromCssColorString('#102e35'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
       });

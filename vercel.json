@@ -23,7 +23,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'sha256-gM2CWYHXIHTu7Ts6ncwv0GMWZ9LXGrz2qqqjyuDojl8='; style-src-attr 'unsafe-hashes' 'sha256-BVJq0J0CcoIBO7ikkmisQ5kYoOnqxRUC37ihQ3YWZQQ=' 'sha256-GU5zilGWFiRrmr4xJeDjQZKuKRcLO8ZT+o0Avfni8Sw='; img-src 'self' data: blob: https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage https://assets.ion.cesium.com/google-credit.png; font-src 'self'; connect-src 'self' https://tile.googleapis.com; worker-src 'self' blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'sha256-gM2CWYHXIHTu7Ts6ncwv0GMWZ9LXGrz2qqqjyuDojl8='; style-src-attr 'unsafe-hashes' 'sha256-BVJq0J0CcoIBO7ikkmisQ5kYoOnqxRUC37ihQ3YWZQQ=' 'sha256-GU5zilGWFiRrmr4xJeDjQZKuKRcLO8ZT+o0Avfni8Sw='; img-src 'self' data: blob: https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage https://assets.ion.cesium.com; font-src 'self'; connect-src 'self' https://tile.googleapis.com https://api.cesium.com https://assets.ion.cesium.com; worker-src 'self' blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
         },
         {
           "key": "Referrer-Policy",

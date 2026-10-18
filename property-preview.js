@@ -1,6 +1,7 @@
 import { isAddressMatch } from './address.js';
 import { aerialView, hasAerialCoverage, moveView, pointInView, DEFAULT_VIEW_METERS } from './property-view.js';
 import { setupProperty3D } from './property-3d.js';
+import { setupPropertyMap } from './property-map.js';
 
 /** Images are replaced atomically and discarded immediately when the address changes. */
 export function setupPropertyPreview({ onPhoto }) {
@@ -11,26 +12,56 @@ export function setupPropertyPreview({ onPhoto }) {
   let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null;
   const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width');
   const view3d = setupProperty3D({ stage, onFailure: () => { if (saved) unavailable3d(); } });
+  const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution');
+  const viewMap = setupPropertyMap({
+    stage, onFailure: unavailableMap,
+    onStatus: message => { if (viewMap.isOpen) { if (status.textContent !== message) status.textContent = message; syncMap(); } },
+    onSelection: selected => { byId('map-clear-selection').hidden = !selected; byId('map-selection').hidden = !selected; }
+  });
   view3d.available.then(ok => { has3d = ok; sync3d(); });
   function sync3d() {
     toggle3d.hidden = !has3d || !match;
     toggle3d.textContent = view3d.isOpen ? 'Back to aerial view' : 'View in 3D';
   }
+  function syncMap() {
+    toggleMap.hidden = !viewMap.available || !match;
+    toggleMap.textContent = viewMap.isOpen ? 'Back to aerial view' : 'Explore map';
+    toggleMap.setAttribute('aria-pressed', String(viewMap.isOpen));
+    mapControls.hidden = mapCredit.hidden = !viewMap.isOpen;
+    if (viewMap.isOpen) widthLabel.textContent = `${viewMap.mode === 'hybrid' ? 'HYBRID' : 'MAP'} · DISPLAY ONLY`;
+    for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mapMode === viewMap.mode));
+    byId('map-hybrid').disabled = !match || !hasAerialCoverage(match.coordinates);
+  }
   /** Puts the aerial controls and text back exactly as they were, resuming an interrupted image load. */
   function restore2d() {
-    const previous = saved; saved = null; sync3d();
+    const previous = saved; saved = null; sync3d(); syncMap();
     if (!previous) return;
     tools.hidden = previous.tools; widthLabel.textContent = previous.width; status.textContent = previous.status;
     if (previous.reload) load();
   }
-  function unavailable3d() { restore2d(); status.textContent = 'The 3D view is unavailable right now. The aerial view still works.'; }
+  function unavailable3d() { view3d.close(); restore2d(); status.textContent = 'The 3D view is unavailable right now. The aerial view still works.'; }
+  function unavailableMap() { viewMap.close(); restore2d(); status.textContent = 'The interactive map is unavailable right now. The aerial view and your estimate still work.'; }
+  async function openMap() {
+    if (view3d.isOpen) { view3d.close(); restore2d(); }
+    const location = match;
+    saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: Boolean(pendingImage) };
+    if (saved.reload) cancel();
+    tools.hidden = true; widthLabel.textContent = 'MAP · DISPLAY ONLY'; status.textContent = 'Loading the interactive map…';
+    const pending = viewMap.show(location); syncMap();
+    try {
+      const ready = await pending;
+      if (!ready || !viewMap.isOpen || match !== location) return;
+      status.textContent = viewMap.message; syncMap();
+    } catch { if (match === location && saved) unavailableMap(); }
+  }
   async function open3d() {
+    if (viewMap.isOpen) { viewMap.close(); restore2d(); }
     const location = match;
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: Boolean(pendingImage) };
     if (saved.reload) cancel();
     tools.hidden = true; widthLabel.textContent = 'GOOGLE 3D · DISPLAY ONLY';
     status.textContent = 'Loading the Google 3D view…';
-    const pending = view3d.show(location); sync3d();
+    const pending = view3d.show(location); sync3d(); syncMap();
     let result;
     try { result = await pending; }
     catch { if (match === location && saved) unavailable3d(); return; }
@@ -48,7 +79,7 @@ export function setupPropertyPreview({ onPhoto }) {
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
   function clear() {
-    cancel(); view3d.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d();
+    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d(); syncMap();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
     byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'AERIAL PREVIEW';
     placeholder('Your place starts here.', 'Type a complete U.S. address. An aerial view will appear automatically.');
@@ -69,6 +100,7 @@ export function setupPropertyPreview({ onPhoto }) {
   }
   function load() {
     if (view3d.isOpen) { view3d.close(); saved = null; sync3d(); }
+    if (viewMap.isOpen) { viewMap.close(); saved = null; syncMap(); }
     cancel(); const requestSerial = serial;
     let next;
     try { next = aerialView(center, width); }
@@ -100,7 +132,7 @@ export function setupPropertyPreview({ onPhoto }) {
   }
   function show(location) {
     if (!isAddressMatch(location)) { failed(); return; }
-    clear(); match = location; byId('aerial-address').textContent = location.matchedAddress; sync3d();
+    clear(); match = location; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
     if (!hasAerialCoverage(location.coordinates)) {
       placeholder('No aerial coverage here yet.', 'This preview covers the contiguous U.S. You can use your own exterior photo for this property.');
       status.textContent = 'Address matched. Aerial imagery for Alaska, Hawaii and U.S. territories is not connected.'; return;
@@ -122,12 +154,16 @@ export function setupPropertyPreview({ onPhoto }) {
   byId('aerial-retry').addEventListener('click', load);
   byId('aerial-photo').addEventListener('click', onPhoto);
   toggle3d.addEventListener('click', () => { if (view3d.isOpen) { view3d.close(); restore2d(); } else if (match) open3d(); });
+  toggleMap.addEventListener('click', () => { if (viewMap.isOpen) { viewMap.close(); restore2d(); } else if (match) openMap(); });
+  for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.addEventListener('click', () => { viewMap.setMode(button.dataset.mapMode); syncMap(); });
+  byId('map-recenter').addEventListener('click', () => viewMap.recenter());
+  byId('map-clear-selection').addEventListener('click', () => viewMap.clearSelection());
   stage.addEventListener('keydown', event => {
     const delta = { ArrowLeft: [-.3, 0], ArrowRight: [.3, 0], ArrowUp: [0, -.3], ArrowDown: [0, .3] }[event.key];
-    if (!delta || !loaded || view3d.isOpen) return; event.preventDefault(); pan(...delta);
+    if (!delta || !loaded || view3d.isOpen || viewMap.isOpen) return; event.preventDefault(); pan(...delta);
   });
   stage.addEventListener('pointerdown', event => {
-    if (!loaded || view3d.isOpen || event.button !== 0) return;
+    if (!loaded || view3d.isOpen || viewMap.isOpen || event.button !== 0) return;
     pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
     if (event.pointerType === 'mouse') stage.setPointerCapture(event.pointerId);
   });

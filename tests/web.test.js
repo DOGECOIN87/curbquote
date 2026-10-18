@@ -73,6 +73,7 @@ test('public build serves browser modules while keeping backend, research and pr
   assert.equal(cesium.status, 200);
   assert.doesNotMatch(await cesium.text(), /\(0,eval\)/); // The build ships the CSP-patched bundle.
   assert.equal((await fetch(`${base}/vendor/cesium/ThirdParty/draco_decoder.wasm`)).headers.get('content-type'), 'application/wasm');
+  for (const file of ['maplibre-gl.mjs', 'maplibre-gl-shared.mjs', 'maplibre-gl-worker.mjs', 'maplibre-gl.css', 'LICENSE.txt']) assert.equal((await fetch(`${base}/vendor/maplibre/${file}`)).status, 200);
   for (const path of ['/lib/geocode.mjs', '/docs/01-data-sources.md', '/.env', '/.git/config', '/package.json', '/vendor/cesium/Cesium.js', '/node_modules/cesium/package.json']) {
     assert.equal((await fetch(base + path)).status, 404, path);
   }

@@ -1,0 +1,111 @@
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { chromium } from 'playwright';
+import { createAppServer } from '../lib/web.mjs';
+import { createGeocodeHandler } from '../api/geocode.js';
+import { createMap3DHandler } from '../api/map3d.js';
+import { mapTileJSON, syntheticMapTile, mapImageryPng } from './fixtures/map.mjs';
+
+const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }), geocodeHandler: createGeocodeHandler(async () => ({ matchedAddress: 'SYNTHETIC QA PROPERTY, DC', coordinates: { lat: 38.84, lon: -76.9 }, source: 'Synthetic test location' })) });
+server.listen(0, '127.0.0.1'); await once(server, 'listening');
+const base = `http://127.0.0.1:${server.address().port}`;
+const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+const errors = [], checks = [], requests = [];
+let behavior = 'normal', held, sawHeld, rasterUnavailable = false;
+const cors = { 'Access-Control-Allow-Origin': '*' };
+await context.route('https://tiles.openfreemap.org/**', async route => {
+  if (route.request().url().endsWith('/planet')) {
+    if (behavior === 'fail') return route.fulfill({ status: 503, headers: cors, json: { error: 'Synthetic map outage' } });
+    if (behavior === 'hold') { sawHeld?.(); await held; }
+    return route.fulfill({ headers: cors, json: mapTileJSON }).catch(() => {});
+  }
+  if (route.request().url().includes('/qa/')) return route.fulfill({ contentType: 'application/x-protobuf', headers: cors, body: syntheticMapTile(route.request().url()) }).catch(() => {});
+  throw new Error('Unexpected map resource: ' + new URL(route.request().url()).pathname);
+});
+await context.route('https://imagery.nationalmap.gov/**', route => {
+  if (rasterUnavailable && new URL(route.request().url()).searchParams.get('size') === '256,256') return route.fulfill({ contentType: 'application/json', headers: cors, body: '{"error":"Synthetic imagery failure"}' });
+  return route.fulfill({ contentType: 'image/png', headers: cors, body: mapImageryPng });
+});
+const page = await context.newPage();
+page.on('pageerror', error => errors.push(error.message));
+page.on('console', message => { if (message.type() === 'error' && !message.text().includes('status of 503')) errors.push(message.text()); });
+page.on('request', request => requests.push(request));
+const ready = () => page.waitForFunction(() => { const map = document.querySelector('#property-map'); return !map.hidden && map.getAttribute('aria-busy') !== 'true' && map.querySelector('canvas'); }, undefined, { timeout: 25000 });
+try {
+  await page.goto(base); await page.locator('#property-address').fill('123 Test St, Washington, DC 20233'); await page.locator('#verify-address').click();
+  await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  assert.equal(requests.filter(r => r.url().includes('/vendor/maplibre/')).length, 0);
+  assert.equal(await page.locator('#aerial-map-toggle').isVisible(), true, 'WebGL2 renderer must be exercised in this QA environment');
+  const originalImage = await page.locator('#aerial-images img').getAttribute('src');
+  await page.locator('#aerial-map-toggle').click(); await ready();
+  const canvas = page.locator('#property-map canvas'); await page.waitForTimeout(100);
+  assert.equal(await canvas.isVisible(), true);
+  assert.equal(await page.locator('#map-attribution').isVisible(), true);
+  assert.equal(await page.locator('#aerial-controls').isVisible(), false);
+  assert.equal(await page.locator('#map-hybrid').getAttribute('aria-pressed'), 'true');
+  assert.ok(requests.some(r => r.url().includes('maplibre-gl-worker.mjs')));
+  assert.ok(requests.some(r => r.url().includes('/qa/') && r.url().endsWith('.pbf')));
+  assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  checks.push('Opening Explore map lazy-loads the actual self-hosted renderer/worker, renders fixture vector/raster tiles and shows source attribution');
+  const box = await canvas.boundingBox(); await canvas.click({ position: { x: box.width / 2 + 12, y: box.height / 2 + 8 } });
+  await page.waitForFunction(() => !document.querySelector('#map-selection').hidden);
+  assert.equal(await page.locator('#map-clear-selection').isVisible(), true);
+  assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage }).includes('DO NOT STORE THIS PROPERTY')), false);
+  assert.doesNotMatch(await page.locator('#print-report-content').textContent(), /SYNTHETIC QA BUILDING|DO NOT STORE/);
+  await page.locator('#map-clear-selection').click(); assert.equal(await page.locator('#map-selection').isVisible(), false);
+  checks.push('Tapping a rendered building highlights its outline; clear works and source geometry/properties never enter storage or estimate export');
+  const before = await canvas.screenshot(); await canvas.focus(); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(100);
+  assert.notDeepEqual(await canvas.screenshot(), before);
+  await page.locator('[data-map-mode="map"]').click(); assert.equal(await page.locator('[data-map-mode="map"]').getAttribute('aria-pressed'), 'true');
+  await page.locator('#map-hybrid').click(); await page.locator('#map-recenter').click(); await page.waitForTimeout(100);
+  await canvas.focus(); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => !document.querySelector('#map-selection').hidden);
+  await page.keyboard.press('Escape'); assert.equal(await page.locator('#map-selection').isVisible(), false);
+  checks.push('Map keyboard navigation, Map/Hybrid switching and recenter operate without editing estimate measurements');
+  await mkdir('qa-output', { recursive: true });
+  await page.locator('.hero').screenshot({ path: 'qa-output/map-desktop.png' });
+  for (const [width, height] of [[320,740],[360,800],[390,844],[560,800],[768,1024],[921,800],[1024,768],[1440,1000],[2560,1440],[844,390]]) {
+    await page.setViewportSize({ width, height });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Map overflow at ${width}`);
+    if (width === 390) await page.locator('.hero').screenshot({ path: 'qa-output/map-phone.png' });
+  }
+  checks.push('Interactive canvas, source credits and controls fit all ten phone/tablet/desktop/landscape viewports');
+  await page.locator('#aerial-map-toggle').click();
+  assert.equal(await page.locator('#property-map canvas').count(), 0);
+  assert.equal(await page.locator('#aerial-images img').getAttribute('src'), originalImage);
+  assert.equal(await page.locator('#aerial-controls').isVisible(), true);
+  checks.push('Closing the map releases its canvas and restores the existing aerial view and controls');
+  rasterUnavailable = true; await page.locator('#aerial-map-toggle').click(); await ready();
+  await page.waitForFunction(() => document.querySelector('[data-map-mode="map"]').getAttribute('aria-pressed') === 'true');
+  assert.equal(await canvas.isVisible(), true); assert.equal(await page.locator('#map-attribution').isVisible(), true);
+  await page.locator('#aerial-map-toggle').click(); rasterUnavailable = false;
+  checks.push('Unavailable aerial tiles degrade to a usable drawn map with its attribution and building outlines');
+  behavior = 'hold'; let release; held = new Promise(resolve => { release = resolve; }); const seen = new Promise(resolve => { sawHeld = resolve; });
+  await page.locator('#aerial-map-toggle').click(); await seen;
+  await page.locator('#property-address').fill('999 New'); release(); await page.waitForTimeout(100);
+  assert.equal(await page.locator('#property-map canvas').count(), 0);
+  assert.equal(await page.locator('#map-selection').isVisible(), false); assert.equal(await page.locator('#map-attribution').isVisible(), false);
+  checks.push('Editing the address tears down a loading map; late tile results cannot restore the old location or highlight');
+  behavior = 'fail'; await page.locator('#property-address').fill('123 Test St, Washington, DC 20233'); await page.locator('#verify-address').click();
+  await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  await page.locator('#aerial-map-toggle').click();
+  await page.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('interactive map is unavailable'));
+  assert.equal(await page.locator('#aerial-controls').isVisible(), true); assert.equal(await page.locator('#results').isVisible(), true);
+  checks.push('A map-service failure returns to the aerial preview while estimates stay usable');
+  await page.clock.install(); behavior = 'hold'; let releaseTimeout; held = new Promise(resolve => { releaseTimeout = resolve; }); const timeoutSeen = new Promise(resolve => { sawHeld = resolve; });
+  await page.locator('#aerial-map-toggle').click(); await timeoutSeen; await page.clock.runFor(20100);
+  assert.match(await page.locator('#aerial-status').textContent(), /interactive map is unavailable/); releaseTimeout();
+  checks.push('A stalled map lookup has a bounded deadline and a usable fallback');
+  const noGL = await browser.newPage(); await noGL.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function(type, ...args) { return type === 'webgl2' ? null : original.call(this, type, ...args); }; });
+  await noGL.route('https://imagery.nationalmap.gov/**', route => route.fulfill({ contentType: 'image/png', body: mapImageryPng }));
+  await noGL.goto(base); await noGL.locator('#property-address').fill('123 Test St, Washington, DC 20233'); await noGL.locator('#verify-address').click();
+  await noGL.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  assert.equal(await noGL.locator('#aerial-map-toggle').isVisible(), false); await noGL.close();
+  checks.push('Devices without WebGL2 retain the working automatic aerial preview');
+  assert.equal(requests.filter(r => r.url().startsWith('https://tiles.openfreemap.org/') && r.headers().referer).length, 0);
+  assert.deepEqual(errors, []);
+  await writeFile('qa-output/map-checks.json', JSON.stringify({ passed: checks.length, checks, errors }, null, 2));
+  console.log(JSON.stringify({ passed: checks.length, checks, errors }, null, 2));
+} finally { await browser.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

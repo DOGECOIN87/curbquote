@@ -38,6 +38,7 @@ See [the functional prototype notes](docs/07-functional-prototype.md) for the im
 | 3 | [Visualization](docs/03-visualization.md) | Real-time vs pre-rendered, tools and APIs, guardrails |
 | 4 | [Architecture and roadmap](docs/04-architecture-and-roadmap.md) | System design, data model, unit costs, phases 0–4 |
 | 5 | [Assessment](docs/05-assessment.md) | Honest take: risks, what to change, what's missing |
+| 11 | [Open map option](docs/11-open-map-option.md) | OpenStreetMap stack (MapLibre, OpenFreeMap, PMTiles, Overture): licenses, hosted-service rules, CSP fit, recommended path |
 | — | [Back-test template](data/backtest-template.csv) | Columns to export from past jobs for Phase 0 |
 
 ## Executive summary

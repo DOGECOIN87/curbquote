@@ -23,7 +23,7 @@ The property address and actual aerial preview are the first interactive control
 
 Typed complete addresses go to Census through the existing server route. Image URLs contain a numeric map bounding box, not address text. Images are loaded directly from USGS with `referrerPolicy=no-referrer`; USGS can see the client's network address and requested area. Panning can request nearby areas. The application does not persist these images, export them, perform computer vision, or send them to the AI assistant.
 
-`property-view.js` contains projection, coverage and URL construction. `property-preview.js` owns display/cancellation, image loading and view controls. `main.js` schedules address searches and coordinates saved/assistant state. The browser's Content Security Policy permits external images only from the exact government export path; scripts and API connections remain same-origin. Both Node development and Vercel configurations use the same policy. No remote map JavaScript, iframe or new package was added.
+`property-view.js` contains projection, coverage and URL construction. `property-preview.js` owns display/cancellation, image loading and view controls. `main.js` schedules address searches and coordinates saved/assistant state. The browser's Content Security Policy permits external images only from the exact government export path; scripts and API connections remain same-origin. Both Node development and Vercel configurations use the same policy. No remote map JavaScript, iframe or new package was added. v0.7 widens the policy for the optional Google 3D view and changes `Referrer-Policy` to `strict-origin`; see [the 3D view notes](13-google-3d-view.md).
 
 ## Verification
 

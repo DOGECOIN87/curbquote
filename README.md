@@ -40,6 +40,7 @@ See [the functional prototype notes](docs/07-functional-prototype.md) for the im
 | 5 | [Assessment](docs/05-assessment.md) | Honest take: risks, what to change, what's missing |
 | 11 | [Open map option](docs/11-open-map-option.md) | OpenStreetMap stack (MapLibre, OpenFreeMap, PMTiles, Overture): licenses, hosted-service rules, CSP fit, recommended path |
 | 12 | [3D and AI-generated maps](docs/12-3d-and-ai-map-alternatives.md) | Google 3D Tiles/Aerial View, Flight Simulator (Blackshark.ai), Cesium, open 3D OSM, AI world generators, phone capture: real vs AI-guessed, cost, measurability |
+| 13 | [Google 3D view (test build)](docs/13-google-3d-view.md) | Optional View in 3D button: Google Photorealistic 3D Tiles via CesiumJS, key setup and free-tier cap, CSP and referrer changes, open questions |
 | — | [Back-test template](data/backtest-template.csv) | Columns to export from past jobs for Phase 0 |
 
 ## Executive summary

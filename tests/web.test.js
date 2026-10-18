@@ -58,8 +58,9 @@ test('public build serves browser modules while keeping backend, research and pr
   t.after(() => rm(destination, { recursive: true, force: true }));
   await buildPublicAssets(destination);
   const base = await withServer(t, { assetRoot: destination });
-  for (const file of await readdir(destination)) {
-    const response = await fetch(`${base}/${file}`);
+  for (const entry of await readdir(destination, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const file = entry.name, response = await fetch(`${base}/${file}`);
     assert.equal(response.status, 200, file);
     assert.match(response.headers.get('content-type'), /charset=utf-8/);
     const body = await response.text();
@@ -68,7 +69,11 @@ test('public build serves browser modules while keeping backend, research and pr
       assert.equal((await fetch(`${base}/${dependency}`)).status, 200, dependency);
     }
   }
-  for (const path of ['/lib/geocode.mjs', '/docs/01-data-sources.md', '/.env', '/.git/config', '/package.json']) {
+  const cesium = await fetch(`${base}/vendor/cesium/index.js`);
+  assert.equal(cesium.status, 200);
+  assert.doesNotMatch(await cesium.text(), /\(0,eval\)/); // The build ships the CSP-patched bundle.
+  assert.equal((await fetch(`${base}/vendor/cesium/ThirdParty/draco_decoder.wasm`)).headers.get('content-type'), 'application/wasm');
+  for (const path of ['/lib/geocode.mjs', '/docs/01-data-sources.md', '/.env', '/.git/config', '/package.json', '/vendor/cesium/Cesium.js', '/node_modules/cesium/package.json']) {
     assert.equal((await fetch(base + path)).status, 404, path);
   }
   const html = await fetch(base);

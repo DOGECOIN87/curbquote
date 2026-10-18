@@ -7,10 +7,12 @@ import { createGeocodeHandler } from '../api/geocode.js';
 import { resolveAddress } from '../lib/geocode.mjs';
 import { createAppServer } from '../lib/web.mjs';
 import { createPropertyHandler } from '../api/property.js';
+import { createMap3DHandler } from '../api/map3d.js';
 import { resolveProperty } from '../lib/property.mjs';
 import { propertyEnv, providerObject, propertyRecord } from './fixtures/property.mjs';
 const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
 const server = createAppServer({
+  mapHandler: createMap3DHandler({ env: {} }),
   geocodeHandler: createGeocodeHandler(value => resolveAddress(value, async url => {
     assert.equal(new URL(url).hostname, 'geocoding.geo.census.gov');
     return { ok: true, json: async () => ({ result: { addressMatches: [{
@@ -26,7 +28,7 @@ const server = createAppServer({
 server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true });
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true, args: ['--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', acceptDownloads: true });
 const checks = [];
 const errors = [];
@@ -56,6 +58,8 @@ try {
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
   assert.match(await page.locator('#aerial-status').textContent(), /approximate Census/);
   checks.push('A complete typed address automatically loads aerial imagery after one debounce; street fragments make no lookup');
+  assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), false);
+  checks.push('Without a configured Google key the 3D toggle stays hidden');
   await page.locator('#aerial-zoom-in').click();
   await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('113'));
   const zoomUrl = await page.locator('#aerial-images img').getAttribute('src');
@@ -467,6 +471,33 @@ try {
   await page.locator('#verify-address').click(); await page.waitForFunction(() => document.querySelector('#property-status').textContent.includes('could not be read'));
   assert.equal(await page.locator('#results').isVisible(), true); await page.unroute('**/api/property');
   checks.push('Expiring source records are cleared from the DOM; malformed provider responses leave manual estimating usable');
+  const page3d = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const googleRequests = [], syntheticKey = 'SYNTHETIC-TEST-KEY-NOT-REAL-0000';
+  page3d.on('pageerror', error => errors.push(error.message));
+  page3d.on('console', message => { if (message.type() === 'error' && ![403, 503].some(status => message.text().includes(`status of ${status}`))) errors.push(message.text()); });
+  page3d.on('request', request => { if (request.url().startsWith('https://tile.googleapis.com/')) googleRequests.push(request); });
+  await page3d.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await page3d.route('**/api/map3d', route => route.fulfill({ json: { configured: true, provider: 'Google Photorealistic 3D Tiles', key: syntheticKey } }));
+  await page3d.route('https://tile.googleapis.com/**', route => route.fulfill({ status: 403, headers: { 'Access-Control-Allow-Origin': '*' }, json: { error: { code: 403, message: 'Synthetic denial' } } }));
+  await page3d.goto(base);
+  await page3d.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
+  await page3d.locator('#verify-address').click();
+  await page3d.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  if (await page3d.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')))) {
+    await page3d.locator('#aerial-3d-toggle').click();
+    await page3d.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('3D view is unavailable'), null, { timeout: 30000 });
+    assert.equal(await page3d.locator('#aerial-controls').isVisible(), true);
+    assert.equal(await page3d.locator('.aerial-3d').isHidden(), true);
+    assert.equal(await page3d.locator('#aerial-3d-toggle').textContent(), 'View in 3D');
+    assert.equal(googleRequests.length, 1);
+    assert.equal(googleRequests[0].headers().referer, `${base}/`);
+    assert.equal(new URL(googleRequests[0].url()).searchParams.get('key'), syntheticKey);
+    checks.push('A configured 3D view loads CesiumJS under the CSP, sends Google only the site origin, and a denied key returns to the aerial view');
+  } else {
+    assert.equal(await page3d.locator('#aerial-3d-toggle').isVisible(), false);
+    checks.push('Without WebGL2 the configured 3D toggle stays hidden');
+  }
+  await page3d.close();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({media:'print'});
   await page.screenshot({path:join(outputDir,'print-report.png'),fullPage:true});

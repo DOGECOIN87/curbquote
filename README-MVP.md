@@ -14,7 +14,7 @@ npm run check
 
 Run `npm ci --ignore-scripts` before development or checks. The AI SDK and Zod are pinned production dependencies for the server-side assistant; Playwright is a pinned development dependency for browser regression tests. The automatic planner works without AI credentials.
 
-Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies the browser assets plus the pinned MapLibre and allowlisted CesiumJS runtimes into `dist/`; `/api/geocode`, `/api/property`, `/api/map3d` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
+Run the full app with `npm run dev`: the dev server serves the browser assets plus the pinned MapLibre and allowlisted CesiumJS runtimes, runs `/api/geocode`, `/api/property`, `/api/map3d` and `/api/assistant` as local Node functions, and applies the security headers from `lib/web.mjs`. Ship the static demo with `npm run build:pages` (deployed to GitHub Pages by `.github/workflows/pages.yml`): the page calls Census directly, carries the policy in meta tags, and has no API routes — do not use the static demo for geocoding-dependent flows.
 
 ```sh
 npm ci --ignore-scripts

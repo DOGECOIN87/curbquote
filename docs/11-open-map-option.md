@@ -56,7 +56,7 @@ open map can keep that strict security posture:
    involved. The 6.12.0 source starts the worker as a plain module `Worker` when its URL is
    same-origin and only falls back to a `blob:` wrapper for cross-origin URLs. That means
    `script-src 'self'` holds and the CSP only needs `worker-src 'self'`.
-2. **Widen the CSP in both places** (`lib/web.mjs` and `vercel.json`):
+2. **Widen the CSP** in `lib/web.mjs` (the static demo derives its meta-tag policy from it):
    - `connect-src 'self' https://tiles.openfreemap.org`: style, tiles, fonts and sprites. MapLibre
      fetches tiles instead of using `<img>` tags.
    - Add the NAIP origin to `connect-src` if NAIP is loaded as map tiles.

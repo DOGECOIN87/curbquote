@@ -30,7 +30,7 @@ Built on the existing framework-free estimator and development branch. No rewrit
 
 ## Hosting
 
-Vercel project `curbquote` is configured in the existing `dogecoin87's projects` Hobby team, using Node 22 and the repository's `vercel.json`. The application is deployed from `research/feasibility-report` as a preview without merging `main`. The deployed URL, commit and hosted smoke-test result belong in PR #1. Team-default deployment protection is preserved.
+The static demo is built with `npm run build:pages` and deployed to GitHub Pages by `.github/workflows/pages.yml`. The full application runs locally with `npm run dev`.
 
 ## Prototype boundaries
 

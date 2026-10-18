@@ -1,20 +1,25 @@
-# Optional Google 3D view — v0.7 (test build)
+# Google 3D view — v0.7
 
-When a Google key is configured, a **View in 3D** button appears under the aerial preview after an
-address match. It opens Google Photorealistic 3D Tiles around the approximate Census point, rendered
-with CesiumJS (Apache-2.0). Without a key, or without WebGL2, the button stays hidden and nothing
-changes.
+When a 3D credential is configured and the browser supports WebGL2, Google Photorealistic 3D Tiles
+open automatically after an address match. They're rendered with CesiumJS (Apache-2.0) around the
+approximate Census point. Without a credential the page behaves as before, with the USGS aerial
+photo.
 
 ## Homeowner flow
 
-1. Match an address as before. The aerial photo loads first.
-2. **View in 3D** loads CesiumJS on demand (about 4.6 MB, only on first use). It frames the address
-   point from about 190 m away, looking down at 35°, with a green dot on the point. Drag to orbit;
-   scroll or pinch to zoom.
-3. **Back to aerial view** restores the aerial controls and text exactly as they were. Editing the
-   address closes the 3D view.
-4. If Google refuses the key, the daily quota is used up, or WebGL fails, the page says "The 3D view
-   is unavailable right now" and returns to the aerial view. Estimating is never blocked.
+1. **Match an address.** The 3D view loads CesiumJS (about 4.6 MB, first time only). It frames
+   the address point from about 190 m, looking down at 35°, with a green dot on the point. No USGS
+   image is requested while 3D is showing.
+2. **Move around.** Drag to orbit; scroll or pinch to zoom.
+   - **Top view** looks straight down, using the same sharp Google imagery.
+   - **⟳** rotates a quarter turn.
+   - **Recenter** returns to the starting angle.
+   - The north marker and the USGS credit hide while 3D is shown.
+3. **Switch views.** **Aerial photo** switches to the USGS image; **View in 3D** switches back.
+   Editing the address closes the 3D view.
+4. **If 3D fails**, the page falls back to the aerial photo: for example a refused credential, a
+   used-up quota or a WebGL error. A manual retry that fails says "The 3D view is unavailable right
+   now". Estimating is never blocked.
 
 **Display only.** Nothing from the 3D view is measured, stored, exported, or sent to the estimator
 or the AI assistant. Google's Map Tiles policies forbid image analysis, geodata extraction and
@@ -32,10 +37,19 @@ Google's logo and data attributions on screen.
    30 × 31 = 930, under Google's 1,000 free monthly sessions. Past the cap, Google refuses
    requests instead of billing.
 4. Add a small billing budget alert as a backstop.
-5. Set `GOOGLE_MAP_TILES_KEY` in Vercel's environment variables. Locally, set it in `.env.local`
+5. Set `GOOGLE_MAP_TILES_KEY` as a deployment environment variable. Locally, set it in `.env.local`
    (see `.env.example`).
 
-`GET /api/map3d` returns `{ configured: false }` or `{ configured: true, provider, key }`. It's a
+**Testing without Google billing.** Set `CESIUM_ION_TOKEN` instead:
+- **The token:** a Cesium ion token with only the `assets:read` scope, restricted to your site's URLs.
+- **What it does:** CesiumJS then requests the same Google tiles through Cesium ion. The free
+  Community plan allows 1,000 a month, for personal use and evaluation only, so not for launch.
+- **Which credential is used:** a Google key wins when both are set, and the ion token is then
+  never sent to the browser.
+- **Treat it as public:** like the Google key, it reaches the browser. Never paste either one into
+  a chat or a screenshot.
+
+`GET /api/map3d` returns `{ configured: false }`, `{ configured: true, provider, key }` or `{ configured: true, provider, ionToken }`. It's a
 browser key by design: Google's tiles are requested from the browser, so the key's restrictions
 and quota are what protect it.
 
@@ -46,14 +60,14 @@ viewing.
 ## Security and privacy changes
 
 The page's Content Security Policy widened only as far as CesiumJS needs. Development
-(`lib/web.mjs`) and Vercel (`vercel.json`) use the same policy:
+(`lib/web.mjs`) holds the policy (the static demo derives its meta-tag copy from it):
 
-- `connect-src` adds `https://tile.googleapis.com`.
-- `img-src` adds `blob:` and Cesium's hosted Google logo,
-  `https://assets.ion.cesium.com/google-credit.png`.
+- `connect-src` adds `https://tile.googleapis.com`, plus `https://api.cesium.com` and `https://assets.ion.cesium.com` for the ion option.
+- `img-src` adds `blob:` and `https://assets.ion.cesium.com`, which hosts the Google logo and the
+  ion credit images.
 - `script-src` adds `'wasm-unsafe-eval'`, for the mesh decoder. `worker-src` allows `'self'` and
   `blob:`.
-- Exactly three CesiumJS inline styles are allowed by hash. **No `unsafe-eval` and no
+- Exactly four CesiumJS inline styles are allowed by hash: the credit stylesheet, a feature probe, and the Cesium ion and Google logo credits. **No `unsafe-eval` and no
   `unsafe-inline`.**
 - The bundled knockout library looks up the global object with `eval`. The build and the dev
   server replace that one expression with `globalThis` (`patchCesium`). It refuses to run if a
@@ -73,7 +87,7 @@ No CDN script is loaded.
 
 ## Verification
 
-- `npm run check`: 60 Node tests. They cover the config endpoint, the vendored-file allowlist,
+- `npm run check`: 64 Node tests. They cover the config endpoint, the vendored-file allowlist,
   WASM content type, the patched bundle and the CSP hashes.
 - `npm run test:browser`: 36 Chromium checks.
   - The toggle stays hidden without a key.
@@ -82,8 +96,11 @@ No CDN script is loaded.
   - Google receives only the origin as referrer, and the page returns to the aerial view.
 - **Checked live from a cloud session:** with an invalid key, the real Google endpoint answers 400
   and the page falls back cleanly, with no CSP violations.
-- **Not yet checked:** the real 3D view with a valid key. It needs `GOOGLE_MAP_TILES_KEY` in the
-  environment.
+- **Checked live through Cesium ion (October 18, 2026):**
+  - Real Census and USGS data, plus Google 3D tiles for the Census Bureau address.
+  - The 3D view opens automatically, and Top view, rotate and Aerial photo work.
+  - No CSP violations and no page errors.
+  - Not yet checked live: a direct Google key, which needs Google Cloud billing.
 
 ## Open questions before launch
 

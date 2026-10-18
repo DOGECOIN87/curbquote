@@ -36,7 +36,7 @@ The model ID `openai/gpt-6-luna` was checked against the live Gateway catalog on
 - Local development runs all automatic tools without credentials. To exercise AI locally, supply an existing `AI_GATEWAY_API_KEY` or valid linked-project OIDC token through the process environment. A plain Node server does not automatically load `.env.local`.
 - `GET /api/assistant` checks credentials and the Gateway credit endpoint without inference. It exposes only `ai`/`planner` availability and a safe message, never credit balances or credentials. It cannot guarantee that a subsequent model request will succeed.
 - Account verification, credits, model access, outages or project budgets may prevent inference. The page labels fallback as **Automatic planner** and still runs deterministic planning. No payment method, credits purchase, budget increase or paid upgrade is activated by this change.
-- `vercel.json` gives the assistant function 40 seconds and preserves the existing security headers and Vercel deployment protection.
+- The dev server applies the existing security headers from `lib/web.mjs`.
 
 ## Privacy and operating limits
 

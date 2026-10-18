@@ -58,7 +58,7 @@ test('the CSP allows exactly the inline styles the installed CesiumJS uses, and 
     return value.startsWith('"') ? JSON.parse(value) : value;
   });
   assert.match(csp, new RegExp(`style-src 'self' ${sha(css).replaceAll('+', '\\+')};`));
-  for (const attribute of ['image-rendering: -moz-crisp-edges;image-rendering: pixelated;', 'vertical-align: -7px']) {
+  for (const attribute of ['image-rendering: -moz-crisp-edges;image-rendering: pixelated;', 'vertical-align: -7px', 'vertical-align:-6px']) {
     assert.ok(source.includes(attribute), attribute);
     assert.ok(csp.split('style-src-attr')[1].split(';')[0].includes(sha(attribute)), attribute);
   }

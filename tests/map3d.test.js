@@ -27,6 +27,11 @@ test('3D configuration exposes the browser key only when one is set', async () =
   }
   const { body } = await call(createMap3DHandler({ env: { GOOGLE_MAP_TILES_KEY: ' AIzaSyEXAMPLE-key_0123456789 ' } }));
   assert.deepEqual(body, { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyEXAMPLE-key_0123456789' });
+  const ionToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzeW50aGV0aWMiOnRydWV9.c3ludGhldGljLXNpZ25hdHVyZQ';
+  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: ionToken } }))).body, { configured: true, provider: 'Google Photorealistic 3D Tiles via Cesium ion', ionToken });
+  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: 'not a token' } }))).body, { configured: false });
+  // A Google key wins, and the ion token is then never sent to the browser.
+  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: ionToken, GOOGLE_MAP_TILES_KEY: 'AIzaSyEXAMPLE-key_0123456789' } }))).body, { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyEXAMPLE-key_0123456789' });
   const post = await call(createMap3DHandler({ env: {} }), 'POST');
   assert.equal(post.code, 405); assert.equal(post.headers.Allow, 'GET');
 });
@@ -53,7 +58,7 @@ test('the CSP allows exactly the inline styles the installed CesiumJS uses, and 
     return value.startsWith('"') ? JSON.parse(value) : value;
   });
   assert.match(csp, new RegExp(`style-src 'self' ${sha(css).replaceAll('+', '\\+')};`));
-  for (const attribute of ['image-rendering: -moz-crisp-edges;image-rendering: pixelated;', 'vertical-align: -7px']) {
+  for (const attribute of ['image-rendering: -moz-crisp-edges;image-rendering: pixelated;', 'vertical-align: -7px', 'vertical-align:-6px']) {
     assert.ok(source.includes(attribute), attribute);
     assert.ok(csp.split('style-src-attr')[1].split(';')[0].includes(sha(attribute)), attribute);
   }

@@ -7,6 +7,8 @@ import { buildEstimateSummary } from './summary.js';
 import { setupAssistant } from './assistant-ui.js';
 import { setupPropertyLookup } from './property-ui.js';
 import { setupPropertyPreview } from './property-preview.js';
+import { STATIC_SITE } from './config.js';
+import { lookupCensus } from './census-jsonp.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -171,7 +173,7 @@ function scheduleAddressLookup() {
 function addressChanged() {
   cancelAddressLookup(); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
   addressEl.removeAttribute('aria-invalid'); addressStatus.className = 'field-help';
-  addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. The aerial view will load automatically.' : 'Your aerial preview loads as you type a complete U.S. address. Location is approximate.';
+  addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. Your property view will load automatically.' : 'Your property view loads as you type a complete U.S. address. Location is approximate.';
   refreshReport(); scheduleAddressLookup();
 }
 addressEl.addEventListener('input', addressChanged);
@@ -207,13 +209,17 @@ async function lookupAddress({ automatic = false } = {}) {
   propertyPreview.searching();
   if (!automatic) propertyLookup?.lookup();
   try {
-    const response = await fetch(`/api/geocode?${new URLSearchParams({ address })}`, {
-      headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal
-    });
     let payload;
-    try { payload = await response.json(); }
-    catch { throw new Error('Address lookup returned an unreadable response. Try again or estimate manually.'); }
-    if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Address lookup is unavailable. Try again or estimate manually.');
+    // The static demo has no server, so it asks Census directly.
+    if (STATIC_SITE) payload = await lookupCensus(address, controller.signal);
+    else {
+      const response = await fetch(`api/geocode?${new URLSearchParams({ address })}`, {
+        headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal
+      });
+      try { payload = await response.json(); }
+      catch { throw new Error('Address lookup returned an unreadable response. Try again or estimate manually.'); }
+      if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Address lookup is unavailable. Try again or estimate manually.');
+    }
     if (!isAddressMatch(payload)) throw new Error('Address lookup returned incomplete location data. Try again or estimate manually.');
     if (serial !== lookupSerial) return;
     matched = payload;
@@ -358,7 +364,7 @@ byId('new-project').addEventListener('click', () => {
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
-  addressStatus.textContent = 'Your aerial preview loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
+  addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab(false); projectDialog.close(); notify('New project started with clearly labeled example measurements.');
   assistant?.restore();
 });

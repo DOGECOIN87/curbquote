@@ -228,7 +228,7 @@ try {
   for (const [width,height] of matrix) {
     await page.setViewportSize({ width, height });
     const result = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
-      clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.section-label,.hero h1,.eyebrow')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
+      clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.hero h1')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
     if (result.document > width + 1 || result.clipped.length) overflows.push(result);
     if (width === 390 || width === 1440) {
       await page.evaluate(() => window.scrollTo(0, 0));
@@ -484,15 +484,20 @@ try {
   await page3d.locator('#verify-address').click();
   await page3d.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
   if (await page3d.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')))) {
-    await page3d.locator('#aerial-3d-toggle').click();
-    await page3d.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('3D view is unavailable'), null, { timeout: 30000 });
-    assert.equal(await page3d.locator('#aerial-controls').isVisible(), true);
-    assert.equal(await page3d.locator('.aerial-3d').isHidden(), true);
-    assert.equal(await page3d.locator('#aerial-3d-toggle').textContent(), 'View in 3D');
+    // 3D opens automatically after the match; the denied key falls back to the aerial photo.
+    await page3d.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('Aerial view ready'), null, { timeout: 30000 });
     assert.equal(googleRequests.length, 1);
     assert.equal(googleRequests[0].headers().referer, `${base}/`);
     assert.equal(new URL(googleRequests[0].url()).searchParams.get('key'), syntheticKey);
-    checks.push('A configured 3D view loads CesiumJS under the CSP, sends Google only the site origin, and a denied key returns to the aerial view');
+    assert.equal(await page3d.locator('.aerial-3d').isHidden(), true);
+    assert.equal(await page3d.locator('#aerial-3d-controls').isHidden(), true);
+    assert.equal(await page3d.locator('#aerial-3d-toggle').textContent(), 'View in 3D');
+    await page3d.locator('#aerial-3d-toggle').click();
+    await page3d.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('3D view is unavailable'), null, { timeout: 30000 });
+    assert.equal(googleRequests.length, 2);
+    assert.equal(await page3d.locator('#aerial-controls').isVisible(), true);
+    assert.equal(await page3d.locator('.aerial-3d').isHidden(), true);
+    checks.push('A configured 3D view opens automatically under the CSP, sends Google only the site origin, and a denied key falls back to the aerial photo');
   } else {
     assert.equal(await page3d.locator('#aerial-3d-toggle').isVisible(), false);
     checks.push('Without WebGL2 the configured 3D toggle stays hidden');

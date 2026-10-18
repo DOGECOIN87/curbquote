@@ -1,3 +1,4 @@
+import { STATIC_SITE } from './config.js';
 import { DEFAULT_INPUT } from './estimate.js';
 import { validateAddress } from './address.js';
 import { PROPERTY_FIELDS, canImportProperty, propertySuggestions, validatePropertyRecord, validatePropertyContext } from './property-data.js';
@@ -71,12 +72,13 @@ export function setupPropertyLookup({ getAddress, getInputs, applyInputs, onChan
       await availability;
       if (!configured || before !== serial || !sameAddress(address, getAddress())) return;
     }
+    if (STATIC_SITE) { if (!automatic) status('Licensed property data needs the hosted version. Enter home details manually.'); return; }
     cancel(); pending = null; byId('property-record').hidden = true;
     const requestSerial = serial, abort = new AbortController(); controller = abort;
     const deadline = setTimeout(() => abort.abort(), 8500);
     status('Checking the authorized property source…');
     try {
-      const response = await fetch('/api/property', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ address, purpose: 'estimate' }), signal: abort.signal, cache: 'no-store' });
+      const response = await fetch('api/property', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ address, purpose: 'estimate' }), signal: abort.signal, cache: 'no-store' });
       const payload = await response.json();
       if (requestSerial !== serial || !sameAddress(address, getAddress())) return;
       if (!response.ok) throw new Error(typeof payload.error === 'string' ? payload.error : 'Property data is unavailable. Enter home details manually.');
@@ -105,7 +107,7 @@ export function setupPropertyLookup({ getAddress, getInputs, applyInputs, onChan
   document.addEventListener('visibilitychange', () => { if (!document.hidden) expire(); });
   const initialSerial = serial;
   let configured = false;
-  const availability = fetch('/api/property', { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then(response => response.json()).then(value => { configured = value.configured === true; if (initialSerial === serial && !pending && !context && typeof value.reason === 'string') status(value.reason); }).catch(() => {});
+  const availability = (STATIC_SITE ? Promise.resolve({ configured: false, reason: 'This demo has no licensed property source. Census location matching and manual inputs are available.' }) : fetch('api/property', { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then(response => response.json())).then(value => { configured = value.configured === true; if (initialSerial === serial && !pending && !context && typeof value.reason === 'string') status(value.reason); }).catch(() => {});
   return {
     lookup, show, clear,
     context: () => context ? validatePropertyContext(context) : undefined,

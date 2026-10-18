@@ -87,7 +87,7 @@ No CDN script is loaded.
 
 ## Verification
 
-- `npm run check`: 60 Node tests. They cover the config endpoint, the vendored-file allowlist,
+- `npm run check`: 64 Node tests. They cover the config endpoint, the vendored-file allowlist,
   WASM content type, the patched bundle and the CSP hashes.
 - `npm run test:browser`: 36 Chromium checks.
   - The toggle stays hidden without a key.

@@ -3,6 +3,8 @@
  * or sent to the estimator or assistant. CesiumJS loads on first use, and one tileset (one billed Google
  * session) is reused for the rest of the visit.
  */
+import { STATIC_SITE, STATIC_MAP3D } from './config.js';
+
 const CESIUM_BASE = new URL('./vendor/cesium/', import.meta.url).href;
 const HEIGHT_TIMEOUT = 15000;
 // CesiumJS defaults to a 1.5 GB in-memory tile cache for Google tiles, too much for phones.
@@ -18,8 +20,7 @@ export function setupProperty3D({ stage, onFailure }) {
   stage.append(container);
   let key = null, ionToken = null, Cesium = null, widget = null, marker = null, ready = null, serial = 0, open = false;
   let target = null, heading = 0, top = false;
-  const available = fetch('/api/map3d', { headers: { Accept: 'application/json' }, cache: 'no-store' })
-    .then(response => response.ok ? response.json() : {})
+  const available = (STATIC_SITE ? Promise.resolve(STATIC_MAP3D) : fetch('api/map3d', { headers: { Accept: 'application/json' }, cache: 'no-store' }).then(response => response.ok ? response.json() : {}))
     .then(config => {
       if (config?.configured) { key = typeof config.key === 'string' ? config.key : null; ionToken = key ? null : typeof config.ionToken === 'string' ? config.ionToken : null; }
       return Boolean(key || ionToken) && webgl2Available();

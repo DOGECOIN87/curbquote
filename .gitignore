@@ -6,6 +6,7 @@ node_modules/
 .DS_Store
 coverage/
 dist/
+dist-pages/
 qa-output/
 __pycache__/
 *.sqlite3

@@ -1,5 +1,6 @@
 import { DETAIL_FIELDS, FIELD_NAMES, validateSnapshot, reviewProject, comparePlans, parseProjectGoal, parseGoalBudget, buildContractorBrief } from './planning.js';
 import { estimateProject } from './project.js';
+import { STATIC_SITE } from './config.js';
 
 const DRAFT_KEY = 'curbquote.draft.v1';
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -122,7 +123,8 @@ export function setupAssistant({ read, apply, focusField, getAddress, applyLocat
     const abort = new AbortController(); controller = abort;
     const timeout = setTimeout(() => abort.abort(), 30000);
     try {
-      const response = await fetch('/api/assistant', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ prompt, snapshot, budget, allowPhasing: el('allow-phasing').checked, history: requestHistory }), signal: abort.signal, cache: 'no-store' });
+      if (STATIC_SITE) throw new Error('AI unavailable');   // The static demo has no AI endpoint.
+      const response = await fetch('api/assistant', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ prompt, snapshot, budget, allowPhasing: el('allow-phasing').checked, history: requestHistory }), signal: abort.signal, cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok || payload.mode !== 'ai' || typeof payload.text !== 'string' || !Array.isArray(payload.activity)) throw new Error('AI unavailable');
       if (requestSerial !== serial || initialFingerprint !== fingerprint()) return;
@@ -176,7 +178,7 @@ export function setupAssistant({ read, apply, focusField, getAddress, applyLocat
   } catch { el('draft-status').textContent = 'Draft storage is unavailable'; }
   renderReview();
   // A GET health check performs no inference and never sends the current project.
-  fetch('/api/assistant', { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(6000) }).then(response => response.json()).then(result => { if (result.mode === 'ai') el('assistant-mode').textContent = 'AI assistant'; }).catch(() => {});
+  if (!STATIC_SITE) fetch('api/assistant', { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(6000) }).then(response => response.json()).then(result => { if (result.mode === 'ai') el('assistant-mode').textContent = 'AI assistant'; }).catch(() => {});
   return {
     changed: field => { if (DETAIL_FIELDS.includes(field)) confirmed = confirmed.filter(key => key !== field); changed(); },
     metadata: () => ({ confirmed: [...confirmed], goal: el('project-goal').value, budget: el('project-budget').value, allowPhasing: el('allow-phasing').checked }),

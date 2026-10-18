@@ -13,4 +13,6 @@
 - Never commit, paste or log keys and tokens. Setup and every service are in `docs/SETUP.md`.
 - The security headers in `lib/web.mjs` and `vercel.json` must stay identical (a test checks this).
   Don't add `unsafe-eval` or `unsafe-inline` to the CSP; allow a specific inline style by hash.
-- Before pushing, run `npm run check` (60 Node tests) and, for UI changes, `npm run test:browser`.
+- Browser code must also work in the static GitHub Pages build (`config.js` `STATIC_SITE`): use relative URLs, and
+  give anything that calls `api/` a static fallback.
+- Before pushing, run `npm run check` (64 Node tests) and, for UI changes, `npm run test:browser`.

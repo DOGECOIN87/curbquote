@@ -46,6 +46,33 @@ The only setup is network access. If a host or test environment restricts outbou
    **redeploy**. Variables only apply to new deployments.
 4. Every push to a branch gets its own preview URL in the Vercel dashboard, under **Deployments**.
 
+## 2b. GitHub Pages demo (free, static)
+
+A shareable demo at `https://dogecoin87.github.io/curbquote/`, built by
+`.github/workflows/pages.yml` on every push to `main`.
+
+| Part | On GitHub Pages |
+|---|---|
+| Address lookup | Works. The page asks Census directly (JSONP). |
+| 3D view | Works with `CESIUM_ION_TOKEN` (or `GOOGLE_MAP_TILES_KEY`), which is baked into the public `config.js` at build time. |
+| Estimator, plans, saving, photo colours, contractor brief | Works, entirely in the browser. |
+| AI assistant | Not available, because Pages has no server. The automatic planner still works. |
+| Licensed property data | Not available, because it needs a server. |
+
+Setup:
+1. **Turn on Pages:** repository **Settings → Pages → Build and deployment → Source: GitHub
+   Actions**.
+2. **Make a separate Cesium token for the demo:** `assets:read` only, with **Allowed URLs** set
+   to `https://dogecoin87.github.io`. The demo's token is public in `config.js`, which is why it
+   must be restricted.
+3. **Add it as a repository secret:** **Settings → Secrets and variables → Actions → New
+   repository secret**, name `CESIUM_ION_TOKEN`.
+4. **Get the code onto `main`,** which the `github-pages` environment deploys by default. Or, under
+   **Settings → Environments → github-pages**, allow another branch, then run the workflow from
+   **Actions → Deploy GitHub Pages demo → Run workflow**.
+
+Build it locally with `npm run build:pages`; the output is in `dist-pages/`.
+
 ## 3. 3D view: pick one credential
 
 Use **Cesium ion** to test without a credit card, and switch to **Google** for launch. If both are

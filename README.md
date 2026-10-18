@@ -29,7 +29,7 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 60 Node tests, public build
+npm run check          # syntax checks, 64 Node tests, public build
 npm run test:browser   # 36 Chromium checks with fixture data (needs Playwright's Chromium)
 ```
 
@@ -56,6 +56,10 @@ Deploy the repository root to Vercel with the checked-in `vercel.json`:
 - `npm run build` writes the browser files and the self-hosted CesiumJS runtime to `dist/`.
 - `api/` holds the Node functions: `geocode`, `property`, `assistant` and `map3d`.
 - Security headers come from `lib/web.mjs`, and a test keeps `vercel.json` identical to them.
+
+**GitHub Pages demo:** `npm run build:pages` makes a static copy that runs without a server.
+Address lookup, 3D, estimates and saving work; the AI assistant and licensed property data don't.
+`.github/workflows/pages.yml` deploys it from `main`. Setup is in [docs/SETUP.md](docs/SETUP.md#2b-github-pages-demo-free-static).
 
 ## Project layout
 

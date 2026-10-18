@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102e35">
+  <meta name="description" content="Build a transparent preliminary exterior siding, window, and door renovation estimate. No account required.">
+  <title>CurbQuote — Know the scope before the quote</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="main.js"></script>
+</head>
+<body>
+  <a href="#estimate-form" class="skip-link">Skip to estimator</a>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="CurbQuote home"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#102e35"/><g transform="translate(0.6 -1.2)" fill="none" stroke="#caff8c" stroke-linecap="round" stroke-linejoin="round"><path d="M7.6 14.6 15.4 7.9l7.8 6.7v8.2a1.4 1.4 0 0 1-1.4 1.4H9a1.4 1.4 0 0 1-1.4-1.4Z" stroke-width="2.6"/><path d="M17.8 20.6 22.8 26.6" stroke-width="3"/></g></svg>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
+      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button></div>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
+          <p>Explore a preliminary budget for your home's siding, windows, and doors. Add what you know, see exactly how the numbers are calculated.</p>
+          <div class="address-section">
+            <h2 id="address-heading" class="sr-only">Find your property</h2>
+            <label for="property-address">Start with your property address</label>
+            <div class="address-entry"><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button">Find property <span aria-hidden="true">↗</span></button></div>
+            <div class="field-help" id="address-status" role="status" aria-live="polite">Your property view loads as you type a complete U.S. address. Location is approximate.</div>
+          </div>
+          <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick">✓</span>No sign-up required</span><span class="meta-divider"></span><span class="hero-benefit"><span class="meta-tick">✓</span>Save projects on this device</span></div>
+        </div>
+        <section class="property-preview" aria-labelledby="aerial-heading">
+          <div class="aerial-header"><div><h2 id="aerial-heading">Your property, in view.</h2></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
+          <p id="aerial-address" class="aerial-address">Start with your address</p>
+          <div id="aerial-stage" class="aerial-stage" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
+            <div id="aerial-images" class="aerial-images"></div>
+            <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 24l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address. Your property will appear automatically.</p></div>
+            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#caff8c" fill-opacity=".18" stroke="#caff8c" stroke-width="2"/><circle r="7" fill="#caff8c" stroke="#102e35" stroke-width="3"/></g></svg>
+          </div>
+          <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
+            <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
+            <div class="aerial-tool-group"><button type="button" data-pan="-.3,0" aria-label="Move view west">←</button><button type="button" data-pan="0,-.3" aria-label="Move view north">↑</button><button type="button" data-pan="0,.3" aria-label="Move view south">↓</button><button type="button" data-pan=".3,0" aria-label="Move view east">→</button></div>
+          </div>
+          <div id="aerial-3d-controls" class="aerial-controls" aria-label="3D view controls" hidden><div class="aerial-tool-group"><button type="button" id="aerial-3d-top" aria-pressed="false">Top view</button><button type="button" id="aerial-3d-rotate" aria-label="Rotate the 3D view a quarter turn">⟳</button><button type="button" id="aerial-3d-recenter">Recenter</button></div></div>
+          <div class="aerial-meta"><span id="aerial-width">AERIAL PREVIEW</span><a href="https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer" target="_blank" rel="noopener noreferrer">Imagery: USGS / USDA ↗</a></div>
+          <p id="aerial-status" class="aerial-status" role="status" aria-live="polite">An aerial view helps you recognize the building. It does not supply renovation measurements.</p>
+          <p id="aerial-instructions" class="sr-only">Use the arrow buttons or arrow keys to pan. Click or tap the image to center a building. Mouse users can also drag. The dot stays at the approximate address location. When available, View in 3D opens a Google 3D view you can orbit by dragging and zoom with scroll or pinch.</p>
+          <div class="aerial-actions"><button type="button" id="aerial-3d-toggle" hidden>View in 3D</button><button type="button" id="aerial-retry" hidden>Retry imagery ↻</button><button type="button" id="aerial-photo">Use my exterior photo ↗</button><span>Image age and coverage vary.</span></div>
+        </section>
+      </section>
+      <div class="property-source-section source-below-hero">
+        <p id="property-status" class="field-help" role="status" aria-live="polite">Property facts use a separately configured, authorized source. No source data is assumed from the address.</p>
+        <div id="property-record" class="property-record" hidden>
+          <h3>Review the property record</h3><p id="property-source" class="studio-help"></p>
+          <dl id="property-facts" class="property-facts"></dl>
+          <p id="property-permissions" class="studio-help"></p>
+          <div id="property-import-controls">
+            <label class="property-identity"><input id="property-identity" type="checkbox"><span>I checked the returned street address, city and unit. This is my property.</span></label>
+            <fieldset id="property-fields" class="property-field-picker"><legend>Details to use in this estimate</legend></fieldset>
+            <button type="button" id="apply-property" class="secondary-button" disabled>Use selected details</button>
+          </div>
+          <ul id="property-warnings" class="project-warnings"></ul>
+        </div>
+        <div id="property-applied" class="property-applied" hidden><p id="property-applied-note" class="studio-help"></p><button type="button" id="undo-property" class="outline-button">Undo imported details</button></div>
+      </div>
+      <section id="project-assistant" class="assistant-panel" aria-labelledby="assistant-heading">
+        <div class="assistant-header"><div><h2 id="assistant-heading">Your renovation copilot<span aria-hidden="true"> ✳</span></h2><p>Tell us your goal. Compare plans, check the details, and turn a budget into a next step.</p></div><span id="assistant-mode" class="assistant-mode">Automatic planner</span></div>
+        <form id="assistant-form" novalidate>
+          <label for="project-goal">What would you like to do?</label>
+          <textarea id="project-goal" maxlength="1800" rows="2" placeholder="Replace 6 windows and 1 door. Compare practical options for my budget." aria-describedby="assistant-privacy"></textarea>
+          <div class="assistant-controls"><div><label for="project-budget">Target budget <span class="unit">USD</span></label><input id="project-budget" type="number" min="100" max="10000000" step="100" inputmode="numeric" placeholder="e.g. 25000"></div><label class="phase-choice"><input id="allow-phasing" type="checkbox"><span>Allow phased work <small>Compare smaller scopes as a first phase</small></span></label><button type="submit" id="run-assistant" class="primary-button">Run assistant <span aria-hidden="true">↗</span></button></div>
+          <p id="assistant-privacy" class="assistant-help">AI requests send your message and current estimate details to the AI service. Photos stay in your browser. Automatic comparisons work without AI. Address lookup confirms location only.</p>
+        </form>
+        <div class="assistant-shortcuts" aria-label="Automatic project tools"><button type="button" id="compare-plans" class="outline-button">Compare plans</button><button type="button" id="review-project" class="outline-button">Check missing details</button><button type="button" id="download-brief" class="outline-button">Download contractor brief ↓</button><button type="button" id="undo-plan" class="outline-button" hidden>Undo plan change ↶</button><span id="draft-status" role="status"></span><button type="button" id="restore-draft" class="outline-button" hidden>Restore draft</button><button type="button" id="discard-draft" class="outline-button" hidden>Discard draft</button></div>
+        <p id="assistant-status" class="assistant-help" role="status" aria-live="polite">Start with a goal, or compare the current example project.</p>
+        <div id="assistant-conversation" class="assistant-conversation" aria-label="Assistant conversation" aria-live="polite"></div>
+        <ol id="assistant-activity" class="assistant-activity" aria-label="Completed assistant actions" hidden></ol>
+        <div id="plan-comparison" class="plan-comparison" aria-label="Calculated project plans" hidden></div>
+        <details id="detail-review" class="detail-review"><summary id="detail-review-summary">Home details still need confirmation</summary><p class="assistant-help">Only mark details you have checked. Homeowner confirmation is not a professional measurement. Editing a value marks it unconfirmed again.</p><div id="detail-questions" class="detail-questions"></div><ul id="project-warnings" class="project-warnings"></ul></details>
+      </section>
+      <div class="workspace">
+        <form id="estimate-form" class="entry-panel" novalidate>
+          <section class="form-section project-section" aria-labelledby="project-heading">
+            <div class="section-head"><span class="step-number">02</span><div><h2 id="project-heading">Build your project</h2><p>Choose the work, materials and finish that fit your plans.</p></div></div>
+            <fieldset class="scope-picker"><legend class="mini-heading">WHAT ARE YOU IMPROVING?</legend>
+              <label class="scope-choice"><input type="checkbox" id="scope-siding" checked><span aria-hidden="true">▥</span><strong>Siding</strong></label>
+              <label class="scope-choice"><input type="checkbox" id="scope-windows" checked><span aria-hidden="true">⊞</span><strong>Windows</strong></label>
+              <label class="scope-choice"><input type="checkbox" id="scope-doors" checked><span aria-hidden="true">▯</span><strong>Doors</strong></label>
+            </fieldset>
+            <div class="field-grid field-grid-2">
+              <div><label for="sidingProduct">Siding material</label><select id="sidingProduct"><option value="vinyl">Vinyl lap siding</option><option value="fiber">Fiber cement</option><option value="engineered">Engineered wood</option></select></div>
+              <div><label for="coveragePercent">Siding coverage <span class="unit">%</span></label><input id="coveragePercent" type="number" min="1" max="100" value="100" step="1" aria-describedby="coverage-help"></div>
+              <div><label for="windowProduct">Window style</label><select id="windowProduct"><option value="vinyl">Vinyl double-hung</option><option value="fiberglass">Fiberglass casement</option><option value="wood">Wood-clad windows</option></select></div>
+              <div><label for="doorProduct">Entry door</label><select id="doorProduct"><option value="steel">Steel entry door</option><option value="fiberglass">Fiberglass entry door</option><option value="wood">Wood entry door</option></select></div>
+            </div>
+            <p class="micro-note" id="coverage-help">100% covers all estimated siding. Choose a smaller share for a partial project. Materials and tiers apply editable example prices, not contractor quotes.</p>
+            <fieldset class="tier-picker"><legend class="mini-heading">QUALITY TIER</legend>
+              <label><input type="radio" name="tier" value="standard" checked><strong>Standard</strong><span>Simple & practical</span></label>
+              <label><input type="radio" name="tier" value="enhanced"><strong>Enhanced</strong><span>A little more detail</span></label>
+              <label><input type="radio" name="tier" value="premium"><strong>Premium</strong><span>Higher-end finishes</span></label>
+            </fieldset>
+            <div class="mini-heading with-gap">SIDING COLOR CONCEPT</div>
+            <div id="color-picker" class="color-picker" aria-label="Siding color">
+              <button type="button" data-color="sage" class="swatch sage" aria-label="Sage" aria-pressed="true"></button>
+              <button type="button" data-color="cream" class="swatch cream" aria-label="Warm ivory" aria-pressed="false"></button>
+              <button type="button" data-color="slate" class="swatch slate" aria-label="Coastal slate" aria-pressed="false"></button>
+              <button type="button" data-color="charcoal" class="swatch charcoal" aria-label="Charcoal" aria-pressed="false"></button>
+              <button type="button" data-color="terracotta" class="swatch terracotta" aria-label="Terracotta" aria-pressed="false"></button>
+              <button type="button" data-color="white" class="swatch white" aria-label="Soft white" aria-pressed="false"></button>
+              <span id="color-name">Sage</span>
+            </div>
+          </section>
+          <section class="form-section" aria-labelledby="measure-heading">
+            <div class="section-head"><span class="step-number">03</span><div><h2 id="measure-heading">Tell us about the home</h2><p>Use your best-known dimensions. Example values are prefilled so you can test the tool.</p></div></div>
+            <div class="mini-heading">BUILDING FOOTPRINT</div>
+            <div class="field-grid field-grid-3">
+              <div><label for="lengthFt">Length <span class="unit">ft</span></label><input id="lengthFt" name="lengthFt" type="number" inputmode="decimal" min="10" max="350" step="0.5" required value="48"></div>
+              <div><label for="widthFt">Width <span class="unit">ft</span></label><input id="widthFt" name="widthFt" type="number" inputmode="decimal" min="10" max="350" step="0.5" required value="34"></div>
+              <div><label for="stories">Stories</label><select id="stories" name="stories"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
+            </div>
+            <div class="field-grid field-grid-3">
+              <div><label for="storyHeightFt">Height / story <span class="unit">ft</span></label><input id="storyHeightFt" name="storyHeightFt" type="number" inputmode="decimal" min="7" max="16" step="0.5" value="9"></div>
+              <div><label for="gables">Gable ends</label><input id="gables" name="gables" type="number" min="0" max="12" step="1" value="2"></div>
+              <div><label for="gableRiseFt">Gable rise <span class="unit">ft</span></label><input id="gableRiseFt" name="gableRiseFt" type="number" min="0" max="20" step="0.5" value="6"></div>
+            </div>
+            <div class="field-grid field-grid-2">
+              <div><label for="masonryPercent">Brick / stone share <span class="unit">%</span></label><input id="masonryPercent" name="masonryPercent" aria-describedby="masonry-help" type="number" min="0" max="100" step="1" value="20"></div>
+              <div><label for="yearBuilt">Year built</label><input id="yearBuilt" name="yearBuilt" type="number" min="1700" max="2100" step="1" value="1998"></div>
+            </div>
+            <p id="masonry-help" class="micro-note">Brick / stone share means the percentage of solid wall area after windows and doors are removed. Gables use the shorter footprint dimension as their base.</p>
+            <div class="mini-heading with-gap">OPENINGS & REPLACEMENTS</div>
+            <div class="field-grid field-grid-2">
+              <div><label for="existingWindows">Total exterior windows</label><input id="existingWindows" name="existingWindows" type="number" min="0" max="150" step="1" value="12"></div>
+              <div><label for="replaceWindows">Windows to replace</label><input id="replaceWindows" name="replaceWindows" type="number" min="0" max="150" step="1" value="6"></div>
+              <div><label for="existingDoors">Total exterior doors</label><input id="existingDoors" name="existingDoors" type="number" min="0" max="50" step="1" value="2"></div>
+              <div><label for="replaceDoors">Doors to replace</label><input id="replaceDoors" name="replaceDoors" type="number" min="0" max="50" step="1" value="1"></div>
+            </div>
+            <p class="micro-note">We assume 15 sq ft per window and 21 sq ft per door. Count all exterior openings, even if you're not replacing them. Replacement counts apply only to selected projects. Dimensions are not used for window- or door-only budgets.</p>
+          </section>
+          <section class="form-section pricing-section" aria-labelledby="pricing-heading">
+            <div class="section-head"><span class="step-number">04</span><div><h2 id="pricing-heading">Set your price assumptions</h2><p>These are illustrative starting values—not verified local contractor prices.</p></div></div>
+            <details id="price-details"><summary>View & edit example unit prices <span aria-hidden="true">⌄</span></summary>
+              <div class="price-grid">
+                <div class="price-category"><strong>Siding <small>installed / sq ft</small></strong><div class="field-grid field-grid-2"><div><label for="sidingLowPerSqFt">Low $</label><input id="sidingLowPerSqFt" name="sidingLowPerSqFt" type="number" min="0" max="100" step="0.5" value="7"></div><div><label for="sidingHighPerSqFt">High $</label><input id="sidingHighPerSqFt" name="sidingHighPerSqFt" type="number" min="0" max="100" step="0.5" value="14"></div></div></div>
+                <div class="price-category"><strong>Windows <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="windowLowEach">Low $</label><input id="windowLowEach" name="windowLowEach" type="number" min="0" max="20000" step="50" value="500"></div><div><label for="windowHighEach">High $</label><input id="windowHighEach" name="windowHighEach" type="number" min="0" max="20000" step="50" value="1300"></div></div></div>
+                <div class="price-category"><strong>Doors <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="doorLowEach">Low $</label><input id="doorLowEach" name="doorLowEach" type="number" min="0" max="30000" step="50" value="1200"></div><div><label for="doorHighEach">High $</label><input id="doorHighEach" name="doorHighEach" type="number" min="0" max="30000" step="50" value="3000"></div></div></div>
+              </div>
+            </details>
+            <p id="form-error" class="error-message" role="alert" hidden></p>
+            <button id="calculate" type="submit" class="primary-button">Calculate my estimate <span aria-hidden="true">↗</span></button>
+            <span class="privacy-hint">No sign-up required. Save projects and photos on this device. Optional address lookup sends the address to U.S. Census.</span>
+          </section>
+        </form>
+        <aside class="result-panel" aria-label="Estimate results">
+          <p id="result-status" class="sr-only" role="status" aria-live="polite"></p>
+          <div class="result-heading"><h2 class="result-title">Your project snapshot</h2><span class="live-indicator"><span></span> WORKING ESTIMATE</span></div>
+          <div id="empty-state" class="empty-state"><div class="empty-symbol" aria-hidden="true">▤</div><h2>Your numbers, in focus.</h2><p>Confirm your home details and calculate to build an itemized range.</p><div class="empty-lines" aria-hidden="true"><span></span><span></span><span></span></div></div>
+          <div id="results" hidden>
+            <p id="result-address" class="result-address"></p>
+            <div class="total-card"><div id="total-range" class="total-range">—</div><p>Preliminary project range. Illustrative, not a contractor quote.</p></div>
+            <div class="result-subtitle">COST BREAKDOWN <span>ESTIMATED RANGE</span></div>
+            <div class="line-item"><div class="item-icon siding-icon">▥</div><div class="item-label"><strong>Siding</strong><span id="siding-qty">—</span></div><strong id="siding-range" class="item-price">—</strong></div>
+            <div class="line-item"><div class="item-icon window-icon">⊞</div><div class="item-label"><strong>Windows</strong><span id="window-qty">—</span></div><strong id="window-range" class="item-price">—</strong></div>
+            <div class="line-item"><div class="item-icon door-icon">▯</div><div class="item-label"><strong>Doors</strong><span id="door-qty">—</span></div><strong id="door-range" class="item-price">—</strong></div>
+            <div id="geometry-details" class="scope-section"><div class="scope-title">HOW THIS WAS CALCULATED</div><dl class="scope-table"><div><dt>Exterior wall perimeter</dt><dd id="perimeter">—</dd></div><div><dt>Gross walls + gables</dt><dd id="gross-area">—</dd></div><div><dt>Net siding area</dt><dd id="net-area">—</dd></div><div><dt>Order qty + 10% waste</dt><dd id="order-area">—</dd></div><div><dt>Illustrative variation</dt><dd>±18% siding quantity</dd></div></dl></div>
+            <p id="geometry-note" class="calculation-note">Siding cost uses unrounded square feet, with 10% waste and the ±18% quantity scenario. Whole squares are shown for reference. This range is not a confidence interval.</p>
+            <p id="selection-summary" class="calculation-note"></p><p id="pricing-source" class="calculation-note"></p>
+            <div id="lead-notice" class="notice" hidden><strong>Pre-1978 building: lead-safe review</strong><span>Lead-safe work requirements may affect scope and cost. This model does not price lead remediation.</span></div>
+            <div class="notice muted-notice"><strong>What's not included?</strong><span>Permits, taxes, specialty trim, disposal, rot, lead-safe work, unusual geometry, and site-specific labor adjustments. Verify measurements before ordering.</span></div>
+            <div class="save-project-row"><button type="button" id="save-project" class="primary-button">Save this project <span aria-hidden="true">＋</span></button><span>Saved on this device, including your photo selections.</span></div><div class="result-actions"><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div>
+          </div>
+          <section class="design-studio" aria-labelledby="studio-heading">
+            <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span class="studio-badge">COLOR CONCEPT</span></div>
+            <div class="studio-tabs" role="tablist" aria-label="Design preview">
+              <button type="button" id="illustration-tab" role="tab" aria-selected="true" aria-controls="illustration-panel">Example home</button>
+              <button type="button" id="photo-tab" role="tab" aria-selected="false" aria-controls="photo-panel" tabindex="-1">Your photo</button>
+            </div>
+            <div id="illustration-panel" role="tabpanel" aria-labelledby="illustration-tab">
+              <svg id="concept-house" class="concept-house" viewBox="0 0 500 300" role="img" aria-label="Illustrative home with your selected siding color, window style and door">
+                <defs><pattern id="lap-pattern" width="10" height="13" patternUnits="userSpaceOnUse"><path d="M0 12.5H10" stroke="#102e35" stroke-opacity=".22"/></pattern><pattern id="board-pattern" width="22" height="20" patternUnits="userSpaceOnUse"><path d="M1 0V20M20 0V20" stroke="#102e35" stroke-opacity=".22"/></pattern></defs>
+                <ellipse cx="250" cy="263" rx="213" ry="13" fill="#102e35" opacity=".08"/>
+                <path id="house-wall-color" d="M72 124L247 33 425 124V255H72Z" fill="#829581"/>
+                <path id="house-texture" d="M72 124L247 33 425 124V255H72Z" fill="url(#lap-pattern)"/>
+                <path d="M54 126L247 24 444 126 435 141 247 44 64 141Z" fill="#253e43"/>
+                <path d="M81 135V255H415V135" fill="none" stroke="#faf7eb" stroke-width="10"/>
+                <g id="house-windows" fill="#b5d4db" stroke="#f6f4e8" stroke-width="7"><rect x="112" y="151" width="69" height="69"/><rect x="316" y="151" width="69" height="69"/><path d="M146 151V220M112 185H181M350 151V220M316 185H385" stroke-width="4"/></g>
+                <path id="house-door-color" d="M224 166H273V255H224Z" fill="#294e51" stroke="#f6f4e8" stroke-width="7"/>
+                <circle cx="262" cy="216" r="3" fill="#ead3a1"/><path d="M216 259H281L291 268H207Z" fill="#b5b7ad"/>
+              </svg>
+              <p class="studio-help">Illustration only. Colors, materials and proportions are a concept, not your measured home or a manufacturer swatch.</p>
+            </div>
+            <div id="photo-panel" role="tabpanel" aria-labelledby="photo-tab" hidden>
+              <label for="photo-upload" class="outline-button upload-photo">＋ Choose an exterior photo</label>
+              <input id="photo-upload" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp">
+              <canvas id="photo-canvas" tabindex="0" aria-label="Select wall corners. Arrow keys move, Space adds a corner, Enter finishes an area." hidden></canvas>
+              <p id="photo-status" class="studio-help" role="status"></p>
+              <div class="photo-tools"><button type="button" id="finish-area" class="outline-button" disabled>Finish area</button><button type="button" id="undo-area" class="outline-button" disabled>Undo</button><button type="button" id="clear-areas" class="outline-button" disabled>Clear areas</button><button type="button" id="remove-photo" class="outline-button" disabled>Remove photo</button></div>
+              <button type="button" id="download-preview" class="outline-button wide-button" disabled>Download color preview ↓</button>
+              <p class="studio-help">Select wall areas yourself; no automatic measurement or AI detection. The color overlay is illustrative. JPEG, PNG or WebP, up to 12 MB. Photos stay in your browser.</p>
+            </div>
+          </section>
+          <div class="result-footer"><span class="tiny-orbit" aria-hidden="true">◉</span><span>Built for transparency, not guesswork.</span></div>
+        </aside>
+      </div>
+    </main>
+    <footer class="site-footer"><span>© 2026 CURBQUOTE</span><span>DATA: U.S. CENSUS · USGS · GOOGLE 3D · INPUTS: HOMEOWNER</span></footer>
+  </div>
+  <dialog id="projects-dialog" class="projects-dialog" aria-labelledby="projects-title">
+    <div class="dialog-header"><h2 id="projects-title">Your saved projects</h2><button type="button" id="close-projects" class="outline-button" aria-label="Close saved projects">✕</button></div>
+    <p class="studio-help">Projects and photos are saved in this browser on this device. They are not synced to an account. Clearing browser data removes them.</p>
+    <form id="save-project-form"><label for="project-name">Project name</label><div class="project-name-row"><input id="project-name" maxlength="80" placeholder="My exterior refresh" required><button type="submit" class="primary-button">Save project</button></div></form>
+    <p id="saved-project-status" class="field-help" role="status"></p>
+    <div id="saved-project-list"></div>
+    <button type="button" id="new-project" class="outline-button wide-button">Start a new project</button>
+  </dialog>
+  <p id="project-toast" class="project-toast" role="status" hidden></p>
+  <section id="print-report" class="print-report" aria-label="Printable preliminary estimate"><pre id="print-report-content"></pre></section>
+</body>
+</html>

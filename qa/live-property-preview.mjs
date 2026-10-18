@@ -26,11 +26,12 @@ try {
     ...(proxyUrl ? { proxy: { server: proxyUrl.origin, bypass: 'localhost,127.0.0.1', ...(proxyUrl.username ? { username: decodeURIComponent(proxyUrl.username), password: decodeURIComponent(proxyUrl.password) } : {}) } } : {})
   });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
-  const errors = [], responses = [], imageFailures = []; let started;
+  const errors = [], responses = [], imageFailures = [], mapResponses = []; let started;
   page.on('pageerror', error => errors.push(error.message));
   page.on('requestfailed', request => { if (request.url().startsWith('https://imagery.nationalmap.gov/')) imageFailures.push(request.failure()?.errorText); });
   page.on('response', response => {
     if (response.url().includes('/api/geocode?') || response.url().startsWith('https://imagery.nationalmap.gov/')) responses.push({ service: response.url().includes('/api/geocode?') ? 'Census via Node API' : 'USGS imagery', status: response.status(), contentType: response.headers()['content-type'] });
+    if (response.url().startsWith('https://tiles.openfreemap.org/')) mapResponses.push({ path: new URL(response.url()).pathname.includes('.pbf') ? 'tile or glyph' : 'metadata', status: response.status() });
   });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   started = Date.now();
@@ -48,7 +49,28 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await page.locator('.hero').screenshot({ path: 'qa-output/live-property-phone.png' });
+  let mapLoaded = false;
+  if (process.env.LIVE_PROPERTY_MAP === '1') {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const rasterLoaded = page.waitForResponse(response => {
+      const url = new URL(response.url()); return url.hostname === 'imagery.nationalmap.gov' && url.searchParams.get('size') === '256,256' && response.status() === 200;
+    }, { timeout: 35000 });
+    // Attach a handler immediately so a timeout never becomes an unhandled rejection during map setup.
+    rasterLoaded.catch(() => {});
+    await page.locator('#aerial-map-toggle').click();
+    try { await page.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('Tap a mapped building'), undefined, { timeout: 25000 }); }
+    catch { throw new Error(`Live map did not load: ${await page.locator('#aerial-status').textContent()} / ${JSON.stringify(mapResponses)}`); }
+    mapLoaded = true;
+    const rasterResponse = await rasterLoaded; await rasterResponse.finished();
+    await page.waitForFunction(() => document.querySelector('#aerial-status').textContent.startsWith('Hybrid view ready.'), undefined, { timeout: 60000 });
+    await page.locator('.hero').screenshot({ path: 'qa-output/live-hybrid-desktop.png' });
+    await page.locator('[data-map-mode="map"]').click();
+    await page.locator('.hero').screenshot({ path: 'qa-output/live-map-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.hero').screenshot({ path: 'qa-output/live-map-phone.png' });
+    assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  }
   assert.deepEqual(errors, []);
-  const evidence = { publicTestAddress: 'U.S. Census Bureau example', elapsedMs, responses, errors, measurementsChanged: false };
+  const evidence = { publicTestAddress: 'U.S. Census Bureau example', elapsedMs, responses, mapLoaded, mapResponses, errors, measurementsChanged: false };
   await writeFile('qa-output/live-property-check.json', JSON.stringify(evidence, null, 2)); console.log(JSON.stringify(evidence, null, 2));
 } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

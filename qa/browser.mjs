@@ -228,7 +228,7 @@ try {
   for (const [width,height] of matrix) {
     await page.setViewportSize({ width, height });
     const result = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
-      clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.section-label,.hero h1,.eyebrow')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
+      clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.hero h1')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
     if (result.document > width + 1 || result.clipped.length) overflows.push(result);
     if (width === 390 || width === 1440) {
       await page.evaluate(() => window.scrollTo(0, 0));

@@ -1,0 +1,138 @@
+# Setup: services, keys and links
+
+Everything CurbQuote talks to, what each service is for, whether it needs an account or a key, and
+the exact steps.
+
+**Only two parts are needed to run the MVP: hosting and the free government services.** Everything
+else is optional and adds a feature.
+
+> **Handling keys:** never paste a key or token into a chat, screenshot, issue or commit. Put it
+> where this guide says: Vercel environment variables for the live site, `.env.local` on your own
+> computer, or the cloud environment's settings for Claude Code sessions. If a key is ever
+> exposed, delete it at the provider and create a new one.
+
+## At a glance
+
+| Service | Feature | Account / key | Cost | Variable |
+|---|---|---|---|---|
+| U.S. Census Geocoder | Address → approximate location | None | Free | — |
+| USGS NAIP imagery | Aerial photo | None | Free | — |
+| Vercel | Hosting and server functions | Account | Free hobby tier | — |
+| Cesium ion | 3D view, testing only | Account + token | Free Community plan, 1,000 Google 3D sessions a month, non-commercial | `CESIUM_ION_TOKEN` |
+| Google Map Tiles API | 3D view for launch | Google Cloud project, billing and key | First 1,000 sessions a month free, then $6.00 per 1,000 | `GOOGLE_MAP_TILES_KEY` |
+| Vercel AI Gateway | AI project assistant | Vercel account; key or OIDC | Pay per use, $5 free credit a month | `AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL` |
+| Licensed property data | Pre-filled stories and year built | Provider contract | Varies | `PROPERTY_*`, `DATA_USE_APPROVED` |
+
+Prices were checked in October 2026 ([docs/12](12-3d-and-ai-map-alternatives.md)); confirm them
+with each provider.
+
+## 1. Free government services (nothing to set up)
+
+- **Census Geocoder** turns the typed address into an approximate point. No key. Service:
+  https://geocoding.geo.census.gov/geocoder/
+- **USGS NAIP imagery** provides the free aerial photo. No key. Service:
+  https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer
+
+The only setup is network access. If a host or test environment restricts outbound traffic, allow
+`geocoding.geo.census.gov` and `imagery.nationalmap.gov`.
+
+## 2. Hosting on Vercel
+
+1. Sign in at https://vercel.com and import the GitHub repository: https://vercel.com/new
+2. Keep the defaults. `vercel.json` sets the build (`npm run build`), the output folder (`dist`),
+   the functions in `api/`, and the security headers.
+3. Add environment variables from the sections below under **Project → Settings → Environment
+   Variables** ([guide](https://vercel.com/docs/projects/environment-variables)), then
+   **redeploy**. Variables only apply to new deployments.
+4. Every push to a branch gets its own preview URL in the Vercel dashboard, under **Deployments**.
+
+## 3. 3D view: pick one credential
+
+Use **Cesium ion** to test without a credit card, and switch to **Google** for launch. If both are
+set, Google wins.
+
+### Option A: Cesium ion token (testing)
+
+1. Create a free account: https://ion.cesium.com/signup
+2. Open **Access Tokens**: https://ion.cesium.com/tokens, then **Create token**.
+   - **Name:** for example `curbquote-browser`.
+   - **Scopes:** only `assets:read`. Untick everything else.
+   - **Allowed URLs:** turn the restriction on and add your Vercel domain(s) and
+     `http://localhost:3000`.
+3. Copy the token and set **`CESIUM_ION_TOKEN`**:
+   - **Vercel:** Settings → Environment Variables, then redeploy.
+   - **Your computer:** add `CESIUM_ION_TOKEN=...` to `.env.local` and start the dev server with
+     `node --env-file=.env.local scripts/dev-server.mjs`.
+
+Cesium's free Community plan is for personal use and evaluation. The 3D view shows "Upgrade for
+commercial use" until you move to Google or a paid Cesium plan ([pricing](https://cesium.com/platform/cesium-ion/pricing/)).
+
+### Option B: Google Map Tiles API key (launch)
+
+1. **Create a project:** https://console.cloud.google.com/projectcreate
+2. **Turn on billing and link it to the project:** https://console.cloud.google.com/billing and
+   https://console.cloud.google.com/billing/linkedaccount. Google requires billing even inside
+   the free allowance.
+3. **Enable the Map Tiles API:** https://console.cloud.google.com/apis/library/tile.googleapis.com
+4. **Create the key:** https://console.cloud.google.com/google/maps-apis/credentials, then
+   **Create credentials → API key**, and edit it:
+   - **API restrictions:** Map Tiles API only.
+   - **Application restrictions → Websites:** your Vercel domain(s) and `http://localhost:3000/*`.
+5. **Stay inside the free tier:** at https://console.cloud.google.com/apis/api/tile.googleapis.com/quotas,
+   set root tileset requests per day to **30**. 30 × 31 = 930, under the 1,000 free sessions a month.
+6. **Add a budget alert as a backstop:** https://console.cloud.google.com/billing/budgets
+7. Set **`GOOGLE_MAP_TILES_KEY`** in Vercel (and `.env.local`), then redeploy.
+
+Google's guide: https://developers.google.com/maps/documentation/tile/get-api-key. Pricing:
+https://developers.google.com/maps/billing-and-pricing/pricing. Before launch, confirm the open
+geocoder question in [docs/13](13-google-3d-view.md).
+
+## 4. AI project assistant (optional)
+
+Without it, the **Automatic planner** still compares plans and handles supported goals.
+
+1. In the Vercel dashboard, open **AI Gateway** and make sure the team has credit; every team gets
+   $5 of free usage a month. Docs: https://vercel.com/docs/ai-gateway
+2. **On Vercel deployments:** turn on the project's OIDC tokens; the assistant uses them
+   automatically. **Locally:** create an AI Gateway API key in the dashboard and set
+   **`AI_GATEWAY_API_KEY`**.
+3. Optionally set **`AI_GATEWAY_MODEL`** to another tool-capable model from the Gateway catalog.
+   The default is in `lib/agent.mjs`.
+
+Details: [docs/08](08-agentic-planning.md).
+
+## 5. Licensed property data (optional, needs a contract)
+
+Pre-fills story count and year built from a provider you're licensed to use. **Don't connect
+anything until there's a signed data agreement**: the adapter enforces the grant in
+`PROPERTY_GRANT_JSON`. Candidates and their terms are in [docs/01](01-data-sources.md):
+
+- RentCast: https://developers.rentcast.io
+- ATTOM: https://support.attomdata.com/articles/3952343496-what-is-the-attom-property-data-api
+- Regrid (parcels and building footprints): https://regrid.com/api
+
+Configuration (`PROPERTY_LOOKUP_URL`, `PROPERTY_API_KEY`, field map, grant) is described in
+[docs/09](09-property-data-adapter.md) and `.env.example`.
+
+## 6. Claude Code cloud sessions (optional)
+
+To let Claude test the live app from a cloud session, open the environment settings (session
+title bar → environment menu → **Edit**). Steps:
+https://code.claude.com/docs/en/cloud-environments#network-access
+
+1. **Network access → Allowed domains:** add `geocoding.geo.census.gov`,
+   `imagery.nationalmap.gov`, `api.cesium.com`, `assets.ion.cesium.com` and
+   `tile.googleapis.com`. Keep **Allow package managers** ticked.
+2. **Network secrets:** add the Cesium token for host `api.cesium.com` as the header
+   `Authorization: Bearer <token>`. The token is then added on the way out and never enters the
+   session.
+3. Start a new session for the changes to take effect.
+
+## Checklist
+
+- [ ] Vercel project imported and deploying
+- [ ] 3D credential set: `CESIUM_ION_TOKEN` for testing, `GOOGLE_MAP_TILES_KEY` for launch
+- [ ] Google key restricted, capped at 30 a day, budget alert on (launch only)
+- [ ] Redeployed after adding variables
+- [ ] Optional: AI Gateway credit and OIDC
+- [ ] Optional: property-data agreement signed before any `PROPERTY_*` setup

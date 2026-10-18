@@ -35,6 +35,8 @@ npm run test:browser   # 36 Chromium checks with fixture data (needs Playwright'
 
 ## Configuration
 
+**Step-by-step setup for every service, with links: [docs/SETUP.md](docs/SETUP.md).**
+
 Copy `.env.example` to `.env.local` for local runs and set the same variables in Vercel. Every
 variable is optional; the app works without any of them.
 
@@ -75,6 +77,7 @@ Deploy the repository root to Vercel with the checked-in `vercel.json`:
 
 | # | Document | What's in it |
 |---|---|---|
+| — | [Setup guide](docs/SETUP.md) | Every service and key: what it's for, cost, links and step-by-step instructions |
 | — | [README-MVP.md](README-MVP.md) | Homeowner flow, estimate formulas, limitations and pre-launch blockers |
 | 6 | [Stabilization audit](docs/06-stabilization-audit.md) | Source review, fixes, remaining launch blockers |
 | 7 | [Functional prototype](docs/07-functional-prototype.md) | Flows, browser storage, hosting |

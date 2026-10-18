@@ -19,23 +19,22 @@
     <main>
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-line"></span> A SMARTER START TO RENOVATION</div>
           <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
           <p>Explore a preliminary budget for your home's siding, windows, and doors. Add what you know, see exactly how the numbers are calculated.</p>
           <div class="address-section">
             <h2 id="address-heading" class="sr-only">Find your property</h2>
             <label for="property-address">Start with your property address</label>
             <div class="address-entry"><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button">Find property <span aria-hidden="true">↗</span></button></div>
-            <div class="field-help" id="address-status" role="status" aria-live="polite">Your aerial preview loads as you type a complete U.S. address. Location is approximate.</div>
+            <div class="field-help" id="address-status" role="status" aria-live="polite">Your property view loads as you type a complete U.S. address. Location is approximate.</div>
           </div>
           <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick">✓</span>No sign-up required</span><span class="meta-divider"></span><span class="hero-benefit"><span class="meta-tick">✓</span>Save projects on this device</span></div>
         </div>
         <section class="property-preview" aria-labelledby="aerial-heading">
-          <div class="aerial-header"><div><span class="aerial-kicker">A NEW PERSPECTIVE</span><h2 id="aerial-heading">Your property, in view.</h2></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
+          <div class="aerial-header"><div><h2 id="aerial-heading">Your property, in view.</h2></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
           <p id="aerial-address" class="aerial-address">Start with your address</p>
           <div id="aerial-stage" class="aerial-stage" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
             <div id="aerial-images" class="aerial-images"></div>
-            <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 24l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address. An aerial view will appear automatically.</p></div>
+            <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 24l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address. Your property will appear automatically.</p></div>
             <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#caff8c" fill-opacity=".18" stroke="#caff8c" stroke-width="2"/><circle r="7" fill="#caff8c" stroke="#102e35" stroke-width="3"/></g></svg>
           </div>
           <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
@@ -65,7 +64,7 @@
         <div id="property-applied" class="property-applied" hidden><p id="property-applied-note" class="studio-help"></p><button type="button" id="undo-property" class="outline-button">Undo imported details</button></div>
       </div>
       <section id="project-assistant" class="assistant-panel" aria-labelledby="assistant-heading">
-        <div class="assistant-header"><div><span class="result-kicker">LESS FORM FILLING. MORE FORWARD MOTION.</span><h2 id="assistant-heading">Your renovation copilot<span aria-hidden="true"> ✳</span></h2><p>Tell us your goal. Compare plans, check the details, and turn a budget into a next step.</p></div><span id="assistant-mode" class="assistant-mode">Automatic planner</span></div>
+        <div class="assistant-header"><div><h2 id="assistant-heading">Your renovation copilot<span aria-hidden="true"> ✳</span></h2><p>Tell us your goal. Compare plans, check the details, and turn a budget into a next step.</p></div><span id="assistant-mode" class="assistant-mode">Automatic planner</span></div>
         <form id="assistant-form" novalidate>
           <label for="project-goal">What would you like to do?</label>
           <textarea id="project-goal" maxlength="1800" rows="2" placeholder="Replace 6 windows and 1 door. Compare practical options for my budget." aria-describedby="assistant-privacy"></textarea>
@@ -79,7 +78,6 @@
         <div id="plan-comparison" class="plan-comparison" aria-label="Calculated project plans" hidden></div>
         <details id="detail-review" class="detail-review"><summary id="detail-review-summary">Home details still need confirmation</summary><p class="assistant-help">Only mark details you have checked. Homeowner confirmation is not a professional measurement. Editing a value marks it unconfirmed again.</p><div id="detail-questions" class="detail-questions"></div><ul id="project-warnings" class="project-warnings"></ul></details>
       </section>
-      <div class="section-label"><span>THE ESTIMATE WORKSPACE</span><span>01 — GET STARTED</span></div>
       <div class="workspace">
         <form id="estimate-form" class="entry-panel" novalidate>
           <section class="form-section project-section" aria-labelledby="project-heading">
@@ -155,11 +153,11 @@
         </form>
         <aside class="result-panel" aria-label="Estimate results">
           <p id="result-status" class="sr-only" role="status" aria-live="polite"></p>
-          <div class="result-heading"><span class="result-kicker">YOUR PROJECT SNAPSHOT</span><span class="live-indicator"><span></span> WORKING ESTIMATE</span></div>
+          <div class="result-heading"><h2 class="result-title">Your project snapshot</h2><span class="live-indicator"><span></span> WORKING ESTIMATE</span></div>
           <div id="empty-state" class="empty-state"><div class="empty-symbol" aria-hidden="true">▤</div><h2>Your numbers, in focus.</h2><p>Confirm your home details and calculate to build an itemized range.</p><div class="empty-lines" aria-hidden="true"><span></span><span></span><span></span></div></div>
           <div id="results" hidden>
             <p id="result-address" class="result-address"></p>
-            <div class="total-card"><span class="total-eyebrow">PRELIMINARY PROJECT RANGE</span><div id="total-range" class="total-range">—</div><p>Illustrative budget, not a contractor quote</p></div>
+            <div class="total-card"><div id="total-range" class="total-range">—</div><p>Preliminary project range. Illustrative, not a contractor quote.</p></div>
             <div class="result-subtitle">COST BREAKDOWN <span>ESTIMATED RANGE</span></div>
             <div class="line-item"><div class="item-icon siding-icon">▥</div><div class="item-label"><strong>Siding</strong><span id="siding-qty">—</span></div><strong id="siding-range" class="item-price">—</strong></div>
             <div class="line-item"><div class="item-icon window-icon">⊞</div><div class="item-label"><strong>Windows</strong><span id="window-qty">—</span></div><strong id="window-range" class="item-price">—</strong></div>
@@ -172,7 +170,7 @@
             <div class="save-project-row"><button type="button" id="save-project" class="primary-button">Save this project <span aria-hidden="true">＋</span></button><span>Saved on this device, including your photo selections.</span></div><div class="result-actions"><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div>
           </div>
           <section class="design-studio" aria-labelledby="studio-heading">
-            <div class="studio-heading"><div><span class="result-kicker">MAKE IT YOURS</span><h2 id="studio-heading">Design studio</h2></div><span class="studio-badge">COLOR CONCEPT</span></div>
+            <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span class="studio-badge">COLOR CONCEPT</span></div>
             <div class="studio-tabs" role="tablist" aria-label="Design preview">
               <button type="button" id="illustration-tab" role="tab" aria-selected="true" aria-controls="illustration-panel">Example home</button>
               <button type="button" id="photo-tab" role="tab" aria-selected="false" aria-controls="photo-panel" tabindex="-1">Your photo</button>

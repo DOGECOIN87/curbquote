@@ -171,7 +171,7 @@ function scheduleAddressLookup() {
 function addressChanged() {
   cancelAddressLookup(); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
   addressEl.removeAttribute('aria-invalid'); addressStatus.className = 'field-help';
-  addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. The aerial view will load automatically.' : 'Your aerial preview loads as you type a complete U.S. address. Location is approximate.';
+  addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. Your property view will load automatically.' : 'Your property view loads as you type a complete U.S. address. Location is approximate.';
   refreshReport(); scheduleAddressLookup();
 }
 addressEl.addEventListener('input', addressChanged);
@@ -358,7 +358,7 @@ byId('new-project').addEventListener('click', () => {
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
-  addressStatus.textContent = 'Your aerial preview loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
+  addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab(false); projectDialog.close(); notify('New project started with clearly labeled example measurements.');
   assistant?.restore();
 });

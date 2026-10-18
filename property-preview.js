@@ -58,7 +58,7 @@ export function setupPropertyPreview({ onPhoto }) {
     cancel(); view3d.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
     byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'AERIAL PREVIEW';
-    placeholder('Your place starts here.', 'Type a complete U.S. address. An aerial view will appear automatically.');
+    placeholder('Your place starts here.', 'Type a complete U.S. address. Your property will appear automatically.');
     status.textContent = 'An aerial view helps you recognize the building. It does not supply renovation measurements.';
   }
   function searching() {

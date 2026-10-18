@@ -67,9 +67,10 @@ Setup:
    must be restricted.
 3. **Add it as a repository secret:** **Settings → Secrets and variables → Actions → New
    repository secret**, name `CESIUM_ION_TOKEN`.
-4. **Get the code onto `main`,** which the `github-pages` environment deploys by default. Or, under
-   **Settings → Environments → github-pages**, allow another branch, then run the workflow from
-   **Actions → Deploy GitHub Pages demo → Run workflow**.
+4. **Merge the code into `main`.** GitHub lists and runs the workflow only once it is on the default
+   branch, so a feature branch can't deploy the demo. After the merge, the **Deploy GitHub Pages
+   demo** run appears under **Actions**, and you can also start it there with **Run workflow**.
+   The address is shown on the run and under **Settings → Pages**.
 
 Build it locally with `npm run build:pages`; the output is in `dist-pages/`.
 

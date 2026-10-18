@@ -10,7 +10,8 @@ export function setupPropertyPreview({ onPhoto }) {
   const overlay = byId('aerial-placeholder'), marker = byId('aerial-marker'), status = byId('aerial-status');
   let serial = 0, pendingImage, timeout, match = null, view = null, center = null;
   let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null;
-  const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width');
+  const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top');
+  const north = document.querySelector('.aerial-north'), usgsCredit = document.querySelector('.aerial-meta a');
   const view3d = setupProperty3D({ stage, onFailure: () => { if (saved) unavailable3d(); } });
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution');
   const viewMap = setupPropertyMap({
@@ -21,7 +22,11 @@ export function setupPropertyPreview({ onPhoto }) {
   view3d.available.then(ok => { has3d = ok; sync3d(); });
   function sync3d() {
     toggle3d.hidden = !has3d || !match;
-    toggle3d.textContent = view3d.isOpen ? 'Back to aerial view' : 'View in 3D';
+    toggle3d.textContent = view3d.isOpen ? 'Aerial photo' : 'View in 3D';
+    if (!view3d.isOpen) tools3d.hidden = true;
+    // North-up and the USGS credit describe the aerial photo; the 3D view rotates and credits Google on screen.
+    north.hidden = usgsCredit.hidden = view3d.isOpen;
+    topButton.setAttribute('aria-pressed', String(view3d.isOpen && view3d.isTop));
   }
   function syncMap() {
     toggleMap.hidden = !viewMap.available || !match;
@@ -54,11 +59,12 @@ export function setupPropertyPreview({ onPhoto }) {
       status.textContent = viewMap.message; syncMap();
     } catch { if (match === location && saved) unavailableMap(); }
   }
-  async function open3d() {
+  /** Opens 3D over the current view. `reload` loads the aerial photo if 3D is closed or fails. */
+  async function open3d({ reload = Boolean(pendingImage) } = {}) {
     if (viewMap.isOpen) { viewMap.close(); restore2d(); }
     const location = match;
-    saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: Boolean(pendingImage) };
-    if (saved.reload) cancel();
+    saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload };
+    if (pendingImage) cancel();
     tools.hidden = true; widthLabel.textContent = 'GOOGLE 3D · DISPLAY ONLY';
     status.textContent = 'Loading the Google 3D view…';
     const pending = view3d.show(location); sync3d(); syncMap();
@@ -66,8 +72,9 @@ export function setupPropertyPreview({ onPhoto }) {
     try { result = await pending; }
     catch { if (match === location && saved) unavailable3d(); return; }
     if (!result || !view3d.isOpen) return;
+    tools3d.hidden = result !== 'framed'; sync3d();
     status.textContent = result === 'framed'
-      ? 'Google 3D view. The dot is the approximate address point. Drag to orbit; scroll or pinch to zoom. For recognizing the building only; it supplies no measurements.'
+      ? 'Google 3D view. The dot is the approximate address point. Drag to orbit, scroll or pinch to zoom, or use Top view. For recognizing the building only; it supplies no measurements.'
       : 'Google 3D view from above. Zoom in to find the building. It supplies no measurements.';
   }
   function cancel() {
@@ -82,7 +89,7 @@ export function setupPropertyPreview({ onPhoto }) {
     cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d(); syncMap();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
     byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'AERIAL PREVIEW';
-    placeholder('Your place starts here.', 'Type a complete U.S. address. An aerial view will appear automatically.');
+    placeholder('Your place starts here.', 'Type a complete U.S. address. Your property will appear automatically.');
     status.textContent = 'An aerial view helps you recognize the building. It does not supply renovation measurements.';
   }
   function searching() {
@@ -133,11 +140,15 @@ export function setupPropertyPreview({ onPhoto }) {
   function show(location) {
     if (!isAddressMatch(location)) { failed(); return; }
     clear(); match = location; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
-    if (!hasAerialCoverage(location.coordinates)) {
+    const covered = hasAerialCoverage(location.coordinates);
+    if (covered) center = { ...location.coordinates };
+    else {
       placeholder('No aerial coverage here yet.', 'This preview covers the contiguous U.S. You can use your own exterior photo for this property.');
-      status.textContent = 'Address matched. Aerial imagery for Alaska, Hawaii and U.S. territories is not connected.'; return;
+      status.textContent = 'Address matched. Aerial imagery for Alaska, Hawaii and U.S. territories is not connected.';
     }
-    center = { ...location.coordinates }; load();
+    // The 3D view leads when it is available; the aerial photo loads only if 3D is closed or fails.
+    if (has3d) open3d({ reload: covered });
+    else if (covered) load();
   }
   function pan(x, y) {
     if (!loaded || !view) return;
@@ -158,6 +169,9 @@ export function setupPropertyPreview({ onPhoto }) {
   for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.addEventListener('click', () => { viewMap.setMode(button.dataset.mapMode); syncMap(); });
   byId('map-recenter').addEventListener('click', () => viewMap.recenter());
   byId('map-clear-selection').addEventListener('click', () => viewMap.clearSelection());
+  topButton.addEventListener('click', () => { view3d.setTop(!view3d.isTop); sync3d(); });
+  byId('aerial-3d-rotate').addEventListener('click', () => view3d.rotate());
+  byId('aerial-3d-recenter').addEventListener('click', () => view3d.recenter());
   stage.addEventListener('keydown', event => {
     const delta = { ArrowLeft: [-.3, 0], ArrowRight: [.3, 0], ArrowUp: [0, -.3], ArrowDown: [0, .3] }[event.key];
     if (!delta || !loaded || view3d.isOpen || viewMap.isOpen) return; event.preventDefault(); pan(...delta);

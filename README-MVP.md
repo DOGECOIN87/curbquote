@@ -1,6 +1,6 @@
-# CurbQuote — working MVP prototype
+# CurbQuote — working MVP prototype (v0.7)
 
-CurbQuote is an early mobile-friendly exterior renovation budget estimator. **It is not a professional quote, and does not automatically measure a building by address.** The UI supports siding, windows and doors; no signup, tracking pixels, vendor API keys, or database are required for the prototype.
+CurbQuote is an early mobile-friendly exterior renovation budget estimator. **It is not a professional quote, and does not automatically measure a building by address.** The UI supports siding, windows and doors; no signup, tracking pixels, vendor API keys, or database are required for the prototype. The 3D view is optional and needs a restricted Cesium ion token or Google key (see the README's Configuration section).
 
 ## Run locally
 
@@ -14,7 +14,7 @@ npm run check
 
 Run `npm ci --ignore-scripts` before development or checks. The AI SDK and Zod are pinned production dependencies for the server-side assistant; Playwright is a pinned development dependency for browser regression tests. The automatic planner works without AI credentials.
 
-Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies only the eighteen browser assets plus the pinned MapLibre and Cesium runtimes into `dist/`; `/api/geocode`, `/api/property`, `/api/map3d` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
+Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies the browser assets plus the pinned MapLibre and allowlisted CesiumJS runtimes into `dist/`; `/api/geocode`, `/api/property`, `/api/map3d` and `/api/assistant` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
 
 ```sh
 npm ci --ignore-scripts
@@ -28,7 +28,7 @@ Browser checks produce screenshots and a check list in the ignored `qa-output/` 
 
 ## Working homeowner flow
 
-- Type a complete U.S. address. After a 700 ms pause, Census matching brings a USGS/USDA aerial view into the top of the page. Zoom, pan, tap to center a building, or recenter the approximate address point. Coverage currently includes the contiguous U.S.; image age and availability vary. The view does not identify or measure a specific building. See [live property previews](docs/10-live-property-preview.md).
+- Type a complete U.S. address. After a 700 ms pause, Census matches an approximate location. When a 3D credential is configured, Google's photorealistic 3D view opens on that point with Top view, rotate and recenter controls; it is display-only and supplies no measurements ([3D view notes](docs/13-google-3d-view.md)). Otherwise, or after choosing Aerial photo, a USGS/USDA aerial view loads. Zoom, pan, tap to center a building, or recenter the approximate address point. Coverage currently includes the contiguous U.S.; image age and availability vary. The view does not identify or measure a specific building. See [live property previews](docs/10-live-property-preview.md).
 
 - After matching an address, **Explore map** opens a smooth, interactive MapLibre view. Switch between USGS aerial + map outlines and a drawn OpenStreetMap map; tap a building or press Enter at the center to highlight it. Highlights are temporary visual guides and never supply estimate measurements. MapLibre and its worker load only on demand. See [interactive map notes](docs/14-interactive-property-map.md).
 

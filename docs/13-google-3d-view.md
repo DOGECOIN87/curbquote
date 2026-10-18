@@ -1,20 +1,25 @@
-# Optional Google 3D view — v0.7 (test build)
+# Google 3D view — v0.7
 
-When a Google key is configured, a **View in 3D** button appears under the aerial preview after an
-address match. It opens Google Photorealistic 3D Tiles around the approximate Census point, rendered
-with CesiumJS (Apache-2.0). Without a key, or without WebGL2, the button stays hidden and nothing
-changes.
+When a 3D credential is configured and the browser supports WebGL2, Google Photorealistic 3D Tiles
+open automatically after an address match. They're rendered with CesiumJS (Apache-2.0) around the
+approximate Census point. Without a credential the page behaves as before, with the USGS aerial
+photo.
 
 ## Homeowner flow
 
-1. Match an address as before. The aerial photo loads first.
-2. **View in 3D** loads CesiumJS on demand (about 4.6 MB, only on first use). It frames the address
-   point from about 190 m away, looking down at 35°, with a green dot on the point. Drag to orbit;
-   scroll or pinch to zoom.
-3. **Back to aerial view** restores the aerial controls and text exactly as they were. Editing the
-   address closes the 3D view.
-4. If Google refuses the key, the daily quota is used up, or WebGL fails, the page says "The 3D view
-   is unavailable right now" and returns to the aerial view. Estimating is never blocked.
+1. **Match an address.** The 3D view loads CesiumJS (about 4.6 MB, first time only). It frames
+   the address point from about 190 m, looking down at 35°, with a green dot on the point. No USGS
+   image is requested while 3D is showing.
+2. **Move around.** Drag to orbit; scroll or pinch to zoom.
+   - **Top view** looks straight down, using the same sharp Google imagery.
+   - **⟳** rotates a quarter turn.
+   - **Recenter** returns to the starting angle.
+   - The north marker and the USGS credit hide while 3D is shown.
+3. **Switch views.** **Aerial photo** switches to the USGS image; **View in 3D** switches back.
+   Editing the address closes the 3D view.
+4. **If 3D fails**, the page falls back to the aerial photo: for example a refused credential, a
+   used-up quota or a WebGL error. A manual retry that fails says "The 3D view is unavailable right
+   now". Estimating is never blocked.
 
 **Display only.** Nothing from the 3D view is measured, stored, exported, or sent to the estimator
 or the AI assistant. Google's Map Tiles policies forbid image analysis, geodata extraction and
@@ -62,7 +67,7 @@ The page's Content Security Policy widened only as far as CesiumJS needs. Develo
   ion credit images.
 - `script-src` adds `'wasm-unsafe-eval'`, for the mesh decoder. `worker-src` allows `'self'` and
   `blob:`.
-- Exactly three CesiumJS inline styles are allowed by hash. **No `unsafe-eval` and no
+- Exactly four CesiumJS inline styles are allowed by hash: the credit stylesheet, a feature probe, and the Cesium ion and Google logo credits. **No `unsafe-eval` and no
   `unsafe-inline`.**
 - The bundled knockout library looks up the global object with `eval`. The build and the dev
   server replace that one expression with `globalThis` (`patchCesium`). It refuses to run if a
@@ -91,8 +96,11 @@ No CDN script is loaded.
   - Google receives only the origin as referrer, and the page returns to the aerial view.
 - **Checked live from a cloud session:** with an invalid key, the real Google endpoint answers 400
   and the page falls back cleanly, with no CSP violations.
-- **Not yet checked:** the real 3D view with a valid key. It needs `GOOGLE_MAP_TILES_KEY` in the
-  environment.
+- **Checked live through Cesium ion (October 18, 2026):**
+  - Real Census and USGS data, plus Google 3D tiles for the Census Bureau address.
+  - The 3D view opens automatically, and Top view, rotate and Aerial photo work.
+  - No CSP violations and no page errors.
+  - Not yet checked live: a direct Google key, which needs Google Cloud billing.
 
 ## Open questions before launch
 

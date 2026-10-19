@@ -32,6 +32,17 @@ const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_C
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', acceptDownloads: true });
 const checks = [];
 const errors = [];
+// The estimator shows one step at a time; open the step (and any collapsed section) that holds an element before using it.
+async function go(selector, target = page) {
+  const step = await target.locator(selector).first().evaluate(el => {
+    for (let details = el.closest('details'); details; details = details.parentElement?.closest('details')) details.open = true;
+    return el.closest('.wizard-step[data-step]').dataset.step;
+  });
+  const button = target.locator(`[data-goto="${step}"]`);
+  if (await button.getAttribute('aria-current') !== 'step') await button.click();
+}
+const resultsShown = () => page.locator('#results').evaluate(el => !el.hidden);
+const shown = selector => page.locator(selector).evaluate(el => !el.hidden);
 const imageryPattern = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage?**';
 const fixtureImagery = '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600"><rect width="960" height="600" fill="#536d47"/><path d="M0 280H960M510 0V600" stroke="#aaa99c" stroke-width="70"/><g fill="#c0b6a1" stroke="#394d3f" stroke-width="7"><path d="M160 100h180v110H160zM630 370h180v130H630zM620 60h140v140H620z"/></g><text x="35" y="565" fill="white" font-family="Arial" font-size="24">SYNTHETIC IMAGERY FIXTURE · NOT A REAL PROPERTY</text></svg>';
 await page.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
@@ -101,7 +112,7 @@ try {
   await page.clock.runFor(750);
   await page.waitForFunction(() => !document.querySelector('#aerial-retry').hidden);
   assert.equal(await page.locator('#aerial-images img').count(), 0);
-  assert.equal(await page.locator('#results').isVisible(), true);
+  assert.equal(await resultsShown(), true);
   await page.unroute(imageryPattern);
   await page.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
   await page.locator('#aerial-retry').click();
@@ -129,30 +140,34 @@ try {
   await page.locator('#aerial-photo').click();
   assert.equal(await page.locator('#photo-panel').isVisible(), true);
   await page.unroute('**/api/geocode?**');
-  await page.locator('#illustration-tab').click(); await page.locator('#property-address').fill('');
+  await page.locator('#illustration-tab').click(); await go('#property-address'); await page.locator('#property-address').fill('');
   await page.clock.resume();
   checks.push('Slow imagery times out, late images cannot cross addresses, unsupported coverage is explicit, and the photo fallback opens');
-  await page.locator('#calculate').click();
-  assert.equal(await page.locator('#total-range').textContent(), '$19,020 – $53,453');
-  checks.push('Default manual estimate reconciles with the tested calculation');
-  await page.locator('#existingWindows').fill('2');
-  assert.equal(await page.locator('#results').isVisible(), false);
-  await page.locator('#existingWindows').fill('12');
+  await go('#calculate'); await page.locator('#calculate').click();
+  assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
   assert.equal(await page.locator('#results').isVisible(), true);
+  assert.equal(await page.locator('#total-range').textContent(), '$19,020 – $53,453');
+  checks.push('See my estimate opens the estimate step, and the default manual estimate reconciles with the tested calculation');
+  await go('#existingWindows'); await page.locator('#existingWindows').fill('2');
+  assert.equal(await resultsShown(), false);
+  assert.equal(await page.locator('#form-error').isVisible(), true);
+  await page.locator('#existingWindows').fill('12');
+  assert.equal(await resultsShown(), true);
   checks.push('Correcting invalid counts automatically restores live estimates');
   await page.evaluate(() => { document.querySelector('#windowLowEach').value = '1900'; });
-  await page.locator('#calculate').click();
+  await go('#calculate'); await page.locator('#calculate').click();
+  assert.equal(await page.locator('[data-goto="4"]').getAttribute('aria-current'), 'step');
   assert.equal(await page.locator('#price-details').getAttribute('open'), '');
   assert.equal(await page.locator('#windowLowEach').getAttribute('aria-invalid'), 'true');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'windowLowEach');
   await page.locator('#windowLowEach').fill('600.25');
-  assert.equal(await page.locator('#results').isVisible(), true);
+  assert.equal(await resultsShown(), true);
   assert.match(await page.locator('#pricing-source').textContent(), /edited example rates/);
   checks.push('Hidden price errors open and focus the affected field; edits restore results');
-  await page.locator('#yearBuilt').fill('1970');
-  assert.equal(await page.locator('#lead-notice').isVisible(), true);
+  await go('#yearBuilt'); await page.locator('#yearBuilt').fill('1970');
+  assert.equal(await shown('#lead-notice'), true);
   await page.locator('#yearBuilt').fill('1998');
-  assert.equal(await page.locator('#lead-notice').isVisible(), false);
+  assert.equal(await shown('#lead-notice'), false);
   checks.push('Pre-1978 advisory follows the current year input');
   await page.locator('#lengthFt').fill('');
   await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
@@ -164,14 +179,14 @@ try {
   await page.emulateMedia({ media: 'screen' });
   await page.locator('#lengthFt').fill('48');
   checks.push('Browser-menu print cannot expose a stale estimate after invalid input');
-  await page.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
+  await go('#property-address'); await page.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
   await page.locator('#verify-address').click();
   await page.waitForFunction(() => !document.querySelector('#verify-address').disabled, undefined, { timeout: 12000 });
   assert.match(await page.locator('#address-status').textContent(), /Approximate location matched/);
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
   checks.push('Fixture provider browser → Node API → matched-address display, without changing dimensions');
   const downloadPromise = page.waitForEvent('download');
-  await page.locator('#save-summary').click();
+  await go('#save-summary'); await page.locator('#save-summary').click();
   const download = await downloadPromise;
   const exported = await readFile(await download.path(), 'utf8');
   assert.match(exported, /manual-geometry-v2/);
@@ -182,10 +197,10 @@ try {
   checks.push('Download and print share the full input, pricing, provenance and assumptions report');
   const valid = { matchedAddress: '999 TEST ST, AUSTIN, TX, 78701', coordinates: { lat: 30.2, lon: -97.7 }, source: 'U.S. Census Geocoder — address-range approximation' };
   await page.route('**/api/geocode?**', route => route.fulfill({ status: 500, contentType: 'text/html', body: '<h1>Unavailable</h1>' }));
-  await page.locator('#verify-address').click();
+  await go('#verify-address'); await page.locator('#verify-address').click();
   await page.waitForFunction(() => !document.querySelector('#verify-address').disabled);
   assert.match(await page.locator('#address-status').textContent(), /unreadable response/);
-  assert.equal(await page.locator('#results').isVisible(), true);
+  assert.equal(await resultsShown(), true);
   await page.unroute('**/api/geocode?**');
   await page.route('**/api/geocode?**', route => route.fulfill({ json: { matchedAddress: '', coordinates: { lat: null, lon: 0 } } }));
   await page.locator('#verify-address').click();
@@ -220,16 +235,19 @@ try {
   assert.equal(await page.locator('#verify-address').isDisabled(), false);
   await page.unroute('**/api/geocode?**');
   checks.push('Client lookup deadline releases the button and displays a manual-estimate fallback');
-  await page.locator('#windowLowEach').fill('500');
+  await go('#windowLowEach'); await page.locator('#windowLowEach').fill('500');
   await page.locator('#price-details > summary').click();
   await mkdir(outputDir, { recursive: true });
   const matrix = [[320,740],[360,800],[390,844],[560,800],[768,1024],[921,800],[1024,768],[1440,1000],[2560,1440],[844,390]];
   const overflows = [];
   for (const [width,height] of matrix) {
     await page.setViewportSize({ width, height });
-    const result = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
-      clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.hero h1')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
-    if (result.document > width + 1 || result.clipped.length) overflows.push(result);
+    for (const step of [1, 2, 3, 4, 5]) {
+      await page.locator(`[data-goto="${step}"]`).click();
+      const result = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
+        clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.hero h1,.wizard-steps button,.wizard-nav button')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
+      if (result.document > width + 1 || result.clipped.length) overflows.push({ step, ...result });
+    }
     if (width === 390 || width === 1440) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: join(outputDir, `default-${width}.png`), fullPage: true });
@@ -243,6 +261,7 @@ try {
     for (const [id,value] of Object.entries(values)) document.getElementById(id).value = value;
     document.getElementById('lengthFt').dispatchEvent(new Event('input',{bubbles:true}));
   });
+  await page.locator('[data-goto="5"]').click();
   for (const [width,height] of matrix) {
     await page.setViewportSize({width,height});
     const result = await page.evaluate(() => ({ width:innerWidth, document:document.documentElement.scrollWidth,
@@ -250,27 +269,28 @@ try {
     if(result.document>width+1||result.clipped.length) overflows.push(result);
   }
   assert.deepEqual(overflows, [], 'Maximum legal input values overflow');
-  checks.push('No page overflow or clipped labels/ranges at 10 phone, tablet, desktop and landscape sizes, including maximum input values');
+  checks.push('No page overflow or clipped labels, ranges or step controls on any of the 5 steps at 10 phone, tablet, desktop and landscape sizes, including maximum input values');
   // Complete homeowner prototype: scopes → products → save/reload → marked photo → export.
   await page.setViewportSize({width:1440,height:1000});
   await page.locator('#open-projects').click();
   await page.locator('#new-project').click();
-  await page.locator('#scope-siding').uncheck();
+  assert.equal(await page.locator('[data-goto="1"]').getAttribute('aria-current'), 'step');
+  await go('#scope-siding'); await page.locator('#scope-siding').uncheck();
   await page.locator('#scope-doors').uncheck();
   await page.locator('#scope-windows').uncheck();
   assert.match(await page.locator('#form-error').textContent(), /Choose at least one project/);
   await page.locator('#scope-windows').check();
   assert.equal(await page.locator('#lengthFt').isDisabled(), true);
-  await page.locator('#replaceWindows').fill('4');
+  await go('#replaceWindows'); await page.locator('#replaceWindows').fill('4');
   assert.equal(await page.locator('#total-range').textContent(), '$2,000 – $5,200');
-  await page.locator('#windowProduct').selectOption('fiberglass');
+  await go('#windowProduct'); await page.locator('#windowProduct').selectOption('fiberglass');
   assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
   await page.getByText('Premium', {exact:true}).click();
   assert.equal(await page.locator('#total-range').textContent(), '$5,760 – $11,520');
   await page.locator('[data-color="charcoal"]').click();
   assert.equal(await page.locator('#house-wall-color').getAttribute('fill'), '#42494d');
   checks.push('Project scopes, materials, tiers and color selections update the actual budget and design');
-  await page.locator('#save-project').click();
+  await go('#save-project'); await page.locator('#save-project').click();
   await page.locator('#project-name').fill('Window refresh test');
   await page.locator('#save-project-form button[type="submit"]').click();
   await page.waitForFunction(() => !document.querySelector('#projects-dialog').open);
@@ -278,6 +298,7 @@ try {
   await page.reload();
   await page.locator('#open-projects').click();
   await page.getByRole('button',{name:'Open project',exact:true}).click();
+  assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
   assert.equal(await page.locator('#total-range').textContent(), '$5,760 – $11,520');
   assert.equal(await page.locator('#windowProduct').inputValue(),'fiberglass');
   assert.equal(await page.locator('#scope-siding').isChecked(),false);
@@ -297,14 +318,14 @@ try {
   const box=await canvas.boundingBox();
   for(const [x,y] of [[.1,.1],[.9,.1],[.9,.9],[.1,.9]]) await page.mouse.click(box.x+box.width*x,box.y+box.height*y);
   await page.locator('#finish-area').click();
-  await page.locator('[data-color="slate"]').click();
+  await go('[data-color="slate"]'); await page.locator('[data-color="slate"]').click();
   const pixels=await page.evaluate(()=>{
     const ctx=document.querySelector('#photo-canvas').getContext('2d');
     return {inside:[...ctx.getImageData(160,150,1,1).data],outside:[...ctx.getImageData(10,10,1,1).data]};
   });
   assert.deepEqual(pixels.outside,originalPixel);
   assert.notDeepEqual(pixels.inside,originalPixel);
-  const previewDownload=page.waitForEvent('download');await page.locator('#download-preview').click();
+  const previewDownload=page.waitForEvent('download');await go('#download-preview');await page.locator('#download-preview').click();
   const preview=await previewDownload;const png=await readFile(await preview.path());
   assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   checks.push('Photo selection tints only marked wall areas and exports an actual PNG preview');
@@ -325,7 +346,7 @@ try {
   assert.equal(await page.locator('#total-range').textContent(),'$19,020 – $53,453');
   checks.push('Project deletion and new-project reset complete without stale data');
   // Automated planning works even with no inference credentials; AI transport is checked separately.
-  await page.locator('#project-budget').fill('25000');
+  await go('#project-budget'); await page.locator('#project-budget').fill('25000');
   await page.locator('#compare-plans').click();
   assert.match(await page.locator('.comparison-summary').textContent(), /No tested plan/);
   assert.equal(await page.locator('.plan-card').count(), 3);
@@ -344,12 +365,12 @@ try {
   assert.equal(await page.locator('#detail-questions .detail-question').count(), 12);
   await page.getByRole('button', { name: 'Confirm footprint length', exact: true }).click();
   assert.match(await page.locator('#detail-review-summary').textContent(), /1 of 12/);
-  await page.locator('#lengthFt').fill('50');
+  await go('#lengthFt'); await page.locator('#lengthFt').fill('50');
   assert.match(await page.locator('#detail-review-summary').textContent(), /0 of 12/);
   await page.locator('#lengthFt').fill('48');
   checks.push('Example measurements remain unconfirmed; homeowner confirmation is revoked when a measurement changes');
   await page.route('**/api/assistant', route => route.request().method() === 'GET' ? route.fulfill({ json: { mode: 'planner' } }) : route.fulfill({ status: 503, json: { error: 'AI unavailable' } }));
-  await page.locator('#project-goal').fill('Windows only. Replace 4 windows.');
+  await go('#project-goal'); await page.locator('#project-goal').fill('Windows only. Replace 4 windows.');
   await page.locator('#project-budget').fill('8000');
   await page.locator('#run-assistant').click();
   await page.waitForFunction(() => document.querySelector('#assistant-status').textContent.includes('Automatic planning completed'));
@@ -377,7 +398,7 @@ try {
     assert.equal(data.budget, 8000);
     return route.fulfill({ json: { mode: 'ai', text: 'I checked the current estimate. <script>window.injected = true</script>', activity: [{ tool: 'inspectProject', summary: 'Checked the project with the estimate engine.' }], proposal: null, comparisons: null, location: null } });
   });
-  await page.locator('#project-goal').fill('Check this plan.');
+  await go('#project-goal'); await page.locator('#project-goal').fill('Check this plan.');
   await page.locator('#run-assistant').click();
   await page.waitForFunction(() => document.querySelector('#assistant-status').textContent.includes('Assistant finished'));
   assert.equal(await page.locator('#assistant-mode').textContent(), 'AI assistant');
@@ -409,18 +430,18 @@ try {
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
   assert.equal(await page.locator('#widthFt').inputValue(), '34');
   assert.equal(await page.locator('#existingWindows').inputValue(), '12');
-  assert.equal(await page.locator('#lead-notice').isVisible(), true);
+  assert.equal(await shown('#lead-notice'), true);
   assert.match(await page.locator('#source-stories').textContent(), /Synthetic test provider/);
   checks.push('Browser → property API → normalized fixture provider → reviewed story/year import leaves exterior dimensions and openings untouched');
-  await page.locator('#yearBuilt').fill('1975');
+  await go('#yearBuilt'); await page.locator('#yearBuilt').fill('1975');
   assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
-  const sourceBriefPromise = page.waitForEvent('download'); await page.locator('#download-brief').click();
+  const sourceBriefPromise = page.waitForEvent('download'); await go('#download-brief'); await page.locator('#download-brief').click();
   const sourceBrief = await readFile(await (await sourceBriefPromise).path(), 'utf8');
   assert.match(sourceBrief, /Synthetic test provider/); assert.match(sourceBrief, /source reported 1965; homeowner correction 1975/);
   await page.clock.runFor(600); await page.reload(); await page.locator('#restore-draft').click();
   assert.equal(await page.locator('#stories').inputValue(), '1'); assert.equal(await page.locator('#yearBuilt').inputValue(), '1975');
   assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
-  await page.locator('#save-project').click(); await page.locator('#project-name').fill('Source profile');
+  await go('#save-project'); await page.locator('#save-project').click(); await page.locator('#project-name').fill('Source profile');
   await page.locator('#save-project-form button[type="submit"]').click();
   await page.waitForFunction(() => !document.querySelector('#projects-dialog').open);
   await page.reload(); await page.locator('#open-projects').click(); await page.getByRole('button', { name: 'Open project', exact: true }).click();
@@ -429,7 +450,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: join(outputDir, 'property-source-phone.png'), fullPage: true });
   checks.push('Original source facts and homeowner corrections survive automatic drafts, named project reload and contractor brief export');
-  await page.locator('#property-address').fill('999 Other St, Austin, TX 78701');
+  await go('#property-address'); await page.locator('#property-address').fill('999 Other St, Austin, TX 78701');
   assert.equal(await page.locator('#property-applied').isVisible(), false);
   assert.equal(await page.locator('#stories').inputValue(), '2'); assert.equal(await page.locator('#yearBuilt').inputValue(), '1998');
   assert.doesNotMatch(await page.locator('#print-report-content').textContent(), /Synthetic test provider/);
@@ -469,7 +490,7 @@ try {
   await page.unroute('**/api/property');
   await page.route('**/api/property', route => route.fulfill({ status: 502, contentType: 'text/html', body: '<h1>provider unavailable</h1>' }));
   await page.locator('#verify-address').click(); await page.waitForFunction(() => document.querySelector('#property-status').textContent.includes('could not be read'));
-  assert.equal(await page.locator('#results').isVisible(), true); await page.unroute('**/api/property');
+  assert.equal(await resultsShown(), true); await page.unroute('**/api/property');
   checks.push('Expiring source records are cleared from the DOM; malformed provider responses leave manual estimating usable');
   const page3d = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const googleRequests = [], syntheticKey = 'SYNTHETIC-TEST-KEY-NOT-REAL-0000';

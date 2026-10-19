@@ -9,6 +9,7 @@ import { setupPropertyLookup } from './property-ui.js';
 import { setupPropertyPreview } from './property-preview.js';
 import { STATIC_SITE } from './config.js';
 import { lookupCensus } from './census-jsonp.js';
+import { setupWizard } from './wizard.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -34,8 +35,9 @@ let activeProjectId = null;
 let projectLoadSerial = 0;
 let assistant;
 let propertyLookup;
+const wizard = setupWizard();
 const propertyPreview = setupPropertyPreview({ onPhoto: () => {
-  showStudioTab(true); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus();
+  wizard.show(5); showStudioTab(true); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus();
 } });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 const projectDialog = byId('projects-dialog');
@@ -114,9 +116,7 @@ function calculate({ scroll = false, focus = false } = {}) {
     errorEl.textContent = '';
     paintResult(lastResult);
     byId('result-status').textContent = `Preliminary estimate updated: ${range(lastResult.total)}. Illustrative pricing.`;
-    if (scroll && matchMedia('(max-width: 920px)').matches) {
-      byId('results').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
-    }
+    if (scroll) wizard.show(5, { focus: true });
     return true;
   } catch (error) {
     lastResult = null;
@@ -129,11 +129,7 @@ function calculate({ scroll = false, focus = false } = {}) {
     if (invalidField) {
       invalidField.setAttribute('aria-invalid', 'true');
       invalidField.setAttribute('aria-errormessage', 'form-error');
-      if (focus) {
-        const details = invalidField.closest('details');
-        if (details) details.open = true;
-        invalidField.focus();
-      }
+      if (focus) { wizard.reveal(invalidField); invalidField.focus(); }
     }
     refreshReport();
     return false;
@@ -353,7 +349,7 @@ async function restoreProject(project) {
   propertyLookup?.restore(project.propertyData);
   addressStatus.textContent = 'Saved address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
   scheduleAddressLookup();
-  editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close();
+  editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close(); wizard.show(5);
   assistant?.restore(project.planning);
   try { const photo = await loadPhoto(project.id); if (serial === projectLoadSerial && photo) { await editor.setPhoto(photo.blob,photo.areas); if (serial === projectLoadSerial) showStudioTab(true); } }
   catch { if (serial === projectLoadSerial) notify('Estimate restored. The saved photo could not be opened.'); }
@@ -365,7 +361,7 @@ byId('new-project').addEventListener('click', () => {
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
   addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
-  setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab(false); projectDialog.close(); notify('New project started with clearly labeled example measurements.');
+  setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab(false); projectDialog.close(); wizard.show(1); notify('New project started with clearly labeled example measurements.');
   assistant?.restore();
 });
 window.addEventListener('storage', event => { if (event.key === 'curbquote.projects.v1') renderSavedProjects(); });
@@ -373,7 +369,7 @@ syncProjectControls(); renderSavedProjects(); hasCalculated = true; calculate();
 assistant = setupAssistant({
   read: () => ({ inputs: readInputs(), options: projectOptions(), propertyData: propertyLookup?.context() }),
   getAddress: () => addressEl.value.trim(),
-  focusField: field => { const input = byId(field); if (!input) return; input.scrollIntoView({ block: 'center', behavior: 'instant' }); input.focus(); },
+  focusField: field => { const input = byId(field); if (!input) return; wizard.reveal(input); input.scrollIntoView({ block: 'center', behavior: 'instant' }); input.focus(); },
   apply: snapshot => {
     for (const [key, value] of Object.entries(snapshot.inputs)) if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
     for (const kind of ['siding', 'windows', 'doors']) byId(`scope-${kind}`).checked = snapshot.options[kind];

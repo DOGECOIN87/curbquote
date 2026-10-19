@@ -92,7 +92,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
   await page.locator('#aerial-map-toggle').click();
   await page.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('interactive map is unavailable'));
-  assert.equal(await page.locator('#aerial-controls').isVisible(), true); assert.equal(await page.locator('#results').isVisible(), true);
+  assert.equal(await page.locator('#aerial-controls').isVisible(), true); assert.equal(await page.locator('#results').evaluate(el => !el.hidden), true);
   checks.push('A map-service failure returns to the aerial preview while estimates stay usable');
   await page.clock.install(); behavior = 'hold'; let releaseTimeout; held = new Promise(resolve => { releaseTimeout = resolve; }); const timeoutSeen = new Promise(resolve => { sawHeld = resolve; });
   await page.locator('#aerial-map-toggle').click(); await timeoutSeen; await page.clock.runFor(20100);

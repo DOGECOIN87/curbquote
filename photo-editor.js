@@ -84,11 +84,11 @@ export class PhotoEditor {
       ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .35; ctx.fillRect(0, 0, width, height); ctx.restore();
     }
     if (!guides) return;
-    ctx.lineWidth = Math.max(2, width / 500); ctx.strokeStyle = '#caff8c';
+    ctx.lineWidth = Math.max(2, width / 500); ctx.strokeStyle = '#ED1C24';
     for (const area of this.areas) { this.path(area); ctx.stroke(); }
     if (this.points.length) {
       ctx.beginPath(); this.points.forEach((p, i) => { if (i) ctx.lineTo(p.x * width, p.y * height); else ctx.moveTo(p.x * width, p.y * height); }); ctx.stroke();
-      ctx.fillStyle = '#caff8c';
+      ctx.fillStyle = '#ED1C24';
       for (const p of this.points) { ctx.beginPath(); ctx.arc(p.x * width, p.y * height, Math.max(4, width / 200), 0, Math.PI * 2); ctx.fill(); }
     }
     if (cursor) { ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(this.cursor.x * width, this.cursor.y * height, Math.max(6, width / 100), 0, Math.PI * 2); ctx.stroke(); }

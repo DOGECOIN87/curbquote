@@ -6,7 +6,11 @@ import { PUBLIC_ASSETS, CESIUM_FILES, CESIUM_PREFIX, CESIUM_SOURCE, MAPLIBRE_FIL
 export async function buildPublicAssets(destination = join(projectRoot, 'dist')) {
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
-  for (const file of PUBLIC_ASSETS) await copyFile(join(projectRoot, file), join(destination, file));
+  for (const file of PUBLIC_ASSETS) {
+    const target = join(destination, file);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(join(projectRoot, file), target);
+  }
   await mkdir(join(destination, MAPLIBRE_PREFIX), { recursive: true });
   for (const file of MAPLIBRE_FILES) await copyFile(join(MAPLIBRE_SOURCE, file === 'LICENSE.txt' ? file : `dist/${file}`), join(destination, MAPLIBRE_PREFIX, file));
   // Only the CesiumJS runtime the 3D view loads; the same allowlist governs the development server.

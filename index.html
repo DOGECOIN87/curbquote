@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102e35">
+  <meta name="theme-color" content="#ED1C24">
   <meta name="description" content="Build a transparent preliminary exterior siding, window, and door renovation estimate. No account required.">
-  <title>CurbQuote — Know the scope before the quote</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <title>CurbQuote by Alco Products — Know the scope before the quote</title>
+  <link rel="icon" href="assets/brand/alco-icon.jpg" type="image/jpeg">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="main.js"></script>
 </head>
@@ -14,7 +14,7 @@
   <a href="#estimate-form" class="skip-link">Skip to estimator</a>
   <div class="page-shell">
     <header class="site-header">
-      <a class="brand" href="./" aria-label="CurbQuote home"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#102e35"/><g transform="translate(0.6 -1.2)" fill="none" stroke="#caff8c" stroke-linecap="round" stroke-linejoin="round"><path d="M7.6 14.6 15.4 7.9l7.8 6.7v8.2a1.4 1.4 0 0 1-1.4 1.4H9a1.4 1.4 0 0 1-1.4-1.4Z" stroke-width="2.6"/><path d="M17.8 20.6 22.8 26.6" stroke-width="3"/></g></svg>curb<span class="brand-emphasis">quote</span><span class="brand-dot">.</span></a>
+      <a class="brand" href="./" aria-label="Alco Products home"><img class="brand-mark" src="assets/brand/alco-icon.jpg" alt="">Alco <span class="brand-emphasis">Products</span></a>
       <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button></div>
     </header>
     <main>
@@ -36,7 +36,7 @@
           <div id="aerial-stage" class="aerial-stage" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
             <div id="aerial-images" class="aerial-images"></div>
             <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 23l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address. Your property will appear automatically.</p></div>
-            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#caff8c" fill-opacity=".18" stroke="#caff8c" stroke-width="2"/><circle r="7" fill="#caff8c" stroke="#102e35" stroke-width="3"/></g></svg>
+            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#ED1C24" fill-opacity=".18" stroke="#ED1C24" stroke-width="2"/><circle r="7" fill="#ED1C24" stroke="#1A1A1A" stroke-width="3"/></g></svg>
           </div>
           <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
             <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
@@ -181,8 +181,8 @@
             </div>
             <div id="illustration-panel" role="tabpanel" aria-labelledby="illustration-tab">
               <svg id="concept-house" class="concept-house" viewBox="0 0 500 300" role="img" aria-label="Illustrative home with your selected siding color, window style and door">
-                <defs><pattern id="lap-pattern" width="10" height="13" patternUnits="userSpaceOnUse"><path d="M0 12.5H10" stroke="#102e35" stroke-opacity=".22"/></pattern><pattern id="board-pattern" width="22" height="20" patternUnits="userSpaceOnUse"><path d="M1 0V20M20 0V20" stroke="#102e35" stroke-opacity=".22"/></pattern></defs>
-                <ellipse cx="250" cy="263" rx="213" ry="13" fill="#102e35" opacity=".08"/>
+                <defs><pattern id="lap-pattern" width="10" height="13" patternUnits="userSpaceOnUse"><path d="M0 12.5H10" stroke="#1a1a1a" stroke-opacity=".22"/></pattern><pattern id="board-pattern" width="22" height="20" patternUnits="userSpaceOnUse"><path d="M1 0V20M20 0V20" stroke="#1a1a1a" stroke-opacity=".22"/></pattern></defs>
+                <ellipse cx="250" cy="263" rx="213" ry="13" fill="#1a1a1a" opacity=".08"/>
                 <path id="house-wall-color" d="M72 124L247 33 425 124V255H72Z" fill="#829581"/>
                 <path id="house-texture" d="M72 124L247 33 425 124V255H72Z" fill="url(#lap-pattern)"/>
                 <path d="M54 126L247 24 444 126 435 141 247 44 64 141Z" fill="#253e43"/>
@@ -207,7 +207,7 @@
         </aside>
       </div>
     </main>
-    <footer class="site-footer"><span>© 2026 CURBQUOTE</span><span>DATA: U.S. CENSUS · USGS · GOOGLE 3D · INPUTS: HOMEOWNER</span></footer>
+    <footer class="site-footer"><span class="footer-brand"><img class="footer-badge" src="assets/brand/alco-difference.jpg" alt="The Alco Difference">© 2026 ALCO PRODUCTS</span><span>DATA: U.S. CENSUS · USGS · GOOGLE 3D · INPUTS: HOMEOWNER</span></footer>
   </div>
   <dialog id="projects-dialog" class="projects-dialog" aria-labelledby="projects-title">
     <div class="dialog-header"><h2 id="projects-title">Your saved projects</h2><button type="button" id="close-projects" class="outline-button" aria-label="Close saved projects">✕</button></div>

@@ -44,7 +44,7 @@ export function setupProperty3D({ stage, onFailure }) {
       if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
       widget.scene.primitives.add(await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }));
       marker = widget.scene.primitives.add(new Cesium.PointPrimitiveCollection()).add({
-        pixelSize: 14, color: Cesium.Color.fromCssColorString('#caff8c'), outlineColor: Cesium.Color.fromCssColorString('#102e35'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
+        pixelSize: 14, color: Cesium.Color.fromCssColorString('#ED1C24'), outlineColor: Cesium.Color.fromCssColorString('#1A1A1A'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
       });
     })();
     return ready;

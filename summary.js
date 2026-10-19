@@ -7,7 +7,7 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
   // Keep externally supplied address text on one line in exported reports.
   const singleLine = value => String(value).replace(/[\r\n\u2028\u2029]/g, ' ');
   return [
-    'CURBQUOTE / PRELIMINARY ESTIMATE',
+    'ALCO PRODUCTS / CURBQUOTE PRELIMINARY ESTIMATE',
     `Generated: ${generatedAt}`,
     `Calculation model: ${result.modelVersion}`,
     `Pricing: ${p.version}${p.customized ? ' (edited)' : ''} — illustrative example rates, not contractor pricing`,

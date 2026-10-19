@@ -26,7 +26,7 @@ export function createAssistantHandler({ run = runProjectAgent, available = agen
     if (req.method !== 'POST') { res.setHeader('Allow', 'GET, POST'); return res.status(405).json({ error: 'Method not allowed.' }); }
     if (req.headers?.origin) {
       let origin; try { origin = new URL(req.headers.origin).host; } catch { /* rejected below */ }
-      if (origin !== req.headers.host) return res.status(403).json({ error: 'Use the assistant from the CurbQuote page.' });
+      if (origin !== req.headers.host) return res.status(403).json({ error: 'Use the assistant from the Alco Products page.' });
     }
     if (!String(req.headers?.['content-type'] || '').toLowerCase().startsWith('application/json')) return res.status(415).json({ error: 'Send a JSON project request.' });
     if (+req.headers?.['content-length'] > 24000) return res.status(413).json({ error: 'Project request is too large.' });

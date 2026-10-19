@@ -74,7 +74,7 @@ function readInputs() {
 function refreshReport() {
   byId('print-report-content').textContent = lastResult ? buildEstimateSummary(lastResult, {
     address: addressEl.value.trim(), matchedAddress: matched?.matchedAddress, generatedAt, propertyData: propertyLookup?.context()
-  }) : 'CURBQUOTE / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.';
+  }) : 'ALCO PRODUCTS / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.';
   byId('save-summary').disabled = !lastResult;
   byId('print-summary').disabled = !lastResult;
   byId('save-project').disabled = !lastResult;

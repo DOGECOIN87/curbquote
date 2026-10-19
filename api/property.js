@@ -13,7 +13,7 @@ export function createPropertyHandler({ resolve = resolveProperty, available = p
     if (req.method !== 'POST') { res.setHeader('Allow', 'GET, POST'); return res.status(405).json({ error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' }); }
     if (req.headers?.origin) {
       let origin; try { origin = new URL(req.headers.origin).host; } catch { /* rejected below */ }
-      if (origin !== req.headers.host) return res.status(403).json({ error: 'Use property lookup from the CurbQuote page.', code: 'ORIGIN_DENIED' });
+      if (origin !== req.headers.host) return res.status(403).json({ error: 'Use property lookup from the Alco Products page.', code: 'ORIGIN_DENIED' });
     }
     if (!String(req.headers?.['content-type'] || '').toLowerCase().startsWith('application/json')) return res.status(415).json({ error: 'Send a JSON address request.', code: 'INVALID_REQUEST' });
     let body;

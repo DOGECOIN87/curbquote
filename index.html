@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ED1C24">
+  <meta name="theme-color" content="#102303">
   <meta name="description" content="Build a transparent preliminary exterior siding, window, and door renovation estimate. No account required.">
   <title>CurbQuote by Alco Products — Know the scope before the quote</title>
   <link rel="icon" href="assets/brand/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
-  <link rel="preload" href="assets/fonts/montserrat-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/poppins-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/poppins-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="main.js"></script>
 </head>
@@ -16,8 +17,8 @@
   <a href="#estimate-form" class="skip-link">Skip to estimator</a>
   <div class="page-shell">
     <header class="site-header">
-      <a class="brand" href="./"><img class="brand-logo" src="assets/brand/alco-lockup-header.png" width="339" height="144" alt="Alco Products home"></a>
-      <div class="header-actions"><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button></div>
+      <a class="brand" href="./"><img class="brand-logo" src="assets/brand/alco-logo-white.png" width="300" height="176" alt="Alco Products Company, Inc. home"></a>
+      <div class="header-actions"><a class="header-phone" href="tel:3015931691">(301) 593-1691</a><button type="button" id="open-projects" class="outline-button">Saved projects <span id="project-count">0</span></button></div>
     </header>
     <main>
       <nav class="wizard-steps" aria-label="Estimate steps"><ol>
@@ -48,7 +49,7 @@
           <div id="aerial-stage" class="aerial-stage" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
             <div id="aerial-images" class="aerial-images"></div>
             <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 23l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address. Your property will appear automatically.</p></div>
-            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#ED1C24" fill-opacity=".18" stroke="#ED1C24" stroke-width="2"/><circle r="7" fill="#ED1C24" stroke="#1A1A1A" stroke-width="3"/></g></svg>
+            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#89C63F" fill-opacity=".2" stroke="#89C63F" stroke-width="2"/><circle r="7" fill="#89C63F" stroke="#102303" stroke-width="3"/></g></svg>
           </div>
           <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
             <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
@@ -211,7 +212,7 @@
         </div>
       </div>
     </main>
-    <footer class="site-footer"><span class="footer-brand"><img class="footer-badge" src="assets/brand/alco-difference.png" width="240" height="240" alt="The Alco Difference">© 2026 Alco Products</span><span>Data: U.S. Census, USGS and Google 3D. Measurements: from you.</span></footer>
+    <footer class="site-footer"><span class="footer-brand">© 2026 Alco Products. All rights reserved.</span><span>Data: U.S. Census, USGS and Google 3D. Measurements: from you.</span></footer>
   </div>
   <dialog id="projects-dialog" class="projects-dialog" aria-labelledby="projects-title">
     <div class="dialog-header"><h2 id="projects-title">Your saved projects</h2><button type="button" id="close-projects" class="outline-button" aria-label="Close saved projects">✕</button></div>

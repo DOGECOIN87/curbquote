@@ -25,11 +25,11 @@ export function propertyMapStyle(location) {
       { id: 'roads', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation', filter: ['!=', ['get', 'class'], 'rail'], paint: { 'line-color': '#f8faf0', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 2, 20, 13], 'line-opacity': .5 } },
       { id: 'building-fill', type: 'fill', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': '#779a76', 'fill-opacity': .17 } },
       { id: 'building-outline', type: 'line', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, paint: { 'line-color': '#d4ffac', 'line-width': 1.5, 'line-opacity': .85 } },
-      { id: 'selected-fill', type: 'fill', source: 'selected', paint: { 'fill-color': '#ED1C24', 'fill-opacity': .3 } },
-      { id: 'selected-outline', type: 'line', source: 'selected', paint: { 'line-color': '#ED1C24', 'line-width': 4 } },
+      { id: 'selected-fill', type: 'fill', source: 'selected', paint: { 'fill-color': '#89C63F', 'fill-opacity': .3 } },
+      { id: 'selected-outline', type: 'line', source: 'selected', paint: { 'line-color': '#89C63F', 'line-width': 4 } },
       { id: 'street-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'transportation_name', minzoom: 14, layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name'], ''], 'text-font': ['Noto Sans Regular'], 'text-size': 11 }, paint: { 'text-color': '#173d36', 'text-halo-color': '#fffff0', 'text-halo-width': 2 } },
-      { id: 'address-halo', type: 'circle', source: 'address', paint: { 'circle-radius': 16, 'circle-color': '#ED1C24', 'circle-opacity': .2, 'circle-stroke-color': '#ED1C24', 'circle-stroke-width': 1 } },
-      { id: 'address-point', type: 'circle', source: 'address', paint: { 'circle-radius': 5, 'circle-color': '#ED1C24', 'circle-stroke-color': '#1A1A1A', 'circle-stroke-width': 2 } }
+      { id: 'address-halo', type: 'circle', source: 'address', paint: { 'circle-radius': 16, 'circle-color': '#89C63F', 'circle-opacity': .2, 'circle-stroke-color': '#89C63F', 'circle-stroke-width': 1 } },
+      { id: 'address-point', type: 'circle', source: 'address', paint: { 'circle-radius': 5, 'circle-color': '#89C63F', 'circle-stroke-color': '#102303', 'circle-stroke-width': 2 } }
     ]
   };
 }

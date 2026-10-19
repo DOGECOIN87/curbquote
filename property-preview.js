@@ -33,7 +33,7 @@ export function setupPropertyPreview({ onPhoto }) {
     toggleMap.textContent = viewMap.isOpen ? 'Back to aerial view' : 'Explore map';
     toggleMap.setAttribute('aria-pressed', String(viewMap.isOpen));
     mapControls.hidden = mapCredit.hidden = !viewMap.isOpen;
-    if (viewMap.isOpen) widthLabel.textContent = `${viewMap.mode === 'hybrid' ? 'HYBRID' : 'MAP'} · DISPLAY ONLY`;
+    if (viewMap.isOpen) widthLabel.textContent = `${viewMap.mode === 'hybrid' ? 'Hybrid' : 'Map'} · display only`;
     for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mapMode === viewMap.mode));
     byId('map-hybrid').disabled = !match || !hasAerialCoverage(match.coordinates);
   }
@@ -51,7 +51,7 @@ export function setupPropertyPreview({ onPhoto }) {
     const location = match;
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: Boolean(pendingImage) };
     if (saved.reload) cancel();
-    tools.hidden = true; widthLabel.textContent = 'MAP · DISPLAY ONLY'; status.textContent = 'Loading the interactive map…';
+    tools.hidden = true; widthLabel.textContent = 'Map · display only'; status.textContent = 'Loading the interactive map…';
     const pending = viewMap.show(location); syncMap();
     try {
       const ready = await pending;
@@ -65,7 +65,7 @@ export function setupPropertyPreview({ onPhoto }) {
     const location = match;
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload };
     if (pendingImage) cancel();
-    tools.hidden = true; widthLabel.textContent = 'GOOGLE 3D · DISPLAY ONLY';
+    tools.hidden = true; widthLabel.textContent = 'Google 3D · display only';
     status.textContent = 'Loading the Google 3D view…';
     const pending = view3d.show(location); sync3d(); syncMap();
     let result;
@@ -88,7 +88,7 @@ export function setupPropertyPreview({ onPhoto }) {
   function clear() {
     cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d(); syncMap();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
-    byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'AERIAL PREVIEW';
+    byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'Aerial preview';
     placeholder('Your place starts here.', 'Type a complete U.S. address. Your property will appear automatically.');
     status.textContent = 'An aerial view helps you recognize the building. It does not supply renovation measurements.';
   }
@@ -131,7 +131,7 @@ export function setupPropertyPreview({ onPhoto }) {
       clearTimeout(timeout); pendingImage = null; img.onload = img.onerror = null;
       view = next; loaded = true; images.replaceChildren(img); overlay.hidden = true; tools.hidden = false;
       stage.removeAttribute('aria-busy'); syncMarker();
-      byId('aerial-width').textContent = `VIEW WIDTH · ${Math.round(width)} M`;
+      byId('aerial-width').textContent = `View width · ${Math.round(width)} m`;
       byId('aerial-zoom-in').disabled = width <= 60; byId('aerial-zoom-out').disabled = width >= 1200;
       status.textContent = 'Aerial view ready. The pin is an approximate Census address point. Pan or tap the image to center the building.';
     };

@@ -9,6 +9,10 @@ No separate mapping product called "OpenMap" turned up. Every relevant result po
 OpenStreetMap (OSM) ecosystem, so this note evaluates that. (BBN's older OpenMap is a Java
 toolkit and doesn't fit a browser app.)
 
+## Implementation update — October 18, 2026
+
+v0.8 now implements this display-only hybrid as **Explore map**, with lazy self-hosted MapLibre, source attribution, temporary building highlights and the static aerial fallback. OpenFreeMap’s live commercial-use/attribution guidance and MapLibre’s CSP guidance were reviewed. Actual browser requests to the public metadata/vector/glyph service returned HTTP 200. See [implementation and verification](14-interactive-property-map.md). The original planning notes below remain as research context.
+
 ## Verdict
 
 **It meets the open-source bar. Adopt it as a map layer next to the existing NAIP aerial image,
@@ -31,7 +35,7 @@ not as a replacement.**
 
 | Piece | Open option | License / cost | Usage rules for the hosted service | Fit for CurbQuote |
 |---|---|---|---|---|
-| Map renderer | **MapLibre GL JS** 6.x (6.12.0 is the newest release more than two weeks old) | BSD-3-Clause, free, no key | Self-hosted library, so no service rules apply. v6 is ESM-only and **requires WebGL2**. About 300 KB of gzipped JS (main 152 KB, shared 147 KB, worker 6 KB) plus 11 KB of CSS. | ✅ Use it |
+| Map renderer | **MapLibre GL JS** 6.x (6.12.0 is the pinned renderer version) | BSD-3-Clause, free, no key | Self-hosted library, so no service rules apply. v6 is ESM-only and **requires WebGL2**. About 300 KB of gzipped JS (main 152 KB, shared 147 KB, worker 6 KB) plus 11 KB of CSS. | ✅ Use it |
 | Basemap tiles (hosted) | **[OpenFreeMap](https://openfreemap.org)** public instance (Liberty / Bright / Positron styles) | Free, no key, no sign-up, no stated view limits. Commercial use is allowed with attribution: "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" ([site](https://openfreemap.org), [OSM wiki](https://wiki.openstreetmap.org/wiki/OpenFreeMap)) | **No SLA.** One maintainer, running on about $500/month in donations. A 2025 load spike of about 100K requests/second still answered 96% of requests ([author's post](https://blog.hyperknot.com/p/openfreemap-survived-100000-requests)). No geocoding, routing or satellite. | ✅ Fine for the prototype and an early launch. Sponsor it if you depend on it. |
 | Basemap tiles (self-hosted) | **[Protomaps](https://protomaps.com/faq) PMTiles**: one static file served with HTTP range requests | Free software. You pay only for your own storage and bandwidth. | You control it. Cut a U.S. extract and put it on object storage. | ✅ Move here before scale or if OpenFreeMap becomes a risk |
 | OSMF's own tiles | `tile.openstreetmap.org` (raster), `vector.openstreetmap.org` | Free | Donation-funded, best effort, with no SLA. Can block you without notice. No bulk or prefetch downloads, and a valid identifying User-Agent is required ([raster policy](https://operations.osmfoundation.org/policies/tiles/), [vector policy](https://operations.osmfoundation.org/policies/vector/)) | ❌ Not for a commercial production site |
@@ -52,7 +56,7 @@ open map can keep that strict security posture:
    involved. The 6.12.0 source starts the worker as a plain module `Worker` when its URL is
    same-origin and only falls back to a `blob:` wrapper for cross-origin URLs. That means
    `script-src 'self'` holds and the CSP only needs `worker-src 'self'`.
-2. **Widen the CSP in both places** (`lib/web.mjs` and `vercel.json`):
+2. **Widen the CSP** in `lib/web.mjs` (the static demo derives its meta-tag policy from it):
    - `connect-src 'self' https://tiles.openfreemap.org`: style, tiles, fonts and sprites. MapLibre
      fetches tiles instead of using `<img>` tags.
    - Add the NAIP origin to `connect-src` if NAIP is loaded as map tiles.

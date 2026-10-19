@@ -37,7 +37,7 @@ Google's logo and data attributions on screen.
    30 × 31 = 930, under Google's 1,000 free monthly sessions. Past the cap, Google refuses
    requests instead of billing.
 4. Add a small billing budget alert as a backstop.
-5. Set `GOOGLE_MAP_TILES_KEY` in Vercel's environment variables. Locally, set it in `.env.local`
+5. Set `GOOGLE_MAP_TILES_KEY` as a deployment environment variable. Locally, set it in `.env.local`
    (see `.env.example`).
 
 **Testing without Google billing.** Set `CESIUM_ION_TOKEN` instead:
@@ -60,7 +60,7 @@ viewing.
 ## Security and privacy changes
 
 The page's Content Security Policy widened only as far as CesiumJS needs. Development
-(`lib/web.mjs`) and Vercel (`vercel.json`) use the same policy:
+(`lib/web.mjs`) holds the policy (the static demo derives its meta-tag copy from it):
 
 - `connect-src` adds `https://tile.googleapis.com`, plus `https://api.cesium.com` and `https://assets.ion.cesium.com` for the ion option.
 - `img-src` adds `blob:` and `https://assets.ion.cesium.com`, which hosts the Google logo and the

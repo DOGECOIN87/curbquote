@@ -14,13 +14,14 @@ npm run check
 
 Run `npm ci --ignore-scripts` before development or checks. The AI SDK and Zod are pinned production dependencies for the server-side assistant; Playwright is a pinned development dependency for browser regression tests. The automatic planner works without AI credentials.
 
-Deploy the repository root to Vercel with the checked-in `vercel.json`: `npm run build` copies the sixteen browser assets and the allowlisted CesiumJS runtime into `dist/`; `/api/geocode`, `/api/property`, `/api/assistant` and `/api/map3d` remain Node functions in `api/`. Do not use a static-only host for geocoding. The current hosted preview and its verification status are recorded in PR #1.
+Run the full app with `npm run dev`: the dev server serves the browser assets plus the pinned MapLibre and allowlisted CesiumJS runtimes, runs `/api/geocode`, `/api/property`, `/api/map3d` and `/api/assistant` as local Node functions, and applies the security headers from `lib/web.mjs`. Ship the static demo with `npm run build:pages` (deployed to GitHub Pages by `.github/workflows/pages.yml`): the page calls Census directly, carries the policy in meta tags, and has no API routes — do not use the static demo for geocoding-dependent flows.
 
 ```sh
 npm ci --ignore-scripts
 npx playwright install --with-deps chromium
-npm run test:browser           # fixture-backed; no Census or USGS network dependency
+npm run test:browser           # both fixture-backed homeowner and interactive-map suites
 LIVE_PROPERTY_PREVIEW=1 npm run test:preview:live  # opt-in live address → aerial preview smoke
+LIVE_PROPERTY_PREVIEW=1 LIVE_PROPERTY_MAP=1 npm run test:preview:live  # also check live hybrid tiles
 ```
 
 Browser checks produce screenshots and a check list in the ignored `qa-output/` directory. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select a preinstalled Chromium executable. GitHub Actions runs both the unit/integration suite and the browser checks.
@@ -28,6 +29,8 @@ Browser checks produce screenshots and a check list in the ignored `qa-output/` 
 ## Working homeowner flow
 
 - Type a complete U.S. address. After a 700 ms pause, Census matches an approximate location. When a 3D credential is configured, Google's photorealistic 3D view opens on that point with Top view, rotate and recenter controls; it is display-only and supplies no measurements ([3D view notes](docs/13-google-3d-view.md)). Otherwise, or after choosing Aerial photo, a USGS/USDA aerial view loads. Zoom, pan, tap to center a building, or recenter the approximate address point. Coverage currently includes the contiguous U.S.; image age and availability vary. The view does not identify or measure a specific building. See [live property previews](docs/10-live-property-preview.md).
+
+- After matching an address, **Explore map** opens a smooth, interactive MapLibre view. Switch between USGS aerial + map outlines and a drawn OpenStreetMap map; tap a building or press Enter at the center to highlight it. Highlights are temporary visual guides and never supply estimate measurements. MapLibre and its worker load only on demand. See [interactive map notes](docs/14-interactive-property-map.md).
 
 - Separately authorized property facts load automatically after a successful match when a source is configured; Find property also requests them directly. Review source and freshness, then select permitted story/year details. Source values, homeowner corrections and attribution survive supported saves/exports. Restricted grants remain temporary display-only. No live provider is configured by default; see [property adapter setup](docs/09-property-data-adapter.md).
 
@@ -56,7 +59,7 @@ See [the prototype implementation notes](docs/07-functional-prototype.md) for cu
 1. A configurable authorized-provider adapter exists, but no live provider or credentials are supplied. There is no automatic footprint or assessor integration by default. Photos are supplied and marked by the homeowner, not measured automatically. **Address lookup does not supply dimensions.** Connecting a licensed provider requires rights review and validation in each market.
 2. No contractor price book, labor/material adders, taxes, permit fees, tear-off, trim, labor complexity, accessibility, RRP work or region calibration.
 3. Accuracy is untested. Compare estimates against completed jobs (see `data/backtest-template.csv`) before showing customer-facing dollar claims. Current ±18% is a scenario assumption only.
-4. Automatic API lookups send the entered address to the U.S. Census through your hosting environment; hosting access logs may record request URLs. Aerial requests send map coordinates and the browser's network address to USGS, with no HTTP referrer. The optional 3D view, when a Google key is configured, sends the viewed area, the browser's network address and the site origin to Google ([3D view notes](docs/13-google-3d-view.md)). The application does not persist/export the aerial images or send them to AI. Do not claim end-to-end address confidentiality. Add hosting log controls and a privacy policy before production.
+4. Automatic API lookups send the entered address to the U.S. Census through your hosting environment; hosting access logs may record request URLs. Opening Explore map sends viewed areas and the browser’s network address to OpenFreeMap; its attribution remains visible. Those requests omit the HTTP referrer. Aerial requests send map coordinates and the browser's network address to USGS, with no HTTP referrer. The optional 3D view, when a Google key is configured, sends the viewed area, the browser's network address and the site origin to Google ([3D view notes](docs/13-google-3d-view.md)). The application does not persist/export the aerial images or send them to AI. Do not claim end-to-end address confidentiality. Add hosting log controls and a privacy policy before production.
 5. No cloud profiles, homeowner login or production operations. The AI endpoint has a per-instance request guard, not a durable distributed rate limit. Provider outage handling is implemented; production API usage still needs durable abuse protection and monitoring.
 6. The prototype is not validated for state-specific contractor or consumer-estimate regulations; obtain legal review before launch.
 

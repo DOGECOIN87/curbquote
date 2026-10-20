@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111317">
+<title>Graphscore — Music Drawn with Mathematics</title>
+<style>
+:root{color-scheme:dark;--bg:#101115;--surface:#1b1d22;--stroke:#34363d;--muted:#93969f;--white:#f7f7f5;--accent:#b6a5ff;--ink:#242526}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:#f4f3f5;font:14px/1.45 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}.app{max-width:1640px;margin:auto;padding:26px clamp(16px,3vw,46px) 38px}.head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 24px}.brand{display:flex;gap:13px;align-items:center;white-space:nowrap}.brandmark{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:#e8e6ff;color:#201b32;font:700 26px/1 Georgia,serif}.brand h1{font-size:19px;font-weight:690;letter-spacing:-.6px;margin:0}.brand small{color:#878a94;font-size:10px;letter-spacing:1.7px;text-transform:uppercase;font-weight:700}.topright{display:flex;gap:10px;align-items:center}.status{display:flex;gap:7px;align-items:center;color:#aaabb3;font-size:12px}.status::before{content:"";width:7px;height:7px;border-radius:50%;background:#8dffcb;box-shadow:0 0 10px #8dffcb33}.btn{border:1px solid #404149;background:#24262c;color:#f0f0f2;padding:11px 14px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:41px;white-space:nowrap;font-weight:560;transition:background .15s,border-color .15s,transform .15s}.btn:hover{background:#32343c;border-color:#646571}.btn:active{transform:scale(.985)}.btn.primary{color:#17151e;background:#d1c7ff;border-color:#d1c7ff;font-weight:750}.btn.primary:hover{background:#eee9ff}.btn svg{width:16px;height:16px;flex-shrink:0}.studio{border-radius:17px;overflow:hidden;background:#f9f9f8;border:1px solid #34343b;box-shadow:0 20px 65px #0004;position:relative}.canvasWrap{position:relative;width:100%;background:#fcfcfb;aspect-ratio:16 / 9;max-height:75vh;min-height:240px;overflow:hidden}.canvasWrap.ratio43{aspect-ratio:4 / 3;max-height:none}.canvasWrap.ratio11{aspect-ratio:1 / 1;max-height:none}#graph{display:block;width:100%;height:100%;touch-action:manipulation}.canvasHUD{position:absolute;left:20px;top:17px;display:flex;align-items:center;gap:9px;pointer-events:none;font-size:10px;font-weight:750;letter-spacing:1.3px;text-transform:uppercase;color:#82858b}.tag{border:1px solid #dce0e2;border-radius:6px;background:#ffffffbb;padding:6px 9px}.recordTag{color:#c83d5c}.recordTag::before{content:"";display:inline-block;width:7px;height:7px;background:#ed5477;border-radius:50%;margin-right:6px}.playOverlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(0deg,#fcfcfb19,#fcfcfb0);pointer-events:none;transition:opacity .25s}.playDisc{width:76px;height:76px;display:grid;place-items:center;border-radius:50%;color:#1f2124;background:#ffffffd7;border:1px solid #e5e5e5;box-shadow:0 8px 40px #15151520;backdrop-filter:blur(7px)}.playDisc svg{margin-left:3px;width:23px;height:23px}.playOverlay.hidden{opacity:0}.footline{height:4px;background:#e7e7e7;position:relative}.footFill{position:absolute;height:100%;width:0;background:#8a79cc;left:0;top:0;transition:width .04s linear}.strip{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:15px 18px;background:#1c1e22;flex-wrap:wrap}.leftTransport,.rightTransport{display:flex;align-items:center;gap:12px}.playBtn{width:47px;height:47px;padding:0;border-radius:12px}.time{font-size:12px;color:#bcbcc5;font-variant-numeric:tabular-nums;min-width:82px}.now{font-size:13px;color:#f3f2f5;font-weight:650;letter-spacing:-.1px;white-space:nowrap}.mini{color:#8f9199;font-size:11px;white-space:nowrap}.divider{height:23px;width:1px;background:#43444b}.iconBtn{width:39px;height:39px;padding:0}.rowLabel{color:#9b9ea7;font-size:11px;letter-spacing:1px;font-weight:700;text-transform:uppercase}.controls{padding:20px 0 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px}.sectionLabel{color:#9b9ea7;font-size:11px;letter-spacing:1.4px;font-weight:750;text-transform:uppercase;margin-bottom:10px}.scenes{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.sceneButton{background:#212329;border:1px solid #393b43;padding:11px 15px;border-radius:9px;color:#bfc1c9;font-weight:600;white-space:nowrap;transition:all .15s}.sceneButton:hover{border-color:#8e82bd;color:#f2f2ff}.sceneButton.active{color:#e7dfff;border:1px solid #9b86d7;background:#302b3d}.sceneButton .num{color:#85868c;padding-right:7px;font-size:11px}.sceneButton.active .num{color:#b8a7f0}.settings{display:flex;align-items:end;gap:10px;flex-wrap:wrap;justify-content:flex-end}.controlBox{height:42px;background:#1e2026;border:1px solid #393b43;border-radius:9px;padding:0 12px;color:#edeef0;display:flex;gap:10px;align-items:center;white-space:nowrap}.controlBox label{font-size:11px;color:#a1a3ae}.controlBox input[type=range]{width:94px;accent-color:#b7a6ff;cursor:pointer}.controlBox select{color:#e4e4ea;border:0;background:transparent;outline:none;cursor:pointer;font-size:12px}.controlBox option{background:#25262c}.check{display:flex;align-items:center;gap:6px;font-size:12px;color:#cbcbd3;user-select:none;cursor:pointer}.check input{accent-color:#b5a5ef}.footer{margin-top:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;color:#8f929e;font-size:12px;gap:10px}.footer b{color:#c9cbd3;font-weight:550}.fileInfo{color:#b1b3c1;font-size:12px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mobileText{display:none}.hiddenInput{display:none}.screenReader{position:absolute;left:-9999px}.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);background:#33323c;color:white;border:1px solid #66606d;border-radius:10px;padding:12px 17px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:6;max-width:90vw;text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}@media(max-width:1100px){.controls{grid-template-columns:1fr}.settings{justify-content:flex-start}}@media(max-width:610px){.app{padding:13px 10px 30px}.head{margin:2px 2px 15px;gap:8px}.brand{gap:8px}.brand small{display:none}.brand h1{font-size:16px}.brandmark{width:36px;height:36px}.topright .status{display:none}.topright .btn{padding:9px 11px}.topright .desktop{display:none}.mobileText{display:inline}.studio{border-radius:10px}.canvasWrap{min-height:0;max-height:none}.canvasHUD{top:9px;left:9px;gap:6px}.tag{font-size:8px;padding:5px 6px}.strip{padding:10px;gap:9px}.leftTransport,.rightTransport{gap:8px}.playBtn{width:43px;height:43px}.now{font-size:11px}.mini,.strip .divider{display:none}.time{min-width:68px;font-size:11px}.sceneButton{padding:9px 11px;font-size:12px}.controlBox{height:38px}.footer{font-size:11px;margin-top:16px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Native-ready creator tools: no horizontal scrolling, mobile-friendly targets. */
+.extension{margin-top:24px;border:1px solid #353642;border-radius:16px;background:#1b1d23;padding:22px;overflow:hidden}
+.extTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.extTitle h2{margin:0;font-size:17px;letter-spacing:-.45px}.extTitle p{margin:2px 0 0;color:#a2a4ae;font-size:12px}
+.pill{border-radius:99px;border:1px solid #56516d;color:#cfc3ff;padding:5px 9px;font-size:9px;letter-spacing:1px;font-weight:750;white-space:nowrap}
+.tabRow{display:flex;gap:7px;margin-bottom:17px;overflow-x:auto;padding:0 0 5px;scrollbar-width:none}.tabRow::-webkit-scrollbar{display:none}
+.tab{flex:1;min-width:max-content;background:#25262d;border:1px solid #40414b;color:#a6a7b1;border-radius:10px;padding:11px 12px;font-weight:650;cursor:pointer;white-space:nowrap}
+.tab.active{background:#342e46;color:#e6dcff;border-color:#8975c1}.pane[hidden]{display:none!important}.formCaption{display:block;font-size:12px;color:#c7c5d2;margin:12px 0 6px;font-weight:650}
+textarea,.textInput{width:100%;max-width:100%;background:#13151b;border:1px solid #43444d;border-radius:10px;color:#f3f2f9;padding:12px;font:inherit;font-size:13px;outline:none;resize:vertical;min-height:42px}
+textarea:focus,.textInput:focus{border-color:#aa90e3}.twoCols{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin:14px 0}.field{font-size:12px;color:#c6c4d1;display:grid;grid-template-columns:1fr auto;gap:7px}.field output{color:#cab9ff}.field input{grid-column:1/-1;width:100%;accent-color:#c3b2fb}
+.actionRow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:14px 0 6px}.hint{font-size:11px;color:#aaaab3;line-height:1.5}.response{max-height:200px;overflow:auto;overflow-wrap:anywhere;white-space:pre-wrap;background:#111217;border:1px solid #41434d;border-radius:10px;padding:13px;font-size:11px;color:#b0f5dd}
+@media(max-width:610px){.extension{padding:14px;margin-top:15px;border-radius:11px}.extTitle h2{font-size:15px}.twoCols{gap:10px}.tab{padding:10px 9px;font-size:12px}.actionRow .btn{min-height:42px}.extTitle p{font-size:11px}}
+.playOverlay:not(.hidden){pointer-events:auto}
+
+</style>
+</head>
+<body>
+<div id="browserNotice" hidden style="padding:12px 16px;background:#492b38;color:#ffe5e5;text-align:center"></div>
+<div class="app">
+  <header class="head"><div class="brand"><div class="brandmark">∿</div><div><h1>Graphscore<span style="color:#b7a4ff">.</span></h1><small>Music drawn with mathematics</small></div></div><div class="topright"><span class="status">Live synthesis engine</span><button class="btn" id="loadBtn" title="Use your own audio file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V3m0 0L7 8m5-5 5 5M4 15v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4"/></svg><span class="desktop">Import audio</span><span class="mobileText">Import</span></button><input id="audioInput" class="hiddenInput" type="file" accept="audio/*"><button class="btn" id="pngBtn" title="Save a still frame as PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span class="desktop">Export PNG</span></button></div></header>
+  <main><section class="studio">
+    <div class="canvasWrap" id="canvasWrap"><canvas id="graph" width="1600" height="900" aria-label="Animated Cartesian graphs representing music"></canvas><div class="canvasHUD"><div class="tag" id="hudMode">01 / STEPS</div><div class="tag" id="hudBeat">124 BPM</div><div class="tag recordTag" id="hudRecord" style="display:none">REC</div></div><div class="playOverlay" id="playOverlay"><div class="playDisc"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5 20 12 7 19.5z"/></svg></div></div></div><div class="footline" id="seekLine" aria-label="Seek within animation" style="cursor:pointer"><div class="footFill" id="footFill"></div></div>
+    <div class="strip"><div class="leftTransport"><button id="playBtn" class="btn primary playBtn" aria-label="Play or pause"><svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5 20 12 7 19.5z"/></svg></button><div class="time" id="timeLabel">00:00 / 00:20</div><div class="divider"></div><div><div class="now" id="sceneName">Staircase melody</div><div class="mini" id="sceneHint">A musical phrase becomes a graph</div></div></div><div class="rightTransport"><span id="fileInfo" class="fileInfo">Original synthesized soundtrack</span><button class="btn iconBtn" id="muteBtn" title="Toggle sound"><svg id="soundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 4a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg></button><button class="btn" id="recordBtn" title="Record the canvas animation to WebM">● &nbsp; Record</button></div></div>
+  </section>
+  <div class="controls"><div><div class="sectionLabel">Visualization modes</div><div class="scenes" id="scenes"><button class="sceneButton active" data-scene="0"><span class="num">01</span>Steps</button><button class="sceneButton" data-scene="1"><span class="num">02</span>Gravity</button><button class="sceneButton" data-scene="2"><span class="num">03</span>Polyphony</button><button class="sceneButton" data-scene="3"><span class="num">04</span>Rhythm</button><button class="sceneButton" data-scene="4"><span class="num">05</span>Waves</button></div></div><div><div class="sectionLabel">Controls</div><div class="settings"><div class="controlBox"><label for="bpm">Tempo</label><input id="bpm" type="range" min="65" max="190" step="1" value="124"><strong id="bpmValue" style="font-size:12px;min-width:26px">124</strong></div><div class="controlBox"><label for="ratio">Canvas</label><select id="ratio"><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option></select></div><div class="controlBox"><label class="check"><input id="autoMode" type="checkbox" checked> Cycle scenes</label></div><div class="controlBox"><label class="check"><input id="equations" type="checkbox" checked> Equations</label></div><button class="btn iconBtn" id="resetBtn" title="Restart animation" aria-label="Restart animation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 11a8 8 0 1 1 2.5 6M4 4v7h7"/></svg></button></div></div></div>
+
+<section class="extension" aria-label="Creator and integration tools">
+ <div class="extTitle"><div><h2>Creator studio</h2><p>Compose your own animated mathematical music.</p></div><span class="pill">OFFLINE FIRST</span></div>
+ <div class="tabRow" role="tablist" aria-label="Graphscore tools">
+  <button class="tab active" id="tabGenerate" data-tab="generate" role="tab" aria-selected="true">✦ Smart generator</button>
+  <button class="tab" id="tabSave" data-tab="save" role="tab" aria-selected="false">▣ Save project</button>
+  <button class="tab" id="tabMcp" data-tab="mcp" role="tab" aria-selected="false">⌘ MCP API</button>
+ </div>
+ <div class="pane" id="paneGenerate" role="tabpanel">
+  <label class="formCaption" for="generationPrompt">Describe the animation</label>
+  <textarea id="generationPrompt" rows="3" placeholder="Hypnotic minor-key staircase melody, falling notes, dramatic rhythm drops, 132 BPM">A hypnotic staircase melody with cascading notes and drifting harmonies, 124 BPM</textarea>
+  <div class="twoCols"><label class="field">Energy <output id="energyValue">65%</output><input type="range" id="energy" min="0" max="100" value="65"></label><label class="field">Complexity <output id="complexityValue">55%</output><input type="range" id="complexity" min="0" max="100" value="55"></label></div>
+  <div class="actionRow"><button class="btn primary" id="generateBtn">✦ Generate variation</button><button class="btn" id="shuffleBtn">↻ Surprise me</button><span class="hint" id="generationStatus">Procedural composition · No AI subscription needed</span></div>
+ </div>
+ <div class="pane" id="paneSave" role="tabpanel" hidden>
+  <label class="formCaption" for="projectName">Project name</label><input class="textInput" type="text" id="projectName" maxlength="60" value="My Graphscore Composition" placeholder="Project name">
+  <div class="actionRow"><button class="btn primary" id="saveProject">Save project JSON</button><button class="btn" id="openProject">Import project</button><input class="hiddenInput" id="projectInput" type="file" accept="application/json,.json"><button class="btn" id="storeProject">Save on device</button><button class="btn" id="saveFrame">Save PNG frame</button></div>
+  <div class="hint">Projects and settings automatically persist on this device. Save JSON to move projects to another device. Video export uses WebM on compatible devices.</div>
+ </div>
+ <div class="pane" id="paneMcp" role="tabpanel" hidden>
+   <div class="hint" style="margin-bottom:10px">Connect to a trusted HTTPS MCP Streamable HTTP server. MCP is optional and requires a compatible remote endpoint. Server tools only run after you select and approve them.</div>
+   <label class="formCaption" for="mcpUrl">MCP server endpoint (HTTPS)</label><input class="textInput" type="url" id="mcpUrl" placeholder="https://your-server.example/mcp" autocomplete="url" autocapitalize="off" spellcheck="false">
+   <label class="formCaption" for="mcpToken">Bearer token (optional, session only)</label><input class="textInput" type="password" id="mcpToken" placeholder="Token is not saved" autocomplete="off">
+   <div class="actionRow"><button class="btn primary" id="mcpConnect">Connect & list tools</button><span class="hint" id="mcpStatus" role="status">Not connected</span></div>
+   <label class="formCaption" for="mcpTool">Available tools</label><select id="mcpTool" class="textInput"><option value="">Connect to list tools</option></select>
+   <label class="formCaption" for="mcpArgs">Tool arguments (JSON object)</label><textarea id="mcpArgs" rows="3" placeholder="{}" spellcheck="false">{}</textarea>
+   <div class="actionRow"><button class="btn" id="mcpCall">Run selected tool</button><button class="btn" id="mcpApply">Apply returned composition JSON</button></div>
+   <label class="formCaption">MCP response</label><pre class="response" id="mcpResponse" aria-live="polite">No MCP response yet.</pre>
+ </div>
+</section>
+  <div class="footer"><span><b>100% procedural.</b> Drawn with Canvas 2D and Web Audio. No external libraries or assets.</span><span>Space to play/pause · 1–5 to change scenes · R to restart</span></div>
+  </main>
+</div><div class="toast" id="toast" role="status"></div>
+<script>
+window.addEventListener('error',function(e){
+  var message=document.getElementById('browserNotice');
+  if(message){message.hidden=false;message.style.display='block'; message.textContent='Graphscore encountered a browser error: '+(e.message||'unknown')+'. Try Chrome or Firefox.';}
+});
+(() => { 'use strict';
+document.getElementById('browserNotice').style.display='none';
+const canvas=document.getElementById('graph'),ctx=canvas.getContext('2d',{alpha:false}),wrap=document.getElementById('canvasWrap');
+const $=id=>document.getElementById(id);const TWO=Math.PI*2, COLORS=['#252529','#8064bd','#148c97','#c18c46','#575e9b'];
+const stages=[
+  {name:'Staircase melody',short:'STEPS',hint:'A musical phrase becomes a graph'},
+  {name:'Gravity cascade',short:'GRAVITY',hint:'Every falling curve marks a note'},
+  {name:'Four-part harmony',short:'POLYPHONY',hint:'Colored functions trace independent voices'},
+  {name:'Percussion sequence',short:'RHYTHM',hint:'Repeated discontinuities encode a beat'},
+  {name:'Harmonic waveforms',short:'WAVES',hint:'Sine waves interfere and evolve'}
+];
+const melody=[0,2,3,5,7,5,3,2,0,3,5,7,10,7,5,3],steps=[1,2,4,3,2,1,5,3,4,2,1,3,4,5,2,1];
+const lowPowerMode=window.matchMedia&&window.matchMedia('(max-width: 650px)').matches;
+let renderedFrame=0,sceneOrder=[0,1,2,3,4];
+let bpm=124,activeScene=0,manualScene=0,playing=false,muted=false,auto=true,showEquations=true,elapsed=0,lastFrame=0,lastTick=-1,stagePrev=-1,beat=-1,recording=false,mediaRecorder=null,recordParts=[],externalAudio=null,externalURL=null,externalDuration=0,audioCtx=null,master=null,recordAudioOut=null,canvasRecorderStream=null,toastTimeout=0,listenTime=0;
+const STEP_BEATS=8, SONG_BEATS=STEP_BEATS*stages.length;
+const duration=()=>SONG_BEATS*60/bpm;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mix=(a,b,t)=>a+(b-a)*t;
+const mod=(a,b)=>((a%b)+b)%b;
+const ease=t=>t*t*(3-2*t);
+const px=x=> (x+6.3)/12.6*canvas.width;
+const py=y=>canvas.height*.472-y*canvas.height*.104;
+const sceneBeat=()=>{let all=mod(elapsed*bpm/60,SONG_BEATS);return {all,scene:auto?sceneOrder[Math.floor(all/STEP_BEATS)]:manualScene,local:mod(all,STEP_BEATS),frac:mod(all,STEP_BEATS)/STEP_BEATS};};
+function setCanvasRatio(value){wrap.classList.toggle('ratio43',value==='4:3');wrap.classList.toggle('ratio11',value==='1:1');if(value==='4:3'){canvas.width=1440;canvas.height=1080}else if(value==='1:1'){canvas.width=1080;canvas.height=1080}else{canvas.width=lowPowerMode?960:1600;canvas.height=lowPowerMode?540:900}draw();}
+function axes(){let w=canvas.width,h=canvas.height,originY=py(0),originX=px(0),right=w*.957;ctx.strokeStyle='#353537';ctx.fillStyle='#353537';ctx.lineWidth=Math.max(1.1,w/1250);ctx.beginPath();ctx.moveTo(w*.055,originY);ctx.lineTo(right,originY);ctx.moveTo(originX,h*.115);ctx.lineTo(originX,h*.727);ctx.stroke();let a=w*.0065;ctx.beginPath();ctx.moveTo(right,originY);ctx.lineTo(right-a,originY-a*.48);ctx.lineTo(right-a,originY+a*.48);ctx.fill();ctx.beginPath();ctx.moveTo(originX,h*.11);ctx.lineTo(originX-a*.48,h*.11+a);ctx.lineTo(originX+a*.48,h*.11+a);ctx.fill();ctx.font=`italic ${Math.round(w*.012)}px Georgia,serif`;ctx.fillText('x',right+w*.012,originY+h*.008);ctx.fillText('y',originX-w*.005,h*.10);}
+function line(points,color='#202024',width=2,opacity=1){if(points.length<2)return;ctx.globalAlpha=opacity;ctx.strokeStyle=color;ctx.lineWidth=width*canvas.width/1200;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(px(points[0][0]),py(points[0][1]));for(let i=1;i<points.length;i++)ctx.lineTo(px(points[i][0]),py(points[i][1]));ctx.stroke();ctx.globalAlpha=1;}
+function dot(x,y,r,color='#202023',halo=false){let xx=px(x),yy=py(y),rad=r*canvas.width/1200;if(halo){let g=ctx.createRadialGradient(xx,yy,rad*.45,xx,yy,rad*5.3);g.addColorStop(0,'#33333318');g.addColorStop(1,'#33333300');ctx.beginPath();ctx.fillStyle=g;ctx.arc(xx,yy,rad*5.3,0,TWO);ctx.fill()}ctx.beginPath();ctx.fillStyle=color;ctx.arc(xx,yy,rad,0,TWO);ctx.fill();}
+function drawSteps(t){const div=16,n=Math.floor(t/8*16),frac=mod(t/8*16,1),xStart=-5.72,inc=11.34/16;
+  const h=i=>-0.32+steps[i]*.115;
+  for(let i=0;i<16;i++){let x=xStart+i*inc,y=h(i);line([[x,y],[x+inc*.49,y]],'#202024',1.7,i<n?0.9:i===n?1:.35);if(i>0&&i<n+1)line([[x,y],[x,h(i-1)]],'#5e5e62',.65,.45);if(i<n)dot(x+inc*.48,y,1.9,'#29292d')}
+  let x=xStart+clamp(t/8,0,.999)*11.34,y=h(clamp(n,0,15))+Math.sin(Math.PI*frac)*.55;
+  if(t<8)dot(x,y,3.3,'#1f2123',true);
+  ctx.strokeStyle='#dedee0';ctx.lineWidth=1;let bx=px(x),by=py(h(clamp(n,0,15)));ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx,py(y));ctx.stroke();
+}
+function drawFalls(t){let n=Math.floor(t*2),f=mod(t*2,1),start=-5.64,inc=11.28/16;
+ for(let i=0;i<16;i++){let x=start+i*inc;let height=(i%4===2?1.15:i%4===3?1.48:2.18)+.25*Math.sin(i*1.8),g=[];for(let j=0;j<=16;j++){let z=j/16,v=-.18-height*(1-Math.exp(-4.8*z));g.push([x+inc*.46*z,v]);}line([[x-inc*.13,-.18],[x,-.18]],'#28282b',1.6,i<n?.86:.32);line(g,'#25252a',1.6,i<n?.92:i===n?.78:.20);line([[x+inc*.40,-.18+height*.65],[x+inc*.59,-.18+height*.65]],'#242428',1.1,i<n?.72:.26);if(i%4===0)line([[x+inc*.05,.22],[x+inc*.35,.22]],'#29292c',1.1,.60)}
+ let i=clamp(n,0,15),x=start+i*inc+inc*.46*f,height=(i%4===2?1.15:i%4===3?1.48:2.18)+.25*Math.sin(i*1.8),y=-.18-height*(1-Math.exp(-4.8*f));dot(x,y,3.3,'#252529',true);
+}
+function polyY(i,x,t){let centers=[1.2,.45,-.34,-1.15],step=Math.floor((x+5.7)*1.55);return centers[i]+.13*Math.sin(step*.72+i*.7)+.1*Math.floor(1.7*Math.sin(step*.55+i*1.3))}
+function drawHarmony(t){let xCurr=-5.7+11.4*clamp(t/8,0,1),pal=[COLORS[1],COLORS[0],COLORS[2],COLORS[3]];
+ for(let k=0;k<4;k++){let points=[],future=[];for(let x=-5.7;x<=5.72;x+=.038){let v=polyY(k,x,t);(x<=xCurr?points:future).push([x,v])}if(points.length>1)line(points,pal[k],2.0,.85);if(future.length>1)line(future,pal[k],1.5,.19);dot(xCurr,polyY(k,xCurr,t),3.4,pal[k],k===1);if(k<3)for(let j=0;j<10;j++){let x=-5.7+j*1.15,y=polyY(k,x,t);dot(x,y,1.5,pal[k])}}
+}
+function drawRhythm(t){let xEnd=-5.68+11.4*clamp(t/8,0,1);let marks=64;
+ for(let i=0;i<marks;i++){let x=-5.7+(i/marks)*11.4,hit=i%4===0;let floor=-(i%4===0?.38:.25),top=(i%8===0?.75:hit?.42:.22);let slope=i%4===2?-.17:.13;line([[x,floor],[x+.11,top+slope]],'#1f2022',1.9,x<=xEnd?.9:.19);if(hit)line([[x-.09,top+.14],[x+.02,top+.14]],'#29292b',1.1,x<=xEnd?.75:.2)}
+ let a=mod(t*2,1),bounce=(1-a)*(1-a)*.62,which=Math.floor(t*2);let x=-5.7+(t/8)*11.4;dot(x,-.1+bounce,3.4,'#202024',true);
+}
+function waveY(k,x,t){let a=[1.27,.39,-.42,-1.23][k],amp=[.27,.15,.20,.32][k],frequency=[1.4,3.1,2.0,.78][k];return a+amp*Math.sin(x*frequency*TWO/2.6+.3*t*(k+1)+k*.9)}
+function drawWaves(t){let xEnd=-5.7+11.4*clamp(t/8,0,1),pal=[COLORS[1],COLORS[2],COLORS[0],COLORS[3]];
+ for(let k=0;k<4;k++){let trail=[],ghost=[];for(let i=0;i<=250;i++){let x=-5.7+i/250*11.4;(x<=xEnd?trail:ghost).push([x,waveY(k,x,t)])}line(trail,pal[k],1.7,.83);line(ghost,pal[k],1.2,.14);dot(xEnd,waveY(k,xEnd,t),3.2,pal[k],k===2)}
+}
+const formulae=[
+ [['f(x) = −0.32 + 0.115 q⌊(x + 5.72)/0.709⌋','#242426'],['q = [1, 2, 4, 3, 2, 1, 5, 3, 4, 2, 1, 3, 4, 5, 2, 1]','#747478'],['ball(t) = (−5.72 + 1.4175t, f(x) + 0.55 sin(2πt))','#747478']],
+ [['fₙ(u) = −0.18 − hₙ(1 − e⁻⁴·⁸ᵘ)','#242426'],['xₙ(u) = −5.64 + 0.705n + 0.324u','#747478'],['hₙ ∈ [1.15, 1.48, 2.18] + 0.25 sin(1.8n)','#747478']],
+ [['yₖ(x) = cₖ + 0.13 sin(0.72⌊1.55(x + 5.7)⌋ + 0.7k)','#242426'],['        + 0.1⌊1.7 sin(0.55⌊1.55(x + 5.7)⌋ + 1.3k)⌋','#747478'],['c = [1.2, 0.45, −0.34, −1.15]','#747478']],
+ [['r(x) = Σₙ pulse(x − 0.178n)','#242426'],['accent(n) = 1 when n ≡ 0 (mod 4)','#747478'],['ball(t) = (−5.7 + 1.425t, −0.1 + 0.62(1 − frac(2t))²)','#747478']],
+ [['yₖ(x,t) = aₖ + Aₖ sin(2π fₖx/2.6 + ωₖt + φₖ)','#242426'],['a = [1.27, 0.39, −0.42, −1.23]','#8064bd'],['A = [0.27, 0.15, 0.20, 0.32]','#148c97'],['ωₖ = 0.3(k + 1)','#c18c46']]
+];
+function formulas(stage){if(!showEquations)return;let h=canvas.height,w=canvas.width;if(w<700)return;let list=formulae[stage],start=h*.812,lh=h*.037;ctx.textBaseline='middle';ctx.font=`${Math.max(11,Math.round(w*.014))}px Georgia, "Times New Roman", serif`;for(let i=0;i<list.length;i++){ctx.fillStyle=list[i][1];ctx.fillText(list[i][0],w*.09,start+i*lh)}ctx.textBaseline='alphabetic';}
+function draw(){const w=canvas.width,h=canvas.height;ctx.fillStyle='#fcfcfb';ctx.fillRect(0,0,w,h);const dat=sceneBeat();const scene=dat.scene;activeScene=scene;axes();ctx.save();if(scene===0)drawSteps(dat.local);if(scene===1)drawFalls(dat.local);if(scene===2)drawHarmony(dat.local);if(scene===3)drawRhythm(dat.local);if(scene===4)drawWaves(dat.local);ctx.restore();formulas(scene);
+  ctx.fillStyle='#aaabb0';ctx.font=`500 ${Math.round(w*.010)}px system-ui,sans-serif`;ctx.textAlign='right';ctx.fillText(`GRAPH / SCORE    •    ${String(scene+1).padStart(2,'0')} / 05`,w*.945,h*.917);ctx.textAlign='left';
+  if(stagePrev!==scene){stagePrev=scene;document.querySelectorAll('.sceneButton').forEach((b,i)=>b.classList.toggle('active',scene===i));$('hudMode').textContent=String(scene+1).padStart(2,'0')+' / '+stages[scene].short;$('sceneName').textContent=stages[scene].name;$('sceneHint').textContent=stages[scene].hint;}
+}
+function timeFmt(t){let v=Math.floor(t);return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0')}
+function uiTime(){let d=externalDuration||duration();$('timeLabel').textContent=timeFmt(elapsed)+' / '+timeFmt(d);$('footFill').style.width=(100*clamp(elapsed/d,0,1))+'%';}
+function ensureAudio(){if(audioCtx)return;let A=window.AudioContext||window.webkitAudioContext;if(!A){notify('Web Audio not supported in this browser');return}audioCtx=new A();master=audioCtx.createGain();master.gain.value=muted?0:.20;const limiter=audioCtx.createDynamicsCompressor();limiter.threshold.value=-17;limiter.ratio.value=5;limiter.attack.value=.004;limiter.release.value=.23;master.connect(limiter);limiter.connect(audioCtx.destination);recordAudioOut=audioCtx.createMediaStreamDestination();limiter.connect(recordAudioOut)}
+const pentatonic=[0,3,5,7,10,12,15,17,19,22,24,27];
+function soundAt(scene,index){if(muted||externalAudio||!audioCtx||audioCtx.state==='suspended')return;let base=196,sel=scene===0?melody[index%16]:scene===1?[0,7,3,10,5,2,12,7,3,5,10,7,15,12,7,3][index%16]:scene===2?[0,3,7,10,7,5,3,0,12,10,7,5,3,7,10,12][index%16]:scene===3?[0,0,7,0,3,0,10,0,0,7,3,0,10,0,3,7][index%16]:[0,3,7,10,12,10,7,3,5,10,7,3,12,7,5,0][index%16],midi=base*Math.pow(2,sel/12);
+ let t=audioCtx.currentTime+.012;
+ if(scene===3){kick(t,index%4===0);if(index%2===1)hiHat(t);return}
+ if(scene===2){playPluck(midi,t,.25,'sine');if(index%2===0)playPluck(midi*.75,t,.35,'triangle');if(index%4===0)playPluck(midi*1.5,t,.42,'sine');return}
+ playPluck(midi,t,scene===4?.47:scene===1?.22:.29,scene===1?'triangle':scene===4?'sine':'sine');if(scene===4&&index%4===0)playPluck(midi/2,t,.67,'sine');if(index%8===0)kick(t,false);
+}
+function playPluck(frequency,time,duration,type){let osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(frequency,time);gain.gain.setValueAtTime(.0001,time);gain.gain.exponentialRampToValueAtTime(.5,time+.006);gain.gain.exponentialRampToValueAtTime(.0001,time+duration);osc.connect(gain);gain.connect(master);osc.start(time);osc.stop(time+duration+.02)}
+function kick(time,loud){let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.setValueAtTime(loud?145:110,time);o.frequency.exponentialRampToValueAtTime(45,time+.16);g.gain.setValueAtTime(loud?.86:.35,time);g.gain.exponentialRampToValueAtTime(.0001,time+.18);o.connect(g);g.connect(master);o.start(time);o.stop(time+.2)}
+function hiHat(time){let len=Math.floor(audioCtx.sampleRate*.095),buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),s=buf.getChannelData(0);for(let i=0;i<len;i++)s[i]=Math.random()*2-1;let src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),gain=audioCtx.createGain();src.buffer=buf;filter.type='highpass';filter.frequency.value=5400;gain.gain.setValueAtTime(.12,time);gain.gain.exponentialRampToValueAtTime(.0001,time+.083);src.connect(filter);filter.connect(gain);gain.connect(master);src.start(time)}
+function nextFrame(now){const dt=lastFrame?Math.min(.06,(now-lastFrame)/1000):0;lastFrame=now;if(playing){if(externalAudio){if(externalAudio.ended){setPlaying(false)}else elapsed=externalAudio.currentTime}else{elapsed+=dt;if(elapsed>=duration()){elapsed=mod(elapsed,duration());lastTick=-1}}const datum=sceneBeat();const tick=Math.floor(datum.all*2);if(tick!==lastTick){lastTick=tick;soundAt(datum.scene,Math.floor(datum.local*2));}uiTime()}if(!lowPowerMode||renderedFrame++%2===0)draw();requestAnimationFrame(nextFrame)}
+async function setPlaying(next){if(next&&audioCtx?.state==='suspended')await audioCtx.resume();playing=next;$('playOverlay').classList.toggle('hidden',next);$('playIcon').innerHTML=next?'<path d="M7 4h3v16H7zm7 0h3v16h-3z"/>':'<path d="M7 4.5 20 12 7 19.5z"/>';
+ if(externalAudio){if(next){try{await externalAudio.play()}catch(e){playing=false;notify('Could not start this audio file')}}else externalAudio.pause()}else if(next){ensureAudio();if(audioCtx?.state==='suspended')await audioCtx.resume();lastTick=-1}}
+function reset(){elapsed=0;lastTick=-1;if(externalAudio){externalAudio.currentTime=0}uiTime();draw()}
+function chooseScene(n){manualScene=n;auto=false;$('autoMode').checked=false;elapsed=n*STEP_BEATS*60/bpm;lastTick=-1;if(externalAudio)externalAudio.currentTime=Math.min(elapsed,externalDuration||elapsed);draw();uiTime()}
+let counter=0;function notify(msg){const e=$('toast');e.textContent=msg;e.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>e.classList.remove('show'),2700)}
+async function download(blob,file){
+ if(window.GraphscoreAndroid&&typeof window.GraphscoreAndroid.beginFile==='function'){
+   try {
+     const mime=blob.type||'application/octet-stream';
+     const token=window.GraphscoreAndroid.beginFile(file,mime);
+     if(!token)throw Error('Unable to initialize save');
+     // Stream small base64 fragments across the Android JS bridge to avoid oversized IPC calls.
+     for(let offset=0;offset<blob.size;offset+=48*1024){
+       const fragment=blob.slice(offset,Math.min(offset+48*1024,blob.size));
+       const b64=await new Promise((resolve,reject)=>{let rd=new FileReader();rd.onload=()=>resolve(String(rd.result).split(',')[1]||'');rd.onerror=reject;rd.readAsDataURL(fragment)});
+       if(!window.GraphscoreAndroid.appendFile(token,b64))throw Error('Saving a file chunk failed');
+     }
+     window.GraphscoreAndroid.finishFile(token);
+     notify('Choose a folder to save '+file);
+     return;
+   }catch(e){notify('Save error: '+e.message);return;}
+ }
+ let a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=file;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),9000);
+} 
+$('playBtn').addEventListener('click',()=>setPlaying(!playing));$('playOverlay').addEventListener('click',()=>setPlaying(true));canvas.addEventListener('click',()=>setPlaying(!playing));$('resetBtn').addEventListener('click',reset);
+$('scenes').addEventListener('click',e=>{let btn=e.target.closest('[data-scene]');if(btn)chooseScene(+btn.dataset.scene)});
+$('autoMode').addEventListener('change',e=>{auto=e.target.checked;lastTick=-1;draw()});
+$('equations').addEventListener('change',e=>{showEquations=e.target.checked;draw()});
+$('bpm').addEventListener('input',e=>{const nowBeat=elapsed*bpm/60;bpm=+e.target.value;elapsed=nowBeat*60/bpm;$('bpmValue').textContent=bpm;$('hudBeat').textContent=bpm+' BPM';lastTick=-1;uiTime();draw()});
+$('ratio').addEventListener('change',e=>setCanvasRatio(e.target.value));
+$('muteBtn').addEventListener('click',()=>{muted=!muted;if(master)master.gain.setTargetAtTime(muted?0:.20,audioCtx.currentTime,.018);if(externalAudio)externalAudio.muted=muted;$('soundIcon').innerHTML=muted?'<path d="M11 5 6 9H3v6h3l5 4V5Zm5 4 5 6m0-6-5 6"/>':'<path d="M11 5 6 9H3v6h3l5 4V5Zm4 4a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/>';notify(muted?'Sound muted':'Sound on')});
+$('pngBtn').addEventListener('click',()=>canvas.toBlob(blob=>{if(blob){download(blob,'graphscore-'+stages[activeScene].short.toLowerCase()+'.png');notify('PNG frame saved')}}));
+$('seekLine').addEventListener('click',e=>{let r=e.currentTarget.getBoundingClientRect();let p=clamp((e.clientX-r.left)/r.width,0,1);elapsed=p*(externalDuration||duration());if(externalAudio)externalAudio.currentTime=elapsed;lastTick=-1;uiTime();draw()});
+$('loadBtn').addEventListener('click',()=>$('audioInput').click());
+$('audioInput').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;if(externalURL)URL.revokeObjectURL(externalURL);externalURL=URL.createObjectURL(file);if(externalAudio)externalAudio.pause();externalAudio=new Audio(externalURL);externalAudio.preload='auto';externalAudio.muted=muted;externalDuration=0;externalAudio.addEventListener('loadedmetadata',()=>{externalDuration=Number.isFinite(externalAudio.duration)?externalAudio.duration:0;uiTime()},{once:true});externalAudio.addEventListener('ended',()=>setPlaying(false));setPlaying(false);$('fileInfo').textContent=file.name;reset();notify('Audio loaded · adjust Tempo to match its BPM')});
+$('recordBtn').addEventListener('click',async()=>{if(recording){mediaRecorder.stop();return}if(typeof MediaRecorder==='undefined'||!canvas.captureStream){notify('Recording requires a browser with MediaRecorder support');return}let mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(v=>MediaRecorder.isTypeSupported(v));if(!mime){notify('WebM encoding is unavailable in this browser');return}await setPlaying(true);const video=canvas.captureStream(30);const tracks=[...video.getVideoTracks()];if(externalAudio){notify('Video recording includes visuals only for imported audio')}else if(recordAudioOut){tracks.push(...recordAudioOut.stream.getAudioTracks())}let stream=new MediaStream(tracks);recordParts=[];try{mediaRecorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6500000,audioBitsPerSecond:160000});mediaRecorder.addEventListener('dataavailable',e=>{if(e.data.size)recordParts.push(e.data)});mediaRecorder.addEventListener('stop',()=>{recording=false;$('recordBtn').textContent='●  Record';$('hudRecord').style.display='none';download(new Blob(recordParts,{type:mime}),'graphscore-performance.webm');video.getTracks().forEach(t=>t.stop());notify('Recording saved as WebM')});mediaRecorder.start(300);recording=true;$('recordBtn').textContent='■  Stop';$('hudRecord').style.display='block';notify('Recording · click Stop to export')}catch(e){video.getTracks().forEach(t=>t.stop());notify('Unable to start recording: '+e.message)}});
+if(typeof MediaRecorder==='undefined'||!canvas.captureStream){$('recordBtn').title='Recording is not supported by this browser; use desktop Chrome or Firefox';}
+window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing)}else if(e.key.toLowerCase()==='r'){reset()}else if(/^[1-5]$/.test(e.key)){chooseScene(Number(e.key)-1)}});
+if(lowPowerMode){setCanvasRatio('16:9');}
+
+function __graphscoreSetup(){
+ const savedKey='graphscore.project.v2';
+ let lastPreset=null, pendingMcp=new Map(), requestCounter=0, mcpSession='', mcpConnected=false, lastMcpText='', mcpTools=[];
+ const safeName=t=>String(t||'graphscore').replace(/[^a-z0-9 _-]/gi,'').trim().replace(/\s+/g,'-').slice(0,55)||'graphscore';
+ const value=id=>$(id).value;
+ const currentState=()=>({version:2,name:value('projectName'),prompt:value('generationPrompt'),energy:+value('energy'),complexity:+value('complexity'),bpm,ratio:value('ratio'),auto,showEquations,muted,manualScene,sceneOrder:[...sceneOrder],melody:[...melody],steps:[...steps],colors:[...COLORS],elapsed,createdAt:new Date().toISOString()});
+ function applyState(p){
+  if(!p||typeof p!=='object')throw Error('Invalid project');
+  const safeInt=(n,a,b,f)=>Number.isFinite(Number(n))?Math.max(a,Math.min(b,Math.round(Number(n)))):f;
+  if(p.name!=null)$('projectName').value=String(p.name).slice(0,60);
+  if(p.prompt!=null)$('generationPrompt').value=String(p.prompt).slice(0,2000);
+  $('energy').value=safeInt(p.energy,0,100,65);$('complexity').value=safeInt(p.complexity,0,100,55);
+  $('energyValue').textContent=$('energy').value+'%';$('complexityValue').textContent=$('complexity').value+'%';
+  bpm=safeInt(p.bpm,65,190,124);$('bpm').value=bpm;$('bpmValue').textContent=bpm;$('hudBeat').textContent=bpm+' BPM';
+  let ratio=['16:9','4:3','1:1'].includes(p.ratio)?p.ratio:'16:9';$('ratio').value=ratio;setCanvasRatio(ratio);
+  auto=p.auto!==false;$('autoMode').checked=auto;showEquations=p.showEquations!==false;$('equations').checked=showEquations;
+  manualScene=safeInt(p.manualScene,0,4,0);
+  if(Array.isArray(p.sceneOrder)&&p.sceneOrder.length===5&&[...p.sceneOrder].sort().join(',')==='0,1,2,3,4')sceneOrder.splice(0,5,...p.sceneOrder);
+  if(Array.isArray(p.melody)&&p.melody.length===16)melody.splice(0,16,...p.melody.map(v=>safeInt(v,-12,36,0)));
+  if(Array.isArray(p.steps)&&p.steps.length===16)steps.splice(0,16,...p.steps.map(v=>safeInt(v,0,9,2)));
+  if(Array.isArray(p.colors)&&p.colors.length===5&&p.colors.every(v=>/^#[0-9a-f]{6}$/i.test(v)))COLORS.splice(0,5,...p.colors);
+  elapsed=Number.isFinite(Number(p.elapsed))?Math.max(0,Math.min(duration(),Number(p.elapsed))):0;
+  lastTick=-1;stagePrev=-1;uiTime();draw();
+ }
+ function persist(){try{localStorage.setItem(savedKey,JSON.stringify(currentState()))}catch(e){}}
+ function rngFrom(text){let x=2166136261;for(const c of text){x=Math.imul((x^c.charCodeAt(0)),16777619)}return ()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296}}
+ function compose(shuffle=false){
+  let prompt=value('generationPrompt').trim(),energy=+value('energy'),complexity=+value('complexity');
+  if(shuffle){const adjectives=['dreamy ascending waves','gravity falls and dramatic drops','minimal syncopated percussion','glitchy polyrhythms','hypnotic minor-key staircases','shimmering harmonic motion'];prompt=adjectives[Math.floor(Math.random()*adjectives.length)]+' '+(Math.floor(82+Math.random()*80))+' BPM';$('generationPrompt').value=prompt;}
+  const rand=rngFrom(prompt+'|'+energy+'|'+complexity+'|'+Date.now().toString(36));
+  const bpmFound=prompt.match(/\b(\d{2,3})\s*bpm\b/i);
+  if(bpmFound){bpm=clamp(+bpmFound[1],65,190);$('bpm').value=bpm;$('bpmValue').textContent=bpm;$('hudBeat').textContent=bpm+' BPM';}
+  const minor=/minor|dark|moody|eerie|sad|ominous|hypnotic/i.test(prompt);
+  const scale=minor?[0,3,5,7,10,12,15,17,19,22,24,27]:[0,2,4,7,9,12,14,16,19,21,24,26];
+  for(let i=0;i<16;i++){
+   let movement=Math.floor((rand()**(1.3-complexity/150))*Math.min(12,3+complexity/10));
+   let phase=(i<8?i:15-i)/7;
+   melody[i]=scale[Math.max(0,Math.min(scale.length-1, movement+Math.floor(phase*energy/28)))];
+   steps[i]=clamp(Math.round(1+rand()*2+phase*4+energy/35*(rand()-.25)),0,9);
+  }
+  let priority=[];
+  if(/rhythm|drum|bounce|beat|percussion|syncopat/i.test(prompt))priority.push(3);
+  if(/wave|sine|ocean|flow|ambient|smooth/i.test(prompt))priority.push(4);
+  if(/fall|drop|gravity|cascade|raining/i.test(prompt))priority.push(1);
+  if(/step|stairs|arpeggio|climb|ascend|melody/i.test(prompt))priority.push(0);
+  if(/harmon|poly|choir|chord|layer/i.test(prompt))priority.push(2);
+  let rest=[0,1,2,3,4].filter(v=>!priority.includes(v));rest.sort(()=>rand()-.5);sceneOrder.splice(0,5,...priority,...rest);
+  let shades=minor?['#26232c','#7b61c9','#158592','#d18b57','#5c66aa']:['#252529','#8064bd','#148c97','#c18c46','#575e9b'];
+  if(/neon|cyber|electric|glow|trippy/i.test(prompt))shades=['#252529','#9201cb','#00a9c4','#fb4ca9','#4d60c7'];
+  COLORS.splice(0,5,...shades);auto=true;$('autoMode').checked=true;elapsed=0;lastTick=-1;stagePrev=-1;
+  $('generationStatus').textContent='Generated '+(minor?'minor':'major')+' composition · '+bpm+' BPM · '+sceneOrder.map(n=>stages[n].short).join(' → ');
+  lastPreset=currentState();persist();draw();uiTime();notify('New composition generated and saved on device');
+ }
+ function saveJSON(){persist();let object=currentState();download(new Blob([JSON.stringify(object,null,2)],{type:'application/json'}),safeName(object.name)+'.graphscore.json')}
+ function openTab(name){for(const t of document.querySelectorAll('[data-tab]')){let selected=t.dataset.tab===name;t.classList.toggle('active',selected);t.setAttribute('aria-selected',String(selected))}for(const n of ['generate','save','mcp'])$('pane'+n[0].toUpperCase()+n.slice(1)).hidden=n!==name;}
+ for(const t of document.querySelectorAll('[data-tab]'))t.addEventListener('click',()=>openTab(t.dataset.tab));
+ $('generateBtn').addEventListener('click',()=>compose());$('shuffleBtn').addEventListener('click',()=>compose(true));
+ for(const n of ['energy','complexity'])$(n).addEventListener('input',()=>{$(n+'Value').textContent=$(n).value+'%';persist()});
+ $('saveProject').addEventListener('click',saveJSON);$('storeProject').addEventListener('click',()=>{persist();notify('Project saved on this device')});
+ $('saveFrame').addEventListener('click',()=>$('pngBtn').click());$('openProject').addEventListener('click',()=>$('projectInput').click());
+ $('projectInput').addEventListener('change',async ev=>{try{const f=ev.target.files?.[0];if(!f)return;const raw=await f.text();if(raw.length>200000)throw Error('File too large');applyState(JSON.parse(raw));persist();notify('Project loaded')}catch(e){notify('Project import failed: '+e.message)}ev.target.value=''});
+ for(const id of ['bpm','ratio','autoMode','equations','projectName','generationPrompt'])$(id).addEventListener('change',persist);
+ $('scenes').addEventListener('click',persist);$('resetBtn').addEventListener('click',persist);
+ try{const raw=localStorage.getItem(savedKey);if(raw)applyState(JSON.parse(raw));}catch(e){notify('Local project restore unavailable')}
+ // Remote MCP Streamable HTTP JSON-RPC. Bearer token is never saved.
+ function parseMcpBody(body){
+   if(!body||!body.trim())return {};
+   let lines=body.split(/\r?\n/).filter(l=>l.startsWith('data:'));
+   if(lines.length){for(let i=lines.length-1;i>=0;i--){let value=lines[i].slice(5).trim();if(value==='[DONE]')continue;try{return JSON.parse(value)}catch(e){}}return {raw:body}}
+   try{return JSON.parse(body)}catch(e){return {raw:body}}
+ }
+ function rpc(method,params,session=''){
+   const id=++requestCounter;const body=JSON.stringify({jsonrpc:'2.0',id,method,params});
+   return new Promise((resolve,reject)=>{
+     const timeout=setTimeout(()=>{pendingMcp.delete(id);reject(Error('MCP server timed out'))},25000);
+     pendingMcp.set(id,{resolve,reject,timeout});
+     let endpoint=value('mcpUrl').trim(), token=value('mcpToken');
+     if(!/^https:\/\/[^\s/]+/i.test(endpoint)){pendingMcp.delete(id);clearTimeout(timeout);reject(Error('Use a valid HTTPS MCP endpoint'));return}
+     if(window.GraphscoreAndroid?.mcpRequest){window.GraphscoreAndroid.mcpRequest(id,endpoint,token,session,body)}
+     else {let headers={'Content-Type':'application/json','Accept':'application/json, text/event-stream','MCP-Protocol-Version':'2025-06-18'};if(token)headers.Authorization='Bearer '+token;if(session)headers['Mcp-Session-Id']=session;
+       fetch(endpoint,{method:'POST',headers,body}).then(async r=>window.GraphscoreMCP.onReply(id,JSON.stringify({status:r.status,body:await r.text(),session:r.headers.get('mcp-session-id')||session}))).catch(e=>window.GraphscoreMCP.onReply(id,JSON.stringify({error:String(e)})));
+     }
+   });
+ }
+ window.GraphscoreMCP={onReply(id,response){let wait=pendingMcp.get(id);if(!wait)return;pendingMcp.delete(id);clearTimeout(wait.timeout);
+  try{let r=JSON.parse(response);if(r.error)throw Error(r.error);if(r.status<200||r.status>=300)throw Error('HTTP '+r.status+': '+String(r.body||'').slice(0,220));let data=parseMcpBody(r.body);if(data.error)throw Error(JSON.stringify(data.error));wait.resolve({data,session:r.session||''})}catch(e){wait.reject(e)}
+ }};
+ $('mcpConnect').addEventListener('click',async()=>{
+  $('mcpStatus').textContent='Connecting…';$('mcpConnect').disabled=true;
+  try{
+   const response=await rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'Graphscore',version:'2.0'}});
+   mcpSession=response.session||'';
+   // Notifications have no id. Send separately. Ignore failures on servers that do not require it.
+   const note=JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'});
+   if(window.GraphscoreAndroid?.mcpRequest)window.GraphscoreAndroid.mcpRequest(0,value('mcpUrl').trim(),value('mcpToken'),mcpSession,note);
+   else fetch(value('mcpUrl').trim(),{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json, text/event-stream',...(mcpSession?{'Mcp-Session-Id':mcpSession}:{})},body:note}).catch(()=>{});
+   let listed=await rpc('tools/list',{},mcpSession);
+   mcpTools=Array.isArray(listed.data?.result?.tools)?listed.data.result.tools:[];
+   let select=$('mcpTool');select.replaceChildren();if(!mcpTools.length){const option=document.createElement('option');option.value='';option.textContent='No tools exposed by this server';select.append(option)}
+   for(const tool of mcpTools){let option=document.createElement('option');option.value=tool.name;option.textContent=tool.name;select.append(option)}
+   mcpConnected=true;$('mcpStatus').textContent='Connected · '+mcpTools.length+' tools';$('mcpResponse').textContent=JSON.stringify(listed.data,null,2).slice(0,12000);
+   notify('MCP connected');
+  }catch(e){mcpConnected=false;$('mcpStatus').textContent='Connection failed';$('mcpResponse').textContent=String(e.message);notify('MCP: '+e.message)}finally{$('mcpConnect').disabled=false}
+ });
+ $('mcpCall').addEventListener('click',async()=>{
+  if(!mcpConnected){notify('Connect to an MCP server first');return}
+  const name=value('mcpTool');if(!name){notify('Select a tool');return}
+  let args;try{args=JSON.parse(value('mcpArgs'));if(!args||typeof args!=='object'||Array.isArray(args))throw Error('Expected an object')}catch(e){notify('Tool arguments must be a JSON object');return}
+  if(!confirm('Call MCP tool "'+name+'" on the selected server? This tool may affect remote data.'))return;
+  $('mcpCall').disabled=true;$('mcpStatus').textContent='Running '+name+'…';
+  try{let res=await rpc('tools/call',{name,arguments:args},mcpSession);lastMcpText=JSON.stringify(res.data,null,2);$('mcpResponse').textContent=lastMcpText.slice(0,20000);$('mcpStatus').textContent='Tool completed'}catch(e){$('mcpResponse').textContent=String(e.message);$('mcpStatus').textContent='Tool error'}finally{$('mcpCall').disabled=false}
+ });
+ $('mcpApply').addEventListener('click',()=>{
+  try{
+    let envelope=JSON.parse(lastMcpText);let block=envelope.result?.content?.find(x=>x.type==='text')?.text||envelope.result?.structuredContent;
+    let candidate=typeof block==='string'?JSON.parse(block):block;
+    if(!candidate||typeof candidate!=='object')throw Error('No composition JSON in response');
+    if(candidate.prompt!=null)$('generationPrompt').value=String(candidate.prompt).slice(0,2000);
+    if(candidate.energy!=null)$('energy').value=clamp(+candidate.energy,0,100);
+    if(candidate.complexity!=null)$('complexity').value=clamp(+candidate.complexity,0,100);
+    if(candidate.bpm!=null)$('generationPrompt').value+=' '+clamp(+candidate.bpm,65,190)+' BPM';
+    $('energyValue').textContent=$('energy').value+'%';$('complexityValue').textContent=$('complexity').value+'%';
+    compose();openTab('generate');notify('MCP composition applied');
+  }catch(e){notify('MCP result is not composition JSON')}
+ });
+ // Register app health probe for Android WebView and automated tests.
+ window.GraphscoreApp={version:'2.0',getState:currentState,generate:compose,openTab};
+}
+
+__graphscoreSetup();$('timeLabel').textContent='00:00 / '+timeFmt(duration());draw();requestAnimationFrame(nextFrame);
+})();
+</script>
+</body>
+</html>

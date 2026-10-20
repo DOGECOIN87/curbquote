@@ -304,6 +304,13 @@ async function analyzeImportedFile(file){
   const nov=frames.map((f,i)=>Math.max(0,f.onset-.18)*Math.min(1,f.energy+.15));let moving=0,novMean=nov.reduce((a,b)=>a+b,0)/Math.max(1,nov.length);
   const scores=[];for(let lag=6;lag<=20;lag++){let sum=0,weight=0;for(let i=lag;i<nov.length;i++){const j=i-lag;const l=Math.max(0,nov[i]-novMean),r=Math.max(0,nov[j]-novMean);sum+=l*r;weight+=l*l;}scores.push({lag,score:sum/Math.max(.0001,weight)});}
   scores.sort((a,b)=>b.score-a.score);const topScore=scores[0].score;const bestLag=(topScore>.06?scores.filter(x=>x.score>=topScore*.93).sort((a,b)=>a.lag-b.lag)[0].lag:10);let guessedBpm=clamp(Math.round(60/(bestLag*FRAME_SECONDS)),65,190);
+  // Half-time ambiguity: a 140 BPM beat often matches more precisely every TWO beats due to frame quantization.
+  // Correct only when the faster grid has meaningful onset correlation; true slow tempos remain slow.
+  if(guessedBpm<=90&&guessedBpm*2<=190&&topScore>.06){
+   const half=bestLag/2, left=Math.floor(half),right=Math.ceil(half);
+   const nearby=scores.filter(x=>x.lag===left||x.lag===right);
+   if(nearby.length&&Math.max(...nearby.map(x=>x.score))>=topScore*.42)guessedBpm*=2;
+  }
   // The tempo estimate can be adjusted with the Tempo slider if the music is halftime/double-time.
   const bpmGuess=guessedBpm;const beatPeriod=60/bpmGuess;
   let beatOffset=0,bestGrid=-1;

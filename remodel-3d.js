@@ -6,10 +6,13 @@
  */
 const THREE_BASE = new URL('./vendor/three/', import.meta.url).href;
 
-export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
+export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, onReady, onError }) {
+  const stages = [stage, previewStage].filter(Boolean);
+  let activeStage = stage;
   let Three = null, renderer = null, scene = null, camera = null, sun = null, hemi = null;
-  let house = null, open = false, starting = null, spec = null, observer = null, resizer = null;
-  let azimuth = .65, elevation = .38, radius = 90, fitRadius = 90;
+  let house = null, beforeHouse = null, afterHouse = null;
+  let open = false, starting = null, spec = null, beforeSpec = null, observer = null, resizer = null;
+  let azimuth = .65, elevation = .38, radius = 90, fitRadius = 90, splitPercent = 100;
   const pointers = new Map(), textures = new Map(), materials = new Map();
 
   const views = {
@@ -70,99 +73,97 @@ export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
     parent.add(mesh); return mesh;
   }
 
-  function buildHouse(next) {
-    spec = next;
-    if (house) { house.traverse(node => node.geometry?.dispose()); scene.remove(house); }
-    house = new Three.Group(); scene.add(house);
-    const { lengthFt: L, widthFt: W, wallHeightFt: H, gableRiseFt: rise, storyHeightFt: storyH } = spec;
+  function buildVariant(variantSpec) {
+    const group = new Three.Group();
+    const { lengthFt: L, widthFt: W, wallHeightFt: H, gableRiseFt: rise, storyHeightFt: storyH } = variantSpec;
     const base = 1, wallTop = base + H, ridge = wallTop + rise;
-    const sidingX = material(`siding-${spec.sidingHex}-${spec.texture}-f`, spec.sidingHex, spec.texture, L / 4, H / 4);
-    const sidingZ = material(`siding-${spec.sidingHex}-${spec.texture}-s`, spec.sidingHex, spec.texture, W / 4, H / 4);
+    const sidingX = material(`siding-${variantSpec.sidingHex}-${variantSpec.texture}-f`, variantSpec.sidingHex, variantSpec.texture, L / 4, H / 4);
+    const sidingZ = material(`siding-${variantSpec.sidingHex}-${variantSpec.texture}-s`, variantSpec.sidingHex, variantSpec.texture, W / 4, H / 4);
     const trim = material('trim', '#f6f4e8', null, 1, 1, .6);
-    const frame = material(`frame-${spec.frameHex}`, spec.frameHex, null, 1, 1, .55);
-    const roofMat = material(`roof-${spec.roofHex}`, spec.roofHex, 'shingle', L / 5, 3, .95);
+    const frame = material(`frame-${variantSpec.frameHex}`, variantSpec.frameHex, null, 1, 1, .55);
+    const roofMat = material(`roof-${variantSpec.roofHex}`, variantSpec.roofHex, 'shingle', L / 5, 3, .95);
     const concrete = material('concrete', '#b9bab2', 'concrete', 3, 1, .95);
     const brick = material('brick', '#9a5a48', 'brick', L / 5, .8, .9);
-    const glass = new Three.MeshStandardMaterial({ color: '#93bccd', roughness: .08, metalness: .35 });
+    const glass = material('glass', '#93bccd', null, 1, 1, .08);
+    glass.metalness = .35;
 
     // Lot: lawn, walk to the door, driveway to the right.
     const lawn = new Three.Mesh(new Three.CircleGeometry(Math.max(L, W) * 2.4 + 90, 48),
-      material('lawn', spec.before ? '#77854f' : '#5c8743', 'grass', 22, 22, 1));
-    lawn.rotation.x = -Math.PI / 2; lawn.receiveShadow = true; house.add(lawn);
-    box(house, 4.5, .12, W * .9 + 14, concrete, 0, .06, W / 2 + (W * .9 + 14) / 2 - .5, { shadow: false });
-    box(house, 11, .12, W + 26, material('drive', '#a9a9a2', 'concrete', 2, 6, .95), L / 2 + 8, .05, 6, { shadow: false });
+      material(`lawn-${variantSpec.before ? 'b' : 'a'}`, variantSpec.before ? '#77854f' : '#5c8743', 'grass', 22, 22, 1));
+    lawn.rotation.x = -Math.PI / 2; lawn.receiveShadow = true; group.add(lawn);
+    box(group, 4.5, .12, W * .9 + 14, concrete, 0, .06, W / 2 + (W * .9 + 14) / 2 - .5, { shadow: false });
+    box(group, 11, .12, W + 26, material('drive', '#a9a9a2', 'concrete', 2, 6, .95), L / 2 + 8, .05, 6, { shadow: false });
 
     // Body: foundation, siding box (per-face repeats), brick/stone share as a ground-floor skirt.
-    box(house, L + .5, base + .3, W + .5, concrete, 0, (base + .3) / 2 - .15, 0);
+    box(group, L + .5, base + .3, W + .5, concrete, 0, (base + .3) / 2 - .15, 0);
     const walls = new Three.Mesh(new Three.BoxGeometry(L, H, W), [sidingZ, sidingZ, sidingX, sidingX, sidingX, sidingX]);
-    walls.position.y = base + H / 2; walls.castShadow = walls.receiveShadow = true; house.add(walls);
-    if (spec.masonryPercent >= 10) {
-      const skirtH = Math.min(4.5, 1.5 + spec.masonryPercent / 22);
-      box(house, L + .24, skirtH, .24, brick, 0, base + skirtH / 2, W / 2 + .06);
-      box(house, .24, skirtH, W + .24, brick, -L / 2 - .06, base + skirtH / 2, 0);
-      box(house, .24, skirtH, W + .24, brick, L / 2 + .06, base + skirtH / 2, 0);
+    walls.position.y = base + H / 2; walls.castShadow = walls.receiveShadow = true; group.add(walls);
+    if (variantSpec.masonryPercent >= 10) {
+      const skirtH = Math.min(4.5, 1.5 + variantSpec.masonryPercent / 22);
+      box(group, L + .24, skirtH, .24, brick, 0, base + skirtH / 2, W / 2 + .06);
+      box(group, .24, skirtH, W + .24, brick, -L / 2 - .06, base + skirtH / 2, 0);
+      box(group, .24, skirtH, W + .24, brick, L / 2 + .06, base + skirtH / 2, 0);
     }
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(house, .65, H, .65, trim, sx * L / 2, base + H / 2, sz * W / 2);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(group, .65, H, .65, trim, sx * L / 2, base + H / 2, sz * W / 2);
 
     // Gables and roof.
     const gableShape = new Three.Shape();
     gableShape.moveTo(-W / 2, 0); gableShape.lineTo(W / 2, 0); gableShape.lineTo(0, rise); gableShape.closePath();
-    const gableMat = material(`gable-${spec.sidingHex}-${spec.texture}`, spec.sidingHex, spec.texture, .25, .25);
+    const gableMat = material(`gable-${variantSpec.sidingHex}-${variantSpec.texture}`, variantSpec.sidingHex, variantSpec.texture, .25, .25);
     for (const sx of [-1, 1]) {
       const gable = new Three.Mesh(new Three.ShapeGeometry(gableShape), gableMat);
-      gable.position.set(sx * (L / 2 - .02), wallTop, 0); gable.rotation.y = sx * Math.PI / 2; gable.castShadow = true; house.add(gable);
+      gable.position.set(sx * (L / 2 - .02), wallTop, 0); gable.rotation.y = sx * Math.PI / 2; gable.castShadow = true; group.add(gable);
     }
     const angle = Math.atan2(rise, W / 2), eaveZ = W / 2 + 1.6, eaveY = wallTop - 1.6 * Math.tan(angle);
     const slope = Math.hypot(eaveZ, ridge - eaveY) + .4;
     for (const sz of [-1, 1]) {
-      box(house, L + 2.6, .38, slope, roofMat, 0, (ridge + eaveY) / 2 + .22, sz * eaveZ / 2, { rx: sz * angle });
-      box(house, L + 2.6, .7, .3, trim, 0, eaveY + .1, sz * (eaveZ + .05));
+      box(group, L + 2.6, .38, slope, roofMat, 0, (ridge + eaveY) / 2 + .22, sz * eaveZ / 2, { rx: sz * angle });
+      box(group, L + 2.6, .7, .3, trim, 0, eaveY + .1, sz * (eaveZ + .05));
     }
-    box(house, L + 2.7, .45, 1.1, roofMat, 0, ridge + .32, 0);
-    box(house, 2.6, rise + 4.5, 2.6, brick, L * .3, wallTop + (rise + 4.5) / 2 - 1, -W * .14);
+    box(group, L + 2.7, .45, 1.1, roofMat, 0, ridge + .32, 0);
+    box(group, 2.6, rise + 4.5, 2.6, brick, L * .3, wallTop + (rise + 4.5) / 2 - 1, -W * .14);
 
     // Windows from the homeowner's count, with shutters on the street face when chosen.
     const shutter = material('shutter', '#2e4a3e', null, 1, 1, .7);
-    for (const win of spec.windows) {
-      const group = new Three.Group();
-      box(group, 3.2, 4.5, .4, frame, 0, 0, 0);
-      box(group, 2.65, 3.95, .18, glass, 0, 0, .16, { shadow: false });
-      box(group, .16, 3.95, .1, frame, 0, 0, .26); box(group, 2.65, .16, .1, frame, 0, 0, .26);
-      box(group, 3.7, .3, .6, trim, 0, -2.35, .08);
-      if (spec.shutters && win.face === 'front') { box(group, .95, 4.4, .16, shutter, -2.15, 0, 0); box(group, .95, 4.4, .16, shutter, 2.15, 0, 0); }
+    for (const win of variantSpec.windows) {
+      const winGroup = new Three.Group();
+      box(winGroup, 3.2, 4.5, .4, frame, 0, 0, 0);
+      box(winGroup, 2.65, 3.95, .18, glass, 0, 0, .16, { shadow: false });
+      box(winGroup, .16, 3.95, .1, frame, 0, 0, .26); box(winGroup, 2.65, .16, .1, frame, 0, 0, .26);
+      box(winGroup, 3.7, .3, .6, trim, 0, -2.35, .08);
+      if (variantSpec.shutters && win.face === 'front') { box(winGroup, .95, 4.4, .16, shutter, -2.15, 0, 0); box(winGroup, .95, 4.4, .16, shutter, 2.15, 0, 0); }
       const y = base + win.floor * storyH + storyH * .56;
-      if (win.face === 'front') group.position.set((win.along - .5) * L, y, W / 2 + .12);
-      if (win.face === 'back') { group.position.set((win.along - .5) * L, y, -W / 2 - .12); group.rotation.y = Math.PI; }
-      if (win.face === 'left') { group.position.set(-L / 2 - .12, y, (win.along - .5) * W); group.rotation.y = -Math.PI / 2; }
-      if (win.face === 'right') { group.position.set(L / 2 + .12, y, (win.along - .5) * W); group.rotation.y = Math.PI / 2; }
-      house.add(group);
+      if (win.face === 'front') winGroup.position.set((win.along - .5) * L, y, W / 2 + .12);
+      if (win.face === 'back') { winGroup.position.set((win.along - .5) * L, y, -W / 2 - .12); winGroup.rotation.y = Math.PI; }
+      if (win.face === 'left') { winGroup.position.set(-L / 2 - .12, y, (win.along - .5) * W); winGroup.rotation.y = -Math.PI / 2; }
+      if (win.face === 'right') { winGroup.position.set(L / 2 + .12, y, (win.along - .5) * W); winGroup.rotation.y = Math.PI / 2; }
+      group.add(winGroup);
     }
 
     // Entry: framed door in the chosen product colour, stoop and a porch light.
-    const door = new Three.Group(); door.position.set(0, base, W / 2 + .1); house.add(door);
+    const door = new Three.Group(); door.position.set(0, base, W / 2 + .1); group.add(door);
     box(door, 4.3, 7.6, .45, trim, 0, 3.8, 0);
-    box(door, 3.5, 7.1, .3, material(`door-${spec.doorHex}`, spec.doorHex, null, 1, 1, .5), 0, 3.55, .14);
+    box(door, 3.5, 7.1, .3, material(`door-${variantSpec.doorHex}`, variantSpec.doorHex, null, 1, 1, .5), 0, 3.55, .14);
     box(door, 2.1, 1.7, .12, glass, 0, 5.9, .3, { shadow: false });
     const knob = new Three.Mesh(new Three.SphereGeometry(.14, 12, 8), material('knob', '#d8b971', null, 1, 1, .35));
     knob.position.set(1.35, 3.4, .36); door.add(knob);
-    if (!spec.porch) { box(house, 6.5, .55, 3.2, concrete, 0, .75, W / 2 + 1.6); box(house, 5, .5, 1.6, concrete, 0, .28, W / 2 + 3.4); }
+    if (!variantSpec.porch) { box(group, 6.5, .55, 3.2, concrete, 0, .75, W / 2 + 1.6); box(group, 5, .5, 1.6, concrete, 0, .28, W / 2 + 3.4); }
 
     // Optional additions (After only): covered porch and roof dormers.
-    if (spec.porch) {
+    if (variantSpec.porch) {
       const porchW = Math.min(L * .58, 28), depth = 7.5, deckY = .95, roofY = base + Math.min(storyH - .4, 8.6);
-      box(house, porchW, .5, depth, material('deck', '#9a724e', 'deck', porchW / 4, 2, .8), 0, deckY, W / 2 + depth / 2);
-      box(house, 5.5, .45, 1.7, concrete, 0, .55, W / 2 + depth + .8); box(house, 5.5, .4, 1.5, concrete, 0, .2, W / 2 + depth + 2.1);
-      for (const sx of [-1, 1]) box(house, .65, roofY - deckY, .65, trim, sx * (porchW / 2 - .7), (roofY + deckY) / 2, W / 2 + depth - .7);
-      box(house, porchW + 1.5, .55, .55, trim, 0, roofY, W / 2 + depth - .7);
-      box(house, porchW + 2, .3, depth + 2.2, roofMat, 0, roofY + .75, W / 2 + depth / 2 - .4, { rx: .16 });
+      box(group, porchW, .5, depth, material('deck', '#9a724e', 'deck', porchW / 4, 2, .8), 0, deckY, W / 2 + depth / 2);
+      box(group, 5.5, .45, 1.7, concrete, 0, .55, W / 2 + depth + .8); box(group, 5.5, .4, 1.5, concrete, 0, .2, W / 2 + depth + 2.1);
+      for (const sx of [-1, 1]) box(group, .65, roofY - deckY, .65, trim, sx * (porchW / 2 - .7), (roofY + deckY) / 2, W / 2 + depth - .7);
+      box(group, porchW + 1.5, .55, .55, trim, 0, roofY, W / 2 + depth - .7);
+      box(group, porchW + 2, .3, depth + 2.2, roofMat, 0, roofY + .75, W / 2 + depth / 2 - .4, { rx: .16 });
     }
-    if (spec.dormers) for (const sx of [-1, 1]) {
+    if (variantSpec.dormers) for (const sx of [-1, 1]) {
       const g = new Three.Group(); const z = W * .31, y = wallTop + rise * .36;
-      g.position.set(sx * L * .24, y, z); house.add(g);
+      g.position.set(sx * L * .24, y, z); group.add(g);
       box(g, 4.4, 4.6, 4, sidingZ, 0, 0, 0);
       box(g, 3, 3.4, .18, frame, 0, .2, 2.02); box(g, 2.4, 2.8, .14, glass, 0, .2, 2.12, { shadow: false });
       box(g, 3.4, .26, 4.9, roofMat, -1.22, 2.95, 0, { rz: .62 }); box(g, 3.4, .26, 4.9, roofMat, 1.22, 2.95, 0, { rz: -.62 });
-      // Front gable triangle so the dormer reads as part of the roof, not a hatch in it.
       const triangle = new Three.Shape(); triangle.moveTo(-2.2, 0); triangle.lineTo(2.2, 0); triangle.lineTo(0, 1.55); triangle.closePath();
       const face = new Three.Mesh(new Three.ShapeGeometry(triangle), gableMat);
       face.position.set(0, 2.3, 2.01); face.castShadow = true; g.add(face);
@@ -170,28 +171,89 @@ export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
 
     // Planting: foundation shrubs and two simple shade trees.
     const rand = seeded(42), greens = ['#3f6634', '#4d7a3c', '#35602e'];
-    const shrubCount = spec.before ? 3 : Math.max(5, Math.round(L / 7));
+    const shrubCount = variantSpec.before ? 3 : Math.max(5, Math.round(L / 7));
     for (let i = 0; i < shrubCount; i++) {
       const x = -L / 2 + 3 + (i * (L - 6)) / Math.max(1, shrubCount - 1) + (rand() - .5) * 1.5;
       if (Math.abs(x) < 3.4) continue;
       const bush = new Three.Mesh(new Three.SphereGeometry(1.15 + rand() * .6, 10, 8), material(`bush${i % 3}`, greens[i % 3], null, 1, 1, 1));
-      bush.position.set(x, .95, W / 2 + 1.7 + rand()); bush.scale.y = .72; bush.castShadow = true; house.add(bush);
+      bush.position.set(x, .95, W / 2 + 1.7 + rand()); bush.scale.y = .72; bush.castShadow = true; group.add(bush);
     }
     for (const [tx, tz, s] of [[-L / 2 - 10, W / 2 + 11, 1], [L / 2 + 13, -W / 2 - 7, .8]]) {
       const trunk = new Three.Mesh(new Three.CylinderGeometry(.4 * s, .55 * s, 7 * s, 8), material('trunk', '#6b4e35', null, 1, 1, .95));
-      trunk.position.set(tx, 3.5 * s, tz); trunk.castShadow = true; house.add(trunk);
+      trunk.position.set(tx, 3.5 * s, tz); trunk.castShadow = true; group.add(trunk);
       for (const [ox, oy, oz, r] of [[0, 8.4, 0, 3.6], [-2, 7, .8, 2.5], [2.1, 7.3, -.6, 2.7]]) {
-        const crown = new Three.Mesh(new Three.SphereGeometry(r * s, 12, 10), material('crown', spec.before ? '#5d7346' : '#47793a', null, 1, 1, 1));
-        crown.position.set(tx + ox * s, oy * s, tz + oz * s); crown.castShadow = true; house.add(crown);
+        const crown = new Three.Mesh(new Three.SphereGeometry(r * s, 12, 10), material(`crown-${variantSpec.before ? 'b' : 'a'}`, variantSpec.before ? '#5d7346' : '#47793a', null, 1, 1, 1));
+        crown.position.set(tx + ox * s, oy * s, tz + oz * s); crown.castShadow = true; group.add(crown);
       }
     }
+    return group;
+  }
 
-    scene.background = new Three.Color(spec.before ? '#bcc5c9' : '#a9cbe4');
-    scene.fog = new Three.Fog(spec.before ? '#bcc5c9' : '#a9cbe4', 260, 620);
-    sun.intensity = spec.before ? 1.7 : 2.9; hemi.intensity = spec.before ? .55 : .8;
+  function applyAtmosphere(isBefore) {
+    const bg = isBefore ? '#bcc5c9' : '#a9cbe4';
+    scene.background = new Three.Color(bg);
+    scene.fog = new Three.Fog(bg, 260, 620);
+    sun.intensity = isBefore ? 1.7 : 2.9;
+    hemi.intensity = isBefore ? .55 : .8;
+  }
+
+  function ensureBeforeHouse() {
+    if (!beforeHouse && house && Three) {
+      beforeSpec = getSpec(true);
+      beforeHouse = buildVariant(beforeSpec);
+      house.add(beforeHouse);
+    }
+  }
+
+  function renderScene() {
+    if (!renderer || !scene || !camera || !afterHouse) return;
+    const effectiveSplit = spec?.before ? 0 : splitPercent;
+    if (effectiveSplit < 100) ensureBeforeHouse();
+    const width = activeStage?.clientWidth || 0, height = activeStage?.clientHeight || 0;
+    if (effectiveSplit <= 0 || effectiveSplit >= 100 || !width || !height) {
+      const showBefore = effectiveSplit <= 0;
+      renderer.setScissorTest(false);
+      if (beforeHouse) beforeHouse.visible = showBefore;
+      afterHouse.visible = !showBefore;
+      applyAtmosphere(showBefore);
+      renderer.render(scene, camera);
+      return;
+    }
+    const beforeWidth = Math.round(width * (100 - effectiveSplit) / 100);
+    renderer.setScissorTest(true);
+    // Left side: Before (existing dated palette, no additions).
+    beforeHouse.visible = true; afterHouse.visible = false;
+    applyAtmosphere(true);
+    renderer.setScissor(0, 0, beforeWidth, height);
+    renderer.render(scene, camera);
+    // Right side: After (selected siding, roof, windows, door and additions).
+    beforeHouse.visible = false; afterHouse.visible = true;
+    applyAtmosphere(false);
+    renderer.setScissor(beforeWidth, 0, width - beforeWidth, height);
+    renderer.render(scene, camera);
+    // Crisp 2px vertical split line in the canvas (no inline DOM styles needed).
+    renderer.setScissor(Math.max(0, beforeWidth - 1), 0, 2, height);
+    renderer.setClearColor('#102303', 1);
+    renderer.clearColor();
+    renderer.setScissorTest(false);
+  }
+
+  function buildHouse(next) {
+    spec = next;
+    beforeSpec = null;
+    const afterSpec = next.before ? getSpec(false) : next;
+    if (house) { house.traverse(node => node.geometry?.dispose()); scene.remove(house); }
+    house = new Three.Group();
+    beforeHouse = null;
+    afterHouse = buildVariant(afterSpec);
+    house.add(afterHouse);
+    if ( next.before || splitPercent < 100 ) ensureBeforeHouse();
+    scene.add(house);
+    const { lengthFt: L, widthFt: W, wallHeightFt: H } = spec;
     fitRadius = Math.max(L, W) * 1.35 + H + 26;
-    stage.dataset.spec = spec.label;
+    for (const s of stages) s.dataset.spec = spec.label;
     frameCamera();
+    renderScene();
   }
 
   function frameCamera() {
@@ -208,17 +270,28 @@ export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
     const view = views[name] || views.corner;
     azimuth = view.azimuth; elevation = view.elevation; radius = fitRadius * (name === 'top' ? 1.15 : 1);
     frameCamera();
+    renderScene();
   }
   function resize() {
-    if (!renderer) return;
-    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!renderer || !activeStage) return;
+    const w = activeStage.clientWidth, h = activeStage.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderScene();
+  }
+  function mountCanvas(targetStage) {
+    if (!targetStage || !stages.includes(targetStage)) return;
+    activeStage = targetStage;
+    if (!renderer) return;
+    if (renderer.domElement.parentElement !== activeStage) activeStage.append(renderer.domElement);
+    resize();
+    frameCamera();
+    renderScene();
   }
   function controls(canvas) {
     canvas.tabIndex = 0;
     canvas.setAttribute('aria-label', '3D remodel preview. Drag or use arrow keys to look around. Scroll, pinch, or use plus and minus to zoom. Home resets the view.');
-    const clampView = () => { elevation = Math.max(.06, Math.min(1.45, elevation)); radius = Math.max(26, Math.min(240, radius)); frameCamera(); };
+    const clampView = () => { elevation = Math.max(.06, Math.min(1.45, elevation)); radius = Math.max(26, Math.min(240, radius)); frameCamera(); renderScene(); };
     canvas.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', 'Home'].includes(event.key)) return;
       event.preventDefault();
@@ -258,7 +331,7 @@ export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = Three.PCFSoftShadowMap;
     renderer.toneMapping = Three.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.06;
-    stage.append(renderer.domElement);
+    activeStage.append(renderer.domElement);
     scene = new Three.Scene();
     camera = new Three.PerspectiveCamera(42, 1, .5, 1200);
     hemi = new Three.HemisphereLight('#eaf4ff', '#5d7050', .8); scene.add(hemi);
@@ -268,44 +341,69 @@ export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
     Object.assign(sun.shadow.camera, { left: -95, right: 95, top: 95, bottom: -95, near: 10, far: 320 });
     sun.shadow.bias = -.0004; scene.add(sun);
     controls(renderer.domElement);
-    resizer = new ResizeObserver(resize); resizer.observe(stage);
+    resizer = new ResizeObserver(resize);
+    for (const s of stages) resizer.observe(s);
     buildHouse(getSpec()); radius = fitRadius; setView('corner'); resize();
   }
-  async function openView() {
-    if (open) return true;
-    open = true; stage.setAttribute('aria-busy', 'true');
+  async function openView(targetStage = activeStage) {
+    if (targetStage && stages.includes(targetStage)) activeStage = targetStage;
+    if (open && renderer) { mountCanvas(activeStage); return true; }
+    open = true;
+    for (const s of stages) s.setAttribute('aria-busy', 'true');
     onStatus?.('Building your home in 3D from the measurements and choices on this page…');
     try {
       starting ??= start().catch(error => { starting = null; throw error; });
       await starting;
     } catch {
-      open = false; stage.removeAttribute('aria-busy');
+      open = false;
+      for (const s of stages) s.removeAttribute('aria-busy');
       onStatus?.('The 3D preview could not start on this device. The example home and your photo still work.');
       onError?.();
       return false;
     }
     if (!open) return false;
-    resize(); frameCamera();
-    renderer.setAnimationLoop(() => { renderer.render(scene, camera); stage.dataset.ready = 'true'; });
-    stage.removeAttribute('aria-busy');
+    mountCanvas(activeStage);
+    renderScene();
+    for (const s of stages) { s.removeAttribute('aria-busy'); s.dataset.ready = 'true'; }
     onStatus?.(`3D preview ready — ${spec.label}. Drag to look around, scroll or pinch to zoom.`);
     onReady?.();
     return true;
   }
   function closeView() { open = false; renderer?.setAnimationLoop(null); }
-  // Runs only while the panel is actually on screen, so the runtime never downloads for
+  // Runs only while a stage is actually on screen, so the runtime never downloads for
   // visitors who only use the earlier steps, and rendering pauses whenever it scrolls away.
   if ('IntersectionObserver' in globalThis) {
-    observer = new IntersectionObserver(entries => { for (const entry of entries) entry.isIntersecting ? openView() : closeView(); }, { threshold: .2 });
-    observer.observe(stage);
+    const visible = new Set();
+    observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) visible.add(entry.target);
+        else visible.delete(entry.target);
+      }
+      if (visible.size) {
+        const preferred = visible.has(stage) ? stage : [...visible][0];
+        openView(preferred);
+      } else closeView();
+    }, { threshold: .15 });
+    for (const s of stages) observer.observe(s);
   }
   return {
     open: openView, close: closeView, setView,
-    refresh() { if (renderer && scene) buildHouse(getSpec()); },
+    attach(targetStage) { mountCanvas(targetStage); },
+    setSplit(percent) {
+      splitPercent = Math.max(0, Math.min(100, Number(percent) || 0));
+      renderScene();
+    },
+    get split() { return splitPercent; },
+    refresh() {
+      if (renderer && scene) {
+        buildHouse(getSpec());
+        onStatus?.(`3D preview ready — ${spec.label}. Drag to look around, scroll or pinch to zoom.`);
+      }
+    },
     get isOpen() { return open; },
     download() {
       if (!renderer) return;
-      renderer.render(scene, camera);
+      renderScene();
       renderer.domElement.toBlob(blob => {
         if (!blob) return;
         const url = URL.createObjectURL(blob), link = document.createElement('a');

@@ -172,6 +172,13 @@ try {
   await page.locator('#windowLowEach').fill('600.25');
   assert.equal(await resultsShown(), true);
   assert.match(await page.locator('#pricing-source').textContent(), /edited example rates/);
+  assert.match(await page.locator('#price-details-summary').textContent(), /edited rates/);
+  assert.equal(await page.locator('#reset-rates').isDisabled(), false);
+  await page.locator('#reset-rates').click();
+  assert.equal(await page.locator('#windowLowEach').inputValue(), '500');
+  assert.match(await page.locator('#price-details-summary').textContent(), /catalog rates/);
+  assert.equal(await page.locator('#reset-rates').isDisabled(), true);
+  await page.locator('#windowLowEach').fill('600.25');
   checks.push('Hidden price errors open and focus the affected field; edits restore results');
   await go('#yearBuilt'); await page.locator('#yearBuilt').fill('1970');
   assert.equal(await shown('#lead-notice'), true);

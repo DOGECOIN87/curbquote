@@ -41,7 +41,7 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 77 Node tests, public build
+npm run check          # syntax checks, 78 Node tests, public build
 npm run test:browser   # 51 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, controls, cancellation and fallback
 ```
@@ -105,6 +105,7 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
 | 15 | [Lidar exterior prototype](docs/15-lidar-exterior-prototype.md) | One-property example, data provenance, rebuild steps and SAT-Skylines integration path |
 | 16 | [3D remodel studio](docs/16-3d-remodel-studio.md) | Editable before-and-after 3D house from the homeowner's measurements: materials, additions, limits |
 | 17 | [Homeowner journey UI/UX](docs/17-homeowner-journey-ux.md) | The v0.11 review: findings, design direction, what changed, remaining limitations |
+| 18 | [Inline Step 3 3D preview & split UX](docs/18-3d-preview-and-split-ux.md) | The v0.12 review: Step 3 inline 3D preview, Before/After split wipe, Step 4 rate summary/reset, Step 5 caveats card |
 
 **Research**
 

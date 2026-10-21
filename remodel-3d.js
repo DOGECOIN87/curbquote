@@ -1,57 +1,111 @@
-/**
- * Interactive 3D remodel preview. The house is built in the browser from the homeowner's own
- * measurements and choices (see house-spec.js), so siding, roofing, windows, doors and the
- * optional additions can be restyled and orbited before anything is priced. Three.js is
- * self-hosted and loaded on first use only; nothing is uploaded or measured from the render.
- */
 const THREE_BASE = new URL('./vendor/three/', import.meta.url).href;
+import { ROOF_COLORS } from './house-spec.js';
 
+function seeded(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 0x100000000);
+}
+
+/**
+ * Self-hosted Three.js exterior studio. Builds an orbitable house from `houseSpec()` and updates
+ * live as the homeowner edits dimensions, materials, colors or additions. Supports mounting its
+ * single WebGL canvas in either the inline Step 3/4 dock (`previewStage`) or the Step 5 studio
+ * (`stage`), rendering a real-time Before/After split comparison via WebGL scissor testing, and
+ * smoothly easing camera orbits and split sweeps when reduced motion is not requested.
+ */
 export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, onReady, onError }) {
   const stages = [stage, previewStage].filter(Boolean);
   let activeStage = stage;
-  let Three = null, renderer = null, scene = null, camera = null, sun = null, hemi = null;
-  let house = null, beforeHouse = null, afterHouse = null;
-  let open = false, starting = null, spec = null, beforeSpec = null, observer = null, resizer = null;
-  let azimuth = .65, elevation = .38, radius = 90, fitRadius = 90, splitPercent = 100;
-  const pointers = new Map(), textures = new Map(), materials = new Map();
-
+  let Three, renderer, scene, camera, sun, hemi, house, beforeHouse, afterHouse, spec, beforeSpec, resizer, observer, starting;
+  let skyBeforeTex, skyAfterTex;
+  let open = false;
+  let splitPercent = 100;
+  let animFrame = 0;
   const views = {
-    corner: { azimuth: .65, elevation: .38 },
-    front: { azimuth: 0, elevation: .17 },
-    top: { azimuth: .65, elevation: 1.32 }
+    // Framed using Rule of Thirds & Golden Ratio: eave along upper third, porch & dormers spanning the 50/50 split.
+    corner: { azimuth: .36, elevation: .28 },
+    front: { azimuth: 0, elevation: .19 },
+    top: { azimuth: .01, elevation: 1.32 }
   };
-  function seeded(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  let azimuth = views.corner.azimuth, elevation = views.corner.elevation, radius = 92, fitRadius = 92;
+  const pointers = new Map();
+  const textures = new Map(), materials = new Map();
 
-  /** Grayscale canvas patterns; the material colour does the tinting, so one texture serves every colour. */
+  const prefersReducedMotion = () =>
+    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function makeSkyTexture(isBefore) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    if (isBefore) {
+      grad.addColorStop(0, '#7d8e99');
+      grad.addColorStop(0.382, '#a7b4bc');
+      grad.addColorStop(0.618, '#cfd7dc');
+      grad.addColorStop(1, '#bcc5c9');
+    } else {
+      grad.addColorStop(0, '#5a93c4');
+      grad.addColorStop(0.333, '#8fc0e3');
+      grad.addColorStop(0.618, '#e3f0e5');
+      grad.addColorStop(1, '#c7e2c9');
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 512);
+    const tex = new Three.CanvasTexture(canvas);
+    tex.colorSpace = Three.SRGBColorSpace;
+    return tex;
+  }
+
   function pattern(kind) {
     if (textures.has(kind)) return textures.get(kind);
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
-    const ctx = canvas.getContext('2d'), rand = seeded(kind.length * 7919);
-    ctx.fillStyle = '#efefef'; ctx.fillRect(0, 0, 256, 256);
-    const speckle = (n, alpha) => { for (let i = 0; i < n; i++) { ctx.fillStyle = `rgba(0,0,0,${rand() * alpha})`; ctx.fillRect(rand() * 256, rand() * 256, 2, 2); } };
-    if (kind === 'lap' || kind === 'lap-wide') {
-      const row = kind === 'lap' ? 32 : 42;
-      for (let y = 0; y < 256; y += row) {
-        ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillRect(0, y, 256, 2);
-        ctx.fillStyle = 'rgba(0,0,0,.30)'; ctx.fillRect(0, y + row - 3, 256, 3);
-        ctx.fillStyle = 'rgba(0,0,0,.10)'; ctx.fillRect(0, y + row - 7, 256, 2);
+    const ctx = canvas.getContext('2d');
+    const rand = seeded(kind.split('').reduce((n, ch) => n * 33 + ch.charCodeAt(0), 7));
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 256, 256);
+    const speckle = (count, alpha) => {
+      for (let i = 0; i < count; i++) {
+        const v = rand() > .5 ? 255 : 0;
+        ctx.fillStyle = `rgba(${v},${v},${v},${(rand() * alpha).toFixed(3)})`;
+        ctx.fillRect(rand() * 256, rand() * 256, 2, 2);
       }
+    };
+    if (kind === 'lap' || kind === 'fiber') {
+      const step = kind === 'lap' ? 24 : 32;
+      for (let y = 0; y < 256; y += step) {
+        const g = ctx.createLinearGradient(0, y, 0, y + step);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(.82, '#f0f0f0'); g.addColorStop(1, '#c9c9c9');
+        ctx.fillStyle = g; ctx.fillRect(0, y, 256, step - 2);
+        ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(0, y + step - 2, 256, 2);
+      }
+      speckle(kind === 'fiber' ? 1100 : 400, .06);
     } else if (kind === 'board') {
-      for (let x = 0; x < 256; x += 36) {
-        ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(x + 15, 0, 6, 256); ctx.fillRect(x + 34, 0, 2, 256);
-        ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(x + 21, 0, 2, 256);
+      for (let x = 0; x < 256; x += 32) {
+        ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x, 0, 4, 256);
+        ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.fillRect(x + 4, 0, 3, 256);
       }
+      speckle(900, .08);
     } else if (kind === 'shingle') {
-      for (let y = 0, r = 0; y < 256; y += 28, r++) {
-        ctx.fillStyle = 'rgba(0,0,0,.38)'; ctx.fillRect(0, y + 25, 256, 3);
-        for (let x = (r % 2) * -32; x < 256; x += 64) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x, y, 2, 26); }
+      for (let row = 0, y = 0; y < 256; row++, y += 16) {
+        ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, y + 14, 256, 2);
+        for (let x = (row % 2) * 16; x < 256; x += 32) {
+          const shade = Math.round((rand() - .5) * 26);
+          ctx.fillStyle = shade > 0 ? `rgba(255,255,255,${shade / 255})` : `rgba(0,0,0,${-shade / 255})`;
+          ctx.fillRect(x, y, 30, 14);
+          ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x, y, 1, 14);
+        }
       }
-      speckle(900, .12);
+      speckle(1600, .12);
     } else if (kind === 'brick') {
-      ctx.fillStyle = '#c9c2b4'; ctx.fillRect(0, 0, 256, 256);
-      for (let y = 0, r = 0; y < 256; y += 24, r++) for (let x = (r % 2) * -32; x < 256; x += 64) {
-        ctx.fillStyle = `rgba(${205 + rand() * 40},${205 + rand() * 40},${205 + rand() * 40},1)`; ctx.fillRect(x + 2, y + 2, 60, 20);
+      ctx.fillStyle = '#d7cfc2'; ctx.fillRect(0, 0, 256, 256);
+      for (let row = 0, y = 0; y < 256; row++, y += 16) {
+        for (let x = (row % 2) * 22 - 22; x < 256; x += 44) {
+          const d = Math.round((rand() - .5) * 32);
+          ctx.fillStyle = `rgb(${215 + d},${195 + d},${185 + d})`;
+          ctx.fillRect(x + 2, y + 2, 40, 12);
+        }
       }
+      speckle(900, .1);
     } else if (kind === 'deck') {
       for (let y = 0; y < 256; y += 30) { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(0, y + 27, 256, 3); ctx.fillStyle = 'rgba(90,60,30,.14)'; ctx.fillRect(0, y, 256, 12); }
       speckle(300, .08);
@@ -109,54 +163,80 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     // Gables and roof.
     const gableShape = new Three.Shape();
     gableShape.moveTo(-W / 2, 0); gableShape.lineTo(W / 2, 0); gableShape.lineTo(0, rise); gableShape.closePath();
-    const gableMat = material(`gable-${variantSpec.sidingHex}-${variantSpec.texture}`, variantSpec.sidingHex, variantSpec.texture, .25, .25);
-    for (const sx of [-1, 1]) {
-      const gable = new Three.Mesh(new Three.ShapeGeometry(gableShape), gableMat);
-      gable.position.set(sx * (L / 2 - .02), wallTop, 0); gable.rotation.y = sx * Math.PI / 2; gable.castShadow = true; group.add(gable);
+    const gableGeo = new Three.ShapeGeometry(gableShape);
+    const pos = gableGeo.attributes.position, uvs = [];
+    for (let i = 0; i < pos.count; i++) uvs.push((pos.getX(i) + W / 2) / 4, pos.getY(i) / 4);
+    gableGeo.setAttribute('uv', new Three.Float32BufferAttribute(uvs, 2));
+    const gableMat = material(`gable-${variantSpec.sidingHex}-${variantSpec.texture}`, variantSpec.sidingHex, variantSpec.texture, 1, 1);
+    gableMat.side = Three.DoubleSide;
+    for (const side of [-1, 1]) {
+      const mesh = new Three.Mesh(gableGeo, gableMat);
+      mesh.rotation.y = side * Math.PI / 2; mesh.position.set(side * (L / 2 + .02), wallTop, 0);
+      mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
     }
-    const angle = Math.atan2(rise, W / 2), eaveZ = W / 2 + 1.6, eaveY = wallTop - 1.6 * Math.tan(angle);
-    const slope = Math.hypot(eaveZ, ridge - eaveY) + .4;
-    for (const sz of [-1, 1]) {
-      box(group, L + 2.6, .38, slope, roofMat, 0, (ridge + eaveY) / 2 + .22, sz * eaveZ / 2, { rx: sz * angle });
-      box(group, L + 2.6, .7, .3, trim, 0, eaveY + .1, sz * (eaveZ + .05));
+    const overhang = 1.35, halfSpan = W / 2 + overhang, slopeLen = Math.hypot(halfSpan, rise), pitch = Math.atan2(rise, halfSpan);
+    for (const side of [-1, 1]) {
+      box(group, L + overhang * 2, .42, slopeLen, roofMat, 0, wallTop + rise / 2 - overhang * Math.sin(pitch) / 2, side * halfSpan / 2, { rx: side * pitch });
+      box(group, L + overhang * 2 + .1, .52, .35, trim, 0, wallTop - .15, side * (W / 2 + overhang));
     }
-    box(group, L + 2.7, .45, 1.1, roofMat, 0, ridge + .32, 0);
-    box(group, 2.6, rise + 4.5, 2.6, brick, L * .3, wallTop + (rise + 4.5) / 2 - 1, -W * .14);
+    box(group, L + overhang * 2 + .2, .35, .7, roofMat, 0, ridge + .1, 0);
+    box(group, 2.3, rise + 3.2, 2.3, brick, L * .26, wallTop + (rise + 3.2) / 2 - 1, -W * .22);
 
-    // Windows from the homeowner's count, with shutters on the street face when chosen.
-    const shutter = material('shutter', '#2e4a3e', null, 1, 1, .7);
+    // Front entry: steps, panel door, surround and warm lantern.
+    const doorMat = material(`door-${variantSpec.doorHex}`, variantSpec.doorHex, 'deck', 1, 2, .48);
+    box(group, 6.2, .5, 3.6, concrete, 0, .25, W / 2 + 1.7);
+    box(group, 5.2, .5, 2.2, concrete, 0, .75, W / 2 + 1);
+    box(group, 4.4, 7.6, .32, trim, 0, base + 3.8, W / 2 + .06);
+    box(group, 3.4, 7, .36, doorMat, 0, base + 3.5, W / 2 + .12);
+    for (const py of [2.1, 4.9]) for (const px of [-.75, .75]) box(group, 1.05, 1.9, .08, doorMat, px, base + py, W / 2 + .31);
+    box(group, 2.5, .95, .08, glass, 0, base + 6.1, W / 2 + .31, { shadow: false });
+    box(group, .16, .42, .18, new Three.MeshStandardMaterial({ color: '#d4af37', metalness: .85, roughness: .2 }), 1.25, base + 3.3, W / 2 + .34);
+    box(group, .45, .7, .45, new Three.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffbf50', emissiveIntensity: .9 }), -2.9, base + 5.6, W / 2 + .35, { shadow: false });
+
+    // Windows: placed by `windowLayout()` so the count follows Step 3.
+    const shutterHex = ['#5d6f7a', '#394246'].includes(variantSpec.sidingHex) ? '#f6f4e8' : '#2e4a3e';
+    const shutterMat = material(`shutter-${shutterHex}`, shutterHex, 'deck', 1, 2, .7);
+    const winW = 3.1, winH = 4.4;
     for (const win of variantSpec.windows) {
-      const winGroup = new Three.Group();
-      box(winGroup, 3.2, 4.5, .4, frame, 0, 0, 0);
-      box(winGroup, 2.65, 3.95, .18, glass, 0, 0, .16, { shadow: false });
-      box(winGroup, .16, 3.95, .1, frame, 0, 0, .26); box(winGroup, 2.65, .16, .1, frame, 0, 0, .26);
-      box(winGroup, 3.7, .3, .6, trim, 0, -2.35, .08);
-      if (variantSpec.shutters && win.face === 'front') { box(winGroup, .95, 4.4, .16, shutter, -2.15, 0, 0); box(winGroup, .95, 4.4, .16, shutter, 2.15, 0, 0); }
-      const y = base + win.floor * storyH + storyH * .56;
-      if (win.face === 'front') winGroup.position.set((win.along - .5) * L, y, W / 2 + .12);
-      if (win.face === 'back') { winGroup.position.set((win.along - .5) * L, y, -W / 2 - .12); winGroup.rotation.y = Math.PI; }
-      if (win.face === 'left') { winGroup.position.set(-L / 2 - .12, y, (win.along - .5) * W); winGroup.rotation.y = -Math.PI / 2; }
-      if (win.face === 'right') { winGroup.position.set(L / 2 + .12, y, (win.along - .5) * W); winGroup.rotation.y = Math.PI / 2; }
-      group.add(winGroup);
+      const g = new Three.Group();
+      box(g, winW + .46, winH + .46, .22, trim, 0, 0, 0);
+      box(g, winW + .76, .28, .44, trim, 0, -winH / 2 - .22, .1);
+      box(g, winW + .08, winH + .08, .26, frame, 0, 0, .03);
+      box(g, winW - .36, winH - .36, .16, glass, 0, 0, .1, { shadow: false });
+      box(g, winW - .2, .14, .28, frame, 0, 0, .12, { shadow: false });
+      box(g, .12, winH - .2, .28, frame, 0, 0, .12, { shadow: false });
+      if (variantSpec.shutters && win.face === 'front') {
+        for (const side of [-1, 1]) box(g, 1.05, winH + .2, .18, shutterMat, side * (winW / 2 + .78), 0, .08);
+      }
+      const y = base + win.floor * storyH + storyH * .54;
+      const span = win.face === 'front' || win.face === 'back' ? L : W;
+      const offset = (win.along - .5) * (span - 6);
+      if (win.face === 'front') g.position.set(offset, y, W / 2 + .05);
+      else if (win.face === 'back') { g.position.set(offset, y, -W / 2 - .05); g.rotation.y = Math.PI; }
+      else if (win.face === 'left') { g.position.set(-L / 2 - .05, y, offset); g.rotation.y = -Math.PI / 2; }
+      else { g.position.set(L / 2 + .05, y, offset); g.rotation.y = Math.PI / 2; }
+      group.add(g);
     }
 
-    // Entry: framed door in the chosen product colour, stoop and a porch light.
-    const door = new Three.Group(); door.position.set(0, base, W / 2 + .1); group.add(door);
-    box(door, 4.3, 7.6, .45, trim, 0, 3.8, 0);
-    box(door, 3.5, 7.1, .3, material(`door-${variantSpec.doorHex}`, variantSpec.doorHex, null, 1, 1, .5), 0, 3.55, .14);
-    box(door, 2.1, 1.7, .12, glass, 0, 5.9, .3, { shadow: false });
-    const knob = new Three.Mesh(new Three.SphereGeometry(.14, 12, 8), material('knob', '#d8b971', null, 1, 1, .35));
-    knob.position.set(1.35, 3.4, .36); door.add(knob);
-    if (!variantSpec.porch) { box(group, 6.5, .55, 3.2, concrete, 0, .75, W / 2 + 1.6); box(group, 5, .5, 1.6, concrete, 0, .28, W / 2 + 3.4); }
-
-    // Optional additions (After only): covered porch and roof dormers.
+    // Additions: front porch and roof dormers.
     if (variantSpec.porch) {
-      const porchW = Math.min(L * .58, 28), depth = 7.5, deckY = .95, roofY = base + Math.min(storyH - .4, 8.6);
-      box(group, porchW, .5, depth, material('deck', '#9a724e', 'deck', porchW / 4, 2, .8), 0, deckY, W / 2 + depth / 2);
-      box(group, 5.5, .45, 1.7, concrete, 0, .55, W / 2 + depth + .8); box(group, 5.5, .4, 1.5, concrete, 0, .2, W / 2 + depth + 2.1);
-      for (const sx of [-1, 1]) box(group, .65, roofY - deckY, .65, trim, sx * (porchW / 2 - .7), (roofY + deckY) / 2, W / 2 + depth - .7);
-      box(group, porchW + 1.5, .55, .55, trim, 0, roofY, W / 2 + depth - .7);
-      box(group, porchW + 2, .3, depth + 2.2, roofMat, 0, roofY + .75, W / 2 + depth / 2 - .4, { rx: .16 });
+      const pw = Math.min(L * .64, 30), pd = 7.5, py = base + storyH - .15;
+      box(group, pw, .55, pd, material('deck', '#8b6f4e', 'deck', 5, 2, .85), 0, .42, W / 2 + pd / 2);
+      box(group, pw + .9, .36, pd + .9, roofMat, 0, py + .6, W / 2 + pd / 2 + .2, { rx: .17 });
+      box(group, pw + .6, .38, .35, trim, 0, py, W / 2 + pd);
+      const posts = [-pw / 2 + .8, -4.2, 4.2, pw / 2 - .8].filter((x, i, a) => a.findIndex(v => Math.abs(v - x) < 1.6) === i);
+      for (const x of posts) {
+        box(group, .58, py - .5, .58, trim, x, (py + .5) / 2, W / 2 + pd - .55);
+        box(group, .78, .6, .78, trim, x, .9, W / 2 + pd - .55);
+      }
+      for (const side of [-1, 1]) {
+        const span = pw / 2 - 4.8;
+        if (span <= 2) continue;
+        const cx = side * (4.2 + span / 2 + .3);
+        box(group, span, .2, .2, trim, cx, 3.05, W / 2 + pd - .55);
+        box(group, span, .18, .18, trim, cx, 1.05, W / 2 + pd - .55);
+        for (let bx = -span / 2 + .5; bx <= span / 2 - .5; bx += .95) box(group, .12, 1.9, .12, trim, cx + bx, 2.05, W / 2 + pd - .55);
+      }
     }
     if (variantSpec.dormers) for (const sx of [-1, 1]) {
       const g = new Three.Group(); const z = W * .31, y = wallTop + rise * .36;
@@ -190,11 +270,12 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
   }
 
   function applyAtmosphere(isBefore) {
-    const bg = isBefore ? '#bcc5c9' : '#a9cbe4';
-    scene.background = new Three.Color(bg);
-    scene.fog = new Three.Fog(bg, 260, 620);
-    sun.intensity = isBefore ? 1.7 : 2.9;
-    hemi.intensity = isBefore ? .55 : .8;
+    skyBeforeTex ??= makeSkyTexture(true);
+    skyAfterTex ??= makeSkyTexture(false);
+    scene.background = isBefore ? skyBeforeTex : skyAfterTex;
+    scene.fog = new Three.Fog(isBefore ? '#bcc5c9' : '#c8e0cb', 250, 620);
+    sun.intensity = isBefore ? 1.7 : 2.95;
+    hemi.intensity = isBefore ? .55 : .82;
   }
 
   function ensureBeforeHouse() {
@@ -231,8 +312,21 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     applyAtmosphere(false);
     renderer.setScissor(beforeWidth, 0, width - beforeWidth, height);
     renderer.render(scene, camera);
-    // Crisp 2px vertical split line in the canvas (no inline DOM styles needed).
+    // Crisp architectural split seam + Golden-Ratio (61.8% from bottom / 38.2% from top) handle badge in WebGL scissor space.
+    renderer.setScissor(Math.max(0, beforeWidth - 2), 0, 4, height);
+    renderer.setClearColor('#89c63f', 1);
+    renderer.clearColor();
     renderer.setScissor(Math.max(0, beforeWidth - 1), 0, 2, height);
+    renderer.setClearColor('#102303', 1);
+    renderer.clearColor();
+    const handleY = Math.round(height * 0.618);
+    renderer.setScissor(Math.max(0, beforeWidth - 13), Math.max(0, handleY - 13), 26, 26);
+    renderer.setClearColor('#102303', 1);
+    renderer.clearColor();
+    renderer.setScissor(Math.max(0, beforeWidth - 11), Math.max(0, handleY - 11), 22, 22);
+    renderer.setClearColor('#89c63f', 1);
+    renderer.clearColor();
+    renderer.setScissor(Math.max(0, beforeWidth - 2), Math.max(0, handleY - 6), 4, 12);
     renderer.setClearColor('#102303', 1);
     renderer.clearColor();
     renderer.setScissorTest(false);
@@ -247,10 +341,10 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     beforeHouse = null;
     afterHouse = buildVariant(afterSpec);
     house.add(afterHouse);
-    if ( next.before || splitPercent < 100 ) ensureBeforeHouse();
+    if (next.before || splitPercent < 100) ensureBeforeHouse();
     scene.add(house);
     const { lengthFt: L, widthFt: W, wallHeightFt: H } = spec;
-    fitRadius = Math.max(L, W) * 1.35 + H + 26;
+    fitRadius = Math.max(L, W) * 1.32 + H + 25;
     for (const s of stages) s.dataset.spec = spec.label;
     frameCamera();
     renderScene();
@@ -258,20 +352,57 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
 
   function frameCamera() {
     if (!camera || !spec) return;
-    const targetY = 1 + spec.wallHeightFt * .42, r = radius;
+    // Target slightly above Golden Minor wall height and toward the front facade so the house
+    // sits on the Rule-of-Thirds lines and the 50/50 split slices cleanly across the front porch.
+    const targetY = 1 + spec.wallHeightFt * .44, targetZ = spec.widthFt * .14, r = radius;
     camera.position.set(
       r * Math.cos(elevation) * Math.sin(azimuth),
       targetY + r * Math.sin(elevation),
-      r * Math.cos(elevation) * Math.cos(azimuth)
+      targetZ + r * Math.cos(elevation) * Math.cos(azimuth)
     );
-    camera.lookAt(0, targetY, 0);
+    camera.lookAt(0, targetY, targetZ);
   }
+
+  function cancelTransition() {
+    if (animFrame) { cancelAnimationFrame(animFrame); animFrame = 0; }
+  }
+
+  function animateValues(durationMs, stepFn) {
+    cancelTransition();
+    if (prefersReducedMotion() || !open || !renderer) {
+      stepFn(1);
+      return;
+    }
+    const start = performance.now();
+    const tick = now => {
+      const raw = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - raw, 3);
+      stepFn(eased);
+      if (raw < 1 && open) animFrame = requestAnimationFrame(tick);
+      else animFrame = 0;
+    };
+    animFrame = requestAnimationFrame(tick);
+  }
+
   function setView(name) {
     const view = views[name] || views.corner;
-    azimuth = view.azimuth; elevation = view.elevation; radius = fitRadius * (name === 'top' ? 1.15 : 1);
-    frameCamera();
-    renderScene();
+    const targetAz = view.azimuth;
+    const targetEl = view.elevation;
+    const targetRad = fitRadius * (name === 'top' ? 1.15 : 1);
+    const startAz = azimuth, startEl = elevation, startRad = radius;
+    for (const btn of document.querySelectorAll('[data-remodel-view], [data-step3-view]')) {
+      const btnView = btn.dataset.remodelView || btn.dataset.step3View;
+      btn.setAttribute('aria-pressed', String(btnView === name));
+    }
+    animateValues(400, t => {
+      azimuth = startAz + (targetAz - startAz) * t;
+      elevation = startEl + (targetEl - startEl) * t;
+      radius = startRad + (targetRad - startRad) * t;
+      frameCamera();
+      renderScene();
+    });
   }
+
   function resize() {
     if (!renderer || !activeStage) return;
     const w = activeStage.clientWidth, h = activeStage.clientHeight;
@@ -291,7 +422,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
   function controls(canvas) {
     canvas.tabIndex = 0;
     canvas.setAttribute('aria-label', '3D remodel preview. Drag or use arrow keys to look around. Scroll, pinch, or use plus and minus to zoom. Home resets the view.');
-    const clampView = () => { elevation = Math.max(.06, Math.min(1.45, elevation)); radius = Math.max(26, Math.min(240, radius)); frameCamera(); renderScene(); };
+    const clampView = () => { cancelTransition(); elevation = Math.max(.06, Math.min(1.45, elevation)); radius = Math.max(26, Math.min(240, radius)); frameCamera(); renderScene(); };
     canvas.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', 'Home'].includes(event.key)) return;
       event.preventDefault();
@@ -307,6 +438,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     canvas.addEventListener('wheel', event => { event.preventDefault(); radius *= Math.exp(Math.max(-100, Math.min(100, event.deltaY)) * .0022); clampView(); }, { passive: false });
     canvas.addEventListener('pointerdown', event => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
+      cancelTransition();
       pointers.set(event.pointerId, [event.clientX, event.clientY]);
       canvas.setPointerCapture(event.pointerId); canvas.focus({ preventScroll: true });
     });
@@ -333,9 +465,9 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     renderer.toneMapping = Three.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.06;
     activeStage.append(renderer.domElement);
     scene = new Three.Scene();
-    camera = new Three.PerspectiveCamera(42, 1, .5, 1200);
-    hemi = new Three.HemisphereLight('#eaf4ff', '#5d7050', .8); scene.add(hemi);
-    sun = new Three.DirectionalLight('#fff2d8', 2.9);
+    camera = new Three.PerspectiveCamera(40, 1, .5, 1200);
+    hemi = new Three.HemisphereLight('#eaf4ff', '#5d7050', .82); scene.add(hemi);
+    sun = new Three.DirectionalLight('#fff2d8', 2.95);
     sun.position.set(70, 95, 55); sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, { left: -95, right: 95, top: 95, bottom: -95, near: 10, far: 320 });
@@ -369,7 +501,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     onReady?.();
     return true;
   }
-  function closeView() { open = false; renderer?.setAnimationLoop(null); }
+  function closeView() { cancelTransition(); open = false; renderer?.setAnimationLoop(null); }
   // Runs only while a stage is actually on screen, so the runtime never downloads for
   // visitors who only use the earlier steps, and rendering pauses whenever it scrolls away.
   if ('IntersectionObserver' in globalThis) {
@@ -389,9 +521,19 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
   return {
     open: openView, close: closeView, setView,
     attach(targetStage) { mountCanvas(targetStage); },
-    setSplit(percent) {
-      splitPercent = Math.max(0, Math.min(100, Number(percent) || 0));
-      renderScene();
+    setSplit(percent, { animate = false } = {}) {
+      const target = Math.max(0, Math.min(100, Number(percent) || 0));
+      const startVal = splitPercent;
+      if (animate && Math.abs(target - startVal) > 4) {
+        animateValues(340, t => {
+          splitPercent = Math.round(startVal + (target - startVal) * t);
+          renderScene();
+        });
+      } else {
+        cancelTransition();
+        splitPercent = target;
+        renderScene();
+      }
     },
     get split() { return splitPercent; },
     refresh() {

@@ -42,7 +42,7 @@ let remodel;
 const wizard = setupWizard({
   onChange: step => {
     if (!remodel) return;
-    if (step === 3 && byId('step3-3d-stage')) remodel.attach(byId('step3-3d-stage'));
+    if ((step === 3 || step === 4) && byId('step3-3d-stage')) remodel.attach(byId('step3-3d-stage'));
     else if (step === 5) remodel.attach(byId('remodel-stage'));
   }
 });
@@ -125,6 +125,16 @@ function syncProjectControls() {
   editor.setColor(COLORS[selectedColor].hex);
   const currentSpec = houseSpec(readInputs(), p, remodelDesign);
   if (byId('step3-3d-status') && !remodel.isOpen) byId('step3-3d-status').textContent = `${currentSpec.label}. Updates live as you type.`;
+  byId('dock-pill-siding')?.classList.toggle('is-active', p.siding);
+  byId('dock-pill-windows')?.classList.toggle('is-active', p.windows);
+  byId('dock-pill-doors')?.classList.toggle('is-active', p.doors);
+  if (byId('dock-scope-summary')) {
+    const active = [['siding', 'Siding'], ['windows', 'windows'], ['doors', 'doors']].filter(([k]) => p[k]).map(([, label]) => label);
+    byId('dock-scope-summary').textContent = active.length ? `${active.join(', ')} included` : 'Choose at least one trade';
+  }
+  if (byId('dock-choice-readout')) {
+    byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+  }
   syncRemodelControls();
   remodel.refresh();
 }
@@ -133,6 +143,9 @@ function syncRemodelControls() {
   byId('remodel-before').setAttribute('aria-pressed', String(split === 0));
   byId('remodel-after').setAttribute('aria-pressed', String(split === 100));
   if (byId('remodel-split-half')) byId('remodel-split-half').setAttribute('aria-pressed', String(split === 50));
+  for (const button of document.querySelectorAll('[data-dock-split]')) {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.dockSplit) === split));
+  }
   if (byId('remodel-split')) byId('remodel-split').value = String(split);
   if (byId('remodel-split-readout')) {
     byId('remodel-split-readout').textContent = split === 0 ? 'Before (100%)' : split === 100 ? 'After (100%)' : `${100 - split}% Before · ${split}% After`;
@@ -143,6 +156,9 @@ function syncRemodelControls() {
   const additions = [['porch', 'covered porch'], ['dormers', 'dormers'], ['shutters', 'shutters']]
     .filter(([key]) => remodelDesign[key]).map(([, label]) => label);
   const p = projectOptions();
+  if (byId('dock-choice-readout')) {
+    byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+  }
   const afterDesc = `${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${ROOF_COLORS[remodelDesign.roof].name.toLowerCase()}, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}`;
   byId('remodel-compare-note').textContent = split === 0
     ? `Before: the same house in a dated palette, with no porch, dormers or shutters.`
@@ -166,8 +182,18 @@ function refreshReport() {
   byId('save-project').disabled = !lastResult;
   byId('result-address').textContent = addressEl.value.trim() || 'No address provided — manual estimate';
 }
+let lastRangeText = '';
+let pulseTimer = null;
 function paintLiveRange(text) {
+  const changed = Boolean(lastRangeText && lastRangeText !== text);
+  lastRangeText = text;
+  const nodes = [...document.querySelectorAll('[data-live-range]'), byId('total-range')].filter(Boolean);
   for (const node of document.querySelectorAll('[data-live-range]')) node.textContent = text;
+  if (changed) {
+    clearTimeout(pulseTimer);
+    for (const node of nodes) node.dataset.pulse = 'true';
+    pulseTimer = setTimeout(() => { for (const node of nodes) delete node.dataset.pulse; }, 360);
+  }
 }
 function paintResult(result) {
   byId('empty-state').hidden = true;
@@ -407,23 +433,28 @@ function openStudio() {
 }
 for (const button of document.querySelectorAll('[data-open-studio]')) button.addEventListener('click', openStudio);
 byId('jump-to-3d').addEventListener('click', openStudio);
-function applyRemodelSplit(splitValue) {
+function applyRemodelSplit(splitValue, { animate = false } = {}) {
   const split = Math.max(0, Math.min(100, Number(splitValue)));
   remodelDesign.split = split;
   remodelDesign.before = split === 0;
-  remodel.setSplit(split);
+  remodel.setSplit(split, { animate });
   syncRemodelControls();
-  remodel.refresh();
-  byId('remodel-status').textContent = split === 0
+  if (!animate) remodel.refresh();
+  const msg = split === 0
     ? 'Before: the home as it stands, in a dated palette with no additions.'
     : split === 100
     ? 'After: your siding, materials and additions below.'
     : `Split comparison: ${100 - split}% Before on left, ${split}% After on right.`;
+  byId('remodel-status').textContent = msg;
+  if (byId('step3-3d-status')) byId('step3-3d-status').textContent = msg;
 }
 for (const [id, split] of [['remodel-before', 0], ['remodel-split-half', 50], ['remodel-after', 100]]) {
-  byId(id)?.addEventListener('click', () => applyRemodelSplit(split));
+  byId(id)?.addEventListener('click', () => applyRemodelSplit(split, { animate: true }));
 }
-byId('remodel-split')?.addEventListener('input', event => applyRemodelSplit(event.target.value));
+for (const button of document.querySelectorAll('[data-dock-split]')) {
+  button.addEventListener('click', () => applyRemodelSplit(button.dataset.dockSplit, { animate: true }));
+}
+byId('remodel-split')?.addEventListener('input', event => applyRemodelSplit(event.target.value, { animate: false }));
 for (const button of document.querySelectorAll('[data-remodel-view], [data-step3-view]')) {
   button.addEventListener('click', () => remodel.setView(button.dataset.remodelView || button.dataset.step3View));
 }

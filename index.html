@@ -51,6 +51,7 @@
             <div id="aerial-images" class="aerial-images"></div>
             <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 23l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address for an aerial or 3D property view, or try the Austin exterior example.</p></div>
             <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#89C63F" fill-opacity=".2" stroke="#89C63F" stroke-width="2"/><circle r="7" fill="#89C63F" stroke="#102303" stroke-width="3"/></g></svg>
+            <div class="thirds-grid" aria-hidden="true"><span></span><span></span></div>
           </div>
           <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
             <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
@@ -115,46 +116,22 @@
               <p><span>Estimate so far</span><strong data-live-range>—</strong></p>
               <button type="button" class="outline-button" data-open-studio>Preview in 3D <span aria-hidden="true">↗</span></button>
             </div>
-            <div class="step3-visual-row">
-              <figure class="measure-diagram">
-                <svg viewBox="0 0 320 156" role="img" aria-labelledby="measure-diagram-title">
-                  <title id="measure-diagram-title">A house footprint: length runs across the front, width runs front to back</title>
-                  <rect x="64" y="30" width="176" height="92" fill="#eef7e4" stroke="#5b7d47" stroke-width="2"></rect>
-                  <path d="M64 30 L80 16 H256 L240 30" fill="#dfeccf" stroke="#5b7d47" stroke-width="2"></path>
-                  <path d="M64 136 H240" stroke="#102303" stroke-width="2"></path>
-                  <path d="M64 130 V142 M240 130 V142" stroke="#102303" stroke-width="2"></path>
-                  <text x="152" y="149" text-anchor="middle" font-family="Poppins, Arial" font-size="13" font-weight="600" fill="#102303">Length</text>
-                  <path d="M254 30 V122" stroke="#102303" stroke-width="2"></path>
-                  <path d="M248 30 H260 M248 122 H260" stroke="#102303" stroke-width="2"></path>
-                  <text x="270" y="81" font-family="Poppins, Arial" font-size="13" font-weight="600" fill="#102303">Width</text>
-                  <path d="M152 118 V80" stroke="#5b7d47" stroke-width="2" stroke-dasharray="4 3"></path>
-                  <circle cx="152" cy="120" r="3" fill="#5b7d47"></circle>
-                </svg>
-                <figcaption>Length runs along the front of the house, width runs front to back. A rough tape-measure or a look at your plat map is enough.</figcaption>
-              </figure>
-              <div id="step3-3d-card" class="step3-3d-card" aria-labelledby="step3-3d-title">
-                <div class="step3-3d-head">
-                  <h3 id="step3-3d-title">Live 3D concept house</h3>
-                  <span class="studio-badge">Concept model</span>
-                </div>
-                <p class="step3-3d-pair">Sized from the measurements you enter below — not your property's actual footprint from Step 1.</p>
-                <div id="step3-3d-stage" class="remodel-stage step3-3d-stage" aria-describedby="step3-3d-status">
-                  <div class="remodel-placeholder">
-                    <strong id="step3-placeholder-title">See your measurements in 3D</strong>
-                    <p id="step3-placeholder-text">A concept house sized from your length, width, stories and window count.</p>
-                    <button type="button" id="step3-3d-open" class="secondary-button">Start 3D preview</button>
-                  </div>
-                </div>
-                <div class="step3-3d-bar">
-                  <div class="remodel-views" role="group" aria-label="Step 3 camera views">
-                    <button type="button" class="outline-button" data-step3-view="corner">Corner</button>
-                    <button type="button" class="outline-button" data-step3-view="front">Front</button>
-                    <button type="button" class="outline-button" data-step3-view="top">Top</button>
-                  </div>
-                  <p id="step3-3d-status" class="studio-help" role="status" aria-live="polite">48 × 34 ft · 2 stories · 12 windows shown. Updates live as you type.</p>
-                </div>
-              </div>
-            </div>
+            <figure class="measure-diagram">
+              <svg viewBox="0 0 320 156" role="img" aria-labelledby="measure-diagram-title">
+                <title id="measure-diagram-title">A house footprint: length runs across the front, width runs front to back</title>
+                <rect x="64" y="30" width="176" height="92" fill="#eef7e4" stroke="#5b7d47" stroke-width="2"></rect>
+                <path d="M64 30 L80 16 H256 L240 30" fill="#dfeccf" stroke="#5b7d47" stroke-width="2"></path>
+                <path d="M64 136 H240" stroke="#102303" stroke-width="2"></path>
+                <path d="M64 130 V142 M240 130 V142" stroke="#102303" stroke-width="2"></path>
+                <text x="152" y="149" text-anchor="middle" font-family="Poppins, Arial" font-size="13" font-weight="600" fill="#102303">Length</text>
+                <path d="M254 30 V122" stroke="#102303" stroke-width="2"></path>
+                <path d="M248 30 H260 M248 122 H260" stroke="#102303" stroke-width="2"></path>
+                <text x="270" y="81" font-family="Poppins, Arial" font-size="13" font-weight="600" fill="#102303">Width</text>
+                <path d="M152 118 V80" stroke="#5b7d47" stroke-width="2" stroke-dasharray="4 3"></path>
+                <circle cx="152" cy="120" r="3" fill="#5b7d47"></circle>
+              </svg>
+              <figcaption>Length runs along the front of the house, width runs front to back. A rough tape-measure or a look at your plat map is enough.</figcaption>
+            </figure>
             <div class="field-grid field-grid-3"><div><label for="lengthFt">Length <span class="unit">ft</span></label><input id="lengthFt" name="lengthFt" type="number" inputmode="decimal" min="10" max="350" step="0.5" required value="48"></div><div><label for="widthFt">Width <span class="unit">ft</span></label><input id="widthFt" name="widthFt" type="number" inputmode="decimal" min="10" max="350" step="0.5" required value="34"></div><div><label for="stories">Stories</label><select id="stories" name="stories"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div></div>
             <div class="field-grid field-grid-3"><div><label for="replaceWindows">Windows to replace</label><input id="replaceWindows" name="replaceWindows" type="number" min="0" max="150" step="1" value="6"></div><div><label for="replaceDoors">Doors to replace</label><input id="replaceDoors" name="replaceDoors" type="number" min="0" max="50" step="1" value="1"></div><div><label for="yearBuilt">Year built</label><input id="yearBuilt" name="yearBuilt" type="number" min="1700" max="2100" step="1" value="1998"></div></div>
             <details id="home-details" class="more-options"><summary>More home details (optional) <span aria-hidden="true">⌄</span></summary><div class="more-options-body">
@@ -208,6 +185,53 @@
             <div class="wizard-nav"><button type="button" class="outline-button" data-back>Back</button><button id="calculate" type="submit" class="primary-button">See my estimate <span aria-hidden="true">→</span></button></div>
             <span class="privacy-hint">No sign-up required. Save projects and photos on this device. Optional address lookup sends the address to U.S. Census.</span>
           </section>
+          <aside class="scope-preview-dock" data-step="2" aria-labelledby="scope-dock-title" hidden>
+            <div class="step3-3d-head">
+              <h3 id="scope-dock-title">Your project at a glance</h3>
+              <span class="studio-badge">Live scope</span>
+            </div>
+            <p class="step3-3d-pair">Each trade you include updates your preliminary range and unlocks its material options in Step 4.</p>
+            <div class="dock-estimate-card">
+              <span>Preliminary range</span>
+              <strong data-live-range>—</strong>
+              <small id="dock-scope-summary">Siding, windows &amp; doors included</small>
+            </div>
+            <ul class="dock-scope-list" aria-label="Selected project trades">
+              <li id="dock-pill-siding" class="is-active"><span>▥ Siding</span><small>Walls, gables &amp; trim</small></li>
+              <li id="dock-pill-windows" class="is-active"><span>⊞ Windows</span><small>6 replacement windows</small></li>
+              <li id="dock-pill-doors" class="is-active"><span>▯ Doors</span><small>1 entry door</small></li>
+            </ul>
+            <p class="micro-note">Next, Steps 3 &amp; 4 open your live 3D concept house right here so you can watch your measurements and colors take shape.</p>
+          </aside>
+          <aside id="step3-3d-card" class="step3-3d-card live-studio-dock" data-step="3 4" aria-labelledby="step3-3d-title" hidden>
+            <div class="step3-3d-head">
+              <h3 id="step3-3d-title">Live 3D concept house</h3>
+              <span class="studio-badge">Concept model</span>
+            </div>
+            <p class="step3-3d-pair">Sized from your Step 3 measurements and styled with your Step 4 choices — not your property's actual footprint from Step 1.</p>
+            <div id="step3-3d-stage" class="remodel-stage step3-3d-stage" aria-describedby="step3-3d-status">
+              <div class="remodel-placeholder">
+                <strong id="step3-placeholder-title">See your measurements in 3D</strong>
+                <p id="step3-placeholder-text">A concept house sized from your length, width, stories and window count.</p>
+                <button type="button" id="step3-3d-open" class="secondary-button">Start 3D preview</button>
+              </div>
+              <div class="thirds-grid" aria-hidden="true"><span></span><span></span></div>
+            </div>
+            <div class="step3-3d-bar">
+              <div class="remodel-views" role="group" aria-label="Step 3 camera views">
+                <button type="button" class="outline-button" data-step3-view="corner" aria-pressed="true">Corner</button>
+                <button type="button" class="outline-button" data-step3-view="front" aria-pressed="false">Front</button>
+                <button type="button" class="outline-button" data-step3-view="top" aria-pressed="false">Top</button>
+              </div>
+              <div class="dock-split-pills" role="group" aria-label="Quick Before and After comparison">
+                <button type="button" class="outline-button" data-dock-split="0" aria-pressed="false">Before</button>
+                <button type="button" class="outline-button" data-dock-split="50" aria-pressed="false">Split 50/50</button>
+                <button type="button" class="outline-button" data-dock-split="100" aria-pressed="true">After</button>
+              </div>
+              <p id="dock-choice-readout" class="dock-choice-readout">Sage vinyl lap · Standard tier · Charcoal roof</p>
+              <p id="step3-3d-status" class="studio-help" role="status" aria-live="polite">48 × 34 ft · 2 stories · 12 windows shown. Updates live as you type.</p>
+            </div>
+          </aside>
         </form>
         <div class="wizard-step estimate-step" data-step="5" hidden>
         <aside class="result-panel" aria-label="Estimate results">
@@ -250,7 +274,7 @@
               <button type="button" id="photo-tab" role="tab" aria-selected="false" aria-controls="photo-panel" tabindex="-1">Your photo</button>
             </div>
             <div id="remodel-panel" role="tabpanel" aria-labelledby="remodel-tab">
-              <div id="remodel-stage" class="remodel-stage" aria-describedby="remodel-status"><div class="remodel-placeholder"><strong id="remodel-placeholder-title">Your home, built in 3D</strong><p id="remodel-placeholder-text">A house sized from your measurements and styled with your choices. It is not an image of your property.</p><button type="button" id="remodel-open" class="secondary-button">Start the 3D view</button></div></div>
+              <div id="remodel-stage" class="remodel-stage" aria-describedby="remodel-status"><div class="remodel-placeholder"><strong id="remodel-placeholder-title">Your home, built in 3D</strong><p id="remodel-placeholder-text">A house sized from your measurements and styled with your choices. It is not an image of your property.</p><button type="button" id="remodel-open" class="secondary-button">Start the 3D view</button></div><div class="thirds-grid" aria-hidden="true"><span></span><span></span></div></div>
               <div class="remodel-mode" role="group" aria-label="Before and after">
                 <button type="button" id="remodel-before" aria-pressed="false">Before<span class="mode-hint">as it is today</span></button>
                 <button type="button" id="remodel-split-half" aria-pressed="false">Split 50/50<span class="mode-hint">side-by-side wipe</span></button>

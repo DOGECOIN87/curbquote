@@ -160,12 +160,41 @@
             <div class="save-project-row"><button type="button" id="save-project" class="primary-button">Save this project <span aria-hidden="true">＋</span></button><span>Saved on this device, including your photo selections.</span></div><div class="result-actions"><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div>
           </div>
           <section class="design-studio" aria-labelledby="studio-heading">
-            <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span class="studio-badge">Color concept</span></div>
-            <div class="studio-tabs" role="tablist" aria-label="Design preview">
-              <button type="button" id="illustration-tab" role="tab" aria-selected="true" aria-controls="illustration-panel">Example home</button>
+            <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span class="studio-badge">Now in 3D</span></div>
+            <div class="studio-tabs studio-tabs-3" role="tablist" aria-label="Design preview">
+              <button type="button" id="remodel-tab" role="tab" aria-selected="true" aria-controls="remodel-panel">3D remodel</button>
+              <button type="button" id="illustration-tab" role="tab" aria-selected="false" aria-controls="illustration-panel" tabindex="-1">Example home</button>
               <button type="button" id="photo-tab" role="tab" aria-selected="false" aria-controls="photo-panel" tabindex="-1">Your photo</button>
             </div>
-            <div id="illustration-panel" role="tabpanel" aria-labelledby="illustration-tab">
+            <div id="remodel-panel" role="tabpanel" aria-labelledby="remodel-tab">
+              <div id="remodel-stage" class="remodel-stage" aria-describedby="remodel-status"><div class="remodel-placeholder"><strong>Your home, rebuilt in 3D</strong><p>We build a house from the measurements and choices on this page, ready to restyle.</p><button type="button" id="remodel-open" class="secondary-button">Show my home in 3D</button></div></div>
+              <div class="remodel-mode" role="group" aria-label="Before and after">
+                <button type="button" id="remodel-before" aria-pressed="false">Before</button>
+                <button type="button" id="remodel-after" aria-pressed="true">After</button>
+              </div>
+              <div class="remodel-views" role="group" aria-label="Camera views">
+                <button type="button" class="outline-button" data-remodel-view="corner">Corner</button>
+                <button type="button" class="outline-button" data-remodel-view="front">Front</button>
+                <button type="button" class="outline-button" data-remodel-view="top">Top</button>
+                <button type="button" class="outline-button" id="remodel-download">Download this view ↓</button>
+              </div>
+              <div class="mini-heading with-gap">Roof shingles</div>
+              <div id="roof-picker" class="color-picker" aria-label="Roof shingle color">
+                <button type="button" data-roof="charcoal" class="swatch roof-charcoal" aria-label="Charcoal shingles" aria-pressed="true"></button>
+                <button type="button" data-roof="weathered" class="swatch roof-weathered" aria-label="Weathered brown" aria-pressed="false"></button>
+                <button type="button" data-roof="slate" class="swatch roof-slate" aria-label="Slate blue" aria-pressed="false"></button>
+                <button type="button" data-roof="clay" class="swatch roof-clay" aria-label="Clay red" aria-pressed="false"></button>
+                <span id="roof-name">Charcoal shingles</span>
+              </div>
+              <fieldset class="remodel-additions"><legend class="mini-heading">Try adding</legend>
+                <label><input type="checkbox" id="add-porch" checked><span>Covered front porch</span></label>
+                <label><input type="checkbox" id="add-dormers"><span>Roof dormers</span></label>
+                <label><input type="checkbox" id="add-shutters" checked><span>Window shutters</span></label>
+              </fieldset>
+              <p id="remodel-status" class="studio-help" role="status" aria-live="polite">Your siding color, materials and door from step 4 appear here, on a house sized from your step 3 measurements.</p>
+              <p class="studio-help">Drag to look around. Scroll or pinch to zoom. Additions are shown to help you decide — they are not priced in the estimate yet. This is a concept model, not a measurement of your home.</p>
+            </div>
+            <div id="illustration-panel" role="tabpanel" aria-labelledby="illustration-tab" hidden>
               <svg id="concept-house" class="concept-house" viewBox="0 0 500 300" role="img" aria-label="Illustrative home with your selected siding color, window style and door">
                 <defs><pattern id="lap-pattern" width="10" height="13" patternUnits="userSpaceOnUse"><path d="M0 12.5H10" stroke="#1a1a1a" stroke-opacity=".22"/></pattern><pattern id="board-pattern" width="22" height="20" patternUnits="userSpaceOnUse"><path d="M1 0V20M20 0V20" stroke="#1a1a1a" stroke-opacity=".22"/></pattern></defs>
                 <ellipse cx="250" cy="263" rx="213" ry="13" fill="#1a1a1a" opacity=".08"/>

@@ -141,3 +141,25 @@ input,select,textarea{border-radius:0!important}input,select{height:46px;border-
 @media(max-width:720px){.wizard-steps li{flex:0 0 auto}.wizard-steps li:has([aria-current=step]){flex:1 1 auto}.wizard-steps button:not([aria-current=step]) .step-name{display:none}.wizard-steps button:not([aria-current=step]){padding:0 9px}}
 @media(max-width:560px){.wizard-steps ol{gap:5px}.wizard-steps button{min-height:44px;font-size:13px}.step-dot{width:26px;height:26px;font-size:12px}.form-section.wizard-step{padding:26px 18px}.wizard-step .section-head{margin-bottom:22px}.wizard-step .section-head h2{font-size:22px}.wizard-step .scope-picker{gap:8px}.wizard-step .scope-choice{padding:26px 4px 20px}.wizard-step .scope-choice>span{font-size:32px}.wizard-step .scope-choice strong{font-size:14px}.wizard-nav .primary-button{min-width:0;flex:1;padding:0 16px}.wizard-nav .outline-button{padding:0 18px}.help-drawer>summary{padding:16px 18px;font-size:15px}}
 @media(max-width:360px){.wizard-steps button:not([aria-current=step]){padding:0 6px}.step-dot{width:24px;height:24px}}
+
+/* 3D remodel: an orbitable before-and-after house built from the homeowner's answers. */
+.studio-tabs-3{grid-template-columns:repeat(3,1fr)}.studio-tabs-3 button{padding:0 4px}
+.remodel-stage{position:relative;width:100%;aspect-ratio:4/3;min-height:260px;overflow:hidden;background:linear-gradient(180deg,#a9cbe4 0%,#cfe3ef 62%,#7ba05f 62.2%,#5c8743 100%);border:1px solid var(--line)}
+.remodel-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.remodel-stage canvas:focus-visible{outline:3px solid #5b7d47;outline-offset:-3px}
+.remodel-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:28px;color:var(--main)}
+.remodel-placeholder strong{font-size:21px;letter-spacing:-.4px}.remodel-placeholder p{margin:0;max-width:340px;font-size:13px;line-height:1.6;color:#33415a}
+.remodel-placeholder .secondary-button{height:44px;background:var(--brand);border-color:var(--brand);color:var(--main);font-size:14px}
+.remodel-stage[data-ready="true"] .remodel-placeholder{display:none}
+.remodel-mode{display:grid;grid-template-columns:1fr 1fr;gap:5px;background:#ececec;padding:4px;margin:14px 0 10px}
+.remodel-mode button{min-height:40px;border:0;background:transparent;font-size:13px;font-weight:700;color:#666}
+.remodel-mode button[aria-pressed="true"]{background:var(--main);color:#fff}
+.remodel-views{display:flex;flex-wrap:wrap;gap:8px}.remodel-views .outline-button{flex:1;padding:0 10px}
+.swatch.roof-charcoal{background:#3d4148}.swatch.roof-weathered{background:#6d5a48}.swatch.roof-slate{background:#4d6472}.swatch.roof-clay{background:#8a4f3d}
+#roof-name{font-size:12px;color:#5c5c5c;margin-left:2px}
+.remodel-additions{border:0;padding:0;margin:20px 0 4px}.remodel-additions legend{padding:0;margin-bottom:10px}
+.remodel-additions label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;margin:0 0 10px;white-space:normal}
+.remodel-additions input{width:20px;height:20px;flex-shrink:0;accent-color:var(--accent)}
+.remodel-additions input:disabled+span{opacity:.45}
+@media(max-width:560px){.remodel-stage{aspect-ratio:1/1;min-height:250px}.remodel-views .outline-button{flex:1 1 40%}.studio-tabs-3 button{font-size:10px}}
+@media(max-width:360px){.tier-picker label{padding-inline:3px}.tier-picker strong{font-size:13px}}

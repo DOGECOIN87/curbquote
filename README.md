@@ -2,7 +2,7 @@
 
 **See your home, then see what new siding, windows and doors could cost, with every number explained.**
 
-Status: **v0.7 MVP prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
+Status: **v0.9 MVP prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
 measure buildings from an address and doesn't give binding contractor quotes. Prices are editable
 examples, and accuracy hasn't been checked against completed jobs yet.
 
@@ -19,6 +19,9 @@ examples, and accuracy hasn't been checked against completed jobs yet.
    number was calculated.
 4. **Plan and visualize.**
    - Compare plans against a budget, or let the assistant suggest one.
+   - Walk around your home in the **3D remodel** studio: a house sized from your measurements you
+     can restyle with your siding, roofing, windows and door, try a porch, dormers or shutters,
+     flip between Before and After, and download the view. Additions are shown, not priced yet.
    - Try siding colours on the example house, or on your own photo after you mark its walls.
 5. **Keep it.** Save projects on this device, then download or print the summary for a contractor.
 
@@ -29,8 +32,8 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 64 Node tests, public build
-npm run test:browser   # 36 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run check          # syntax checks, 72 Node tests, public build
+npm run test:browser   # 50 Chromium checks with fixture data (needs Playwright's Chromium)
 ```
 
 ## Configuration
@@ -89,6 +92,7 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
 | 9 | [Property data adapter](docs/09-property-data-adapter.md) | Licensed provider setup and review workflow |
 | 10 | [Live property preview](docs/10-live-property-preview.md) | Census matching and the USGS aerial photo |
 | 13 | [3D view](docs/13-google-3d-view.md) | Google 3D via CesiumJS: setup, free-tier cap, security changes, open questions |
+| 16 | [3D remodel studio](docs/16-3d-remodel-studio.md) | Editable before-and-after 3D house from the homeowner's measurements: materials, additions, limits |
 
 **Research**
 
@@ -110,7 +114,8 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
    so measurements start pre-filled.
 2. Sign-in with Google or Apple, so projects follow the homeowner across devices.
 3. Calibrate prices and ranges against completed jobs.
-4. Show the home's own photo or 3D model with new siding, windows and doors.
+4. ✅ First cut built: the 3D remodel studio restyles a measurement-sized model. Next, shape that
+   same editable model from a reviewed footprint and LiDAR heights so it matches the real outline.
 
 ## Research summary
 

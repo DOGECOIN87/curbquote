@@ -34,30 +34,46 @@ const distinctColors = () => page.evaluate(() => {
 });
 try {
   await page.goto(base);
-  // The Three.js runtime stays undownloaded until the Design studio is on screen.
+  // The Three.js runtime stays undownloaded on Steps 1 and 2 until a 3D stage is on screen.
   assert.equal(requests.filter(url => url.includes('/vendor/three/')).length, 0);
+  await page.locator('[data-goto="2"]').click();
+  assert.equal(requests.filter(url => url.includes('/vendor/three/')).length, 0);
+  await page.locator('[data-goto="3"]').click();
+  await page.waitForFunction(() => document.querySelector('#step3-3d-stage')?.dataset.ready === 'true', undefined, { timeout: 45000 });
+  assert.ok(requests.some(url => url.includes('/vendor/three/three.module.js')));
+  assert.equal(await page.locator('#step3-3d-stage canvas').isVisible(), true);
   await page.locator('[data-goto="5"]').click();
   await page.locator('#remodel-stage').scrollIntoViewIfNeeded();
   await page.waitForFunction(() => document.querySelector('#remodel-stage')?.dataset.ready === 'true', undefined, { timeout: 45000 });
-  assert.ok(requests.some(url => url.includes('/vendor/three/three.module.js')));
   assert.equal(await page.locator('#remodel-stage canvas').isVisible(), true);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('#step3-3d-stage canvas, #remodel-stage canvas').length), 1, 'Step 3 and Step 5 share one WebGL canvas');
   assert.ok(await distinctColors() > 40, 'the 3D canvas should show a shaded scene, not a blank frame');
   assert.match(await page.locator('#remodel-status').textContent(), /48 × 34 ft · 2 stories · 12 windows shown/);
   assert.equal(await page.locator('#lengthFt').inputValue(), '48', 'rendering must not change estimate inputs');
-  checks.push('3D remodel loads lazily, renders a shaded house from the default measurements, and leaves the estimate untouched');
+  checks.push('3D remodel loads lazily on Step 3, shares one WebGL canvas with Step 5, and leaves the estimate untouched');
 
   const after = await canvasHash();
   await page.locator('#remodel-before').click();
   await page.waitForTimeout(250);
+  const before = await canvasHash();
   assert.equal(await page.locator('#remodel-before').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#add-porch').isDisabled(), true);
-  assert.notEqual(await canvasHash(), after, 'Before must repaint the house');
+  assert.notEqual(before, after, 'Before must repaint the house');
+  await page.locator('#remodel-split-half').click();
+  await page.waitForTimeout(250);
+  const splitHalf = await canvasHash();
+  assert.equal(await page.locator('#remodel-split-half').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('#remodel-split').inputValue(), '50');
+  assert.match(await page.locator('#remodel-split-readout').textContent(), /50% Before · 50% After/);
+  assert.match(await page.locator('#remodel-compare-note').textContent(), /Split comparison \(50% Before on left, 50% After on right\)/);
+  assert.notEqual(splitHalf, before, '50/50 split must differ from 100% Before');
+  assert.notEqual(splitHalf, after, '50/50 split must differ from 100% After');
   await page.locator('#remodel-after').click();
   await page.waitForTimeout(250);
   const porchOff = await (async () => { await page.locator('#add-porch').click(); await page.waitForTimeout(250); return canvasHash(); })();
   assert.notEqual(porchOff, after, 'removing the porch must repaint the house');
   await page.locator('#add-porch').click();
-  checks.push('Before/After and the porch addition repaint the model, and additions stay locked in Before');
+  checks.push('Before, Split 50/50, After and the porch addition repaint the model, and additions stay locked in Before');
 
   await page.locator('[data-remodel-view="front"]').click(); await page.waitForTimeout(200);
   const front = await canvasHash();

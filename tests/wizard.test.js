@@ -67,3 +67,19 @@ test('a step routed to with data-open-studio lands on the estimate step', async 
   // No uppercase, letter-spaced overline may sit above a heading.
   assert.doesNotMatch(html, /text-transform:\s*uppercase/);
 });
+
+test('inline Step 3 3D preview, split slider, Step 4 rate summary and caveats card stay wired without eyebrows or tofu glyphs', async () => {
+  const [html, css] = await Promise.all([
+    readFile(new URL('../index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  ]);
+  assert.match(html, /class="view-pair-callout"/);
+  assert.match(html, /id="step3-3d-stage"/);
+  assert.match(html, /id="price-details-summary"/);
+  assert.match(html, /id="reset-rates"/);
+  assert.match(html, /class="estimate-caveats-card"/);
+  assert.match(html, /id="remodel-split-half"/);
+  assert.match(html, /id="remodel-split"/);
+  assert.doesNotMatch(html, /\uFF0B/);
+  assert.doesNotMatch(css, /text-transform:\s*uppercase/);
+});

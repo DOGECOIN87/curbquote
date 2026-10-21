@@ -38,23 +38,38 @@ let activeProjectId = null;
 let projectLoadSerial = 0;
 let assistant;
 let propertyLookup;
-const wizard = setupWizard();
+let remodel;
+const wizard = setupWizard({
+  onChange: step => {
+    if (!remodel) return;
+    if ((step === 3 || step === 4) && byId('step3-3d-stage')) remodel.attach(byId('step3-3d-stage'));
+    else if (step === 5) remodel.attach(byId('remodel-stage'));
+  }
+});
 const propertyPreview = setupPropertyPreview({ onPhoto: () => {
   wizard.show(5); showStudioTab('photo'); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus();
 } });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
-let remodelDesign = { ...DEFAULT_DESIGN };
+let remodelDesign = { ...DEFAULT_DESIGN, split: 100 };
 let remodelState = 'idle';
-const remodel = setupRemodel3D({
+remodel = setupRemodel3D({
   stage: byId('remodel-stage'),
-  getSpec: () => houseSpec(readInputs(), projectOptions(), remodelDesign),
-  onStatus: message => { byId('remodel-status').textContent = message; },
+  previewStage: byId('step3-3d-stage'),
+  getSpec: beforeOverride => houseSpec(readInputs(), projectOptions(), typeof beforeOverride === 'boolean' ? { ...remodelDesign, before: beforeOverride } : remodelDesign),
+  onStatus: message => {
+    byId('remodel-status').textContent = message;
+    if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
+  },
   // The download button stays disabled until a rendered scene exists, instead of failing silently.
   onReady: () => { remodelState = 'ready'; byId('remodel-download').disabled = false; },
   onError: () => {
     remodelState = 'error'; byId('remodel-download').disabled = true;
     byId('remodel-placeholder-title').textContent = '3D could not start here';
     byId('remodel-placeholder-text').textContent = 'This device or browser could not open WebGL. The example home and your photo still work.';
+    if (byId('step3-placeholder-title')) {
+      byId('step3-placeholder-title').textContent = '3D could not start here';
+      byId('step3-placeholder-text').textContent = 'This device or browser could not open WebGL. Your estimate still works normally.';
+    }
   }
 });
 const projectDialog = byId('projects-dialog');
@@ -71,6 +86,10 @@ function setCatalogRates() {
   const options = { ...projectOptions(), siding: true, coveragePercent: 100 };
   for (const [key, value] of Object.entries(catalogRates(options))) byId(key).value = value;
 }
+function areRatesCustomized() {
+  const expected = catalogRates({ ...projectOptions(), siding: true, coveragePercent: 100 });
+  return Object.entries(expected).some(([key, value]) => Number(byId(key).value) !== Number(value));
+}
 const exampleRate = (kind, product, unit) => {
   const low = PRODUCTS[kind][product].rates[0] * TIERS[projectOptions().tier].multiplier;
   const high = PRODUCTS[kind][product].rates[1] * TIERS[projectOptions().tier].multiplier;
@@ -81,6 +100,15 @@ function paintChoiceHints() {
   byId('siding-product-hint').textContent = p.siding ? `${exampleRate('siding', p.sidingProduct, 'per sq ft')} · ${TIERS[p.tier].name} tier` : 'Siding is switched off in step 2.';
   byId('window-product-hint').textContent = p.windows ? `${exampleRate('windows', p.windowProduct, 'each')} · ${TIERS[p.tier].name} tier` : 'Windows are switched off in step 2.';
   byId('door-product-hint').textContent = p.doors ? `${exampleRate('doors', p.doorProduct, 'each')} · ${TIERS[p.tier].name} tier` : 'Doors are switched off in step 2.';
+  byId('choice-field-siding')?.classList.toggle('is-excluded', !p.siding);
+  byId('choice-field-windows')?.classList.toggle('is-excluded', !p.windows);
+  byId('choice-field-doors')?.classList.toggle('is-excluded', !p.doors);
+  const customized = areRatesCustomized();
+  if (byId('price-details-summary')) {
+    const cov = p.siding ? `${byId('coveragePercent').value || 100}% coverage` : 'siding off';
+    byId('price-details-summary').textContent = `${cov} · ${customized ? 'edited rates' : 'catalog rates'} ⌄`;
+  }
+  if (byId('reset-rates')) byId('reset-rates').disabled = !customized;
 }
 function syncProjectControls() {
   const p = projectOptions();
@@ -95,20 +123,48 @@ function syncProjectControls() {
   byId('color-name').textContent = COLORS[selectedColor].name;
   for (const button of document.querySelectorAll('[data-color]')) button.setAttribute('aria-pressed', String(button.dataset.color === selectedColor));
   editor.setColor(COLORS[selectedColor].hex);
+  const currentSpec = houseSpec(readInputs(), p, remodelDesign);
+  if (byId('step3-3d-status') && !remodel.isOpen) byId('step3-3d-status').textContent = `${currentSpec.label}. Updates live as you type.`;
+  byId('dock-pill-siding')?.classList.toggle('is-active', p.siding);
+  byId('dock-pill-windows')?.classList.toggle('is-active', p.windows);
+  byId('dock-pill-doors')?.classList.toggle('is-active', p.doors);
+  if (byId('dock-scope-summary')) {
+    const active = [['siding', 'Siding'], ['windows', 'windows'], ['doors', 'doors']].filter(([k]) => p[k]).map(([, label]) => label);
+    byId('dock-scope-summary').textContent = active.length ? `${active.join(', ')} included` : 'Choose at least one trade';
+  }
+  if (byId('dock-choice-readout')) {
+    byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+  }
+  syncRemodelControls();
   remodel.refresh();
 }
 function syncRemodelControls() {
-  byId('remodel-before').setAttribute('aria-pressed', String(remodelDesign.before));
-  byId('remodel-after').setAttribute('aria-pressed', String(!remodelDesign.before));
-  for (const id of ['add-porch', 'add-dormers', 'add-shutters']) byId(id).disabled = remodelDesign.before;
+  const split = remodelDesign.before ? 0 : (remodelDesign.split ?? 100);
+  byId('remodel-before').setAttribute('aria-pressed', String(split === 0));
+  byId('remodel-after').setAttribute('aria-pressed', String(split === 100));
+  if (byId('remodel-split-half')) byId('remodel-split-half').setAttribute('aria-pressed', String(split === 50));
+  for (const button of document.querySelectorAll('[data-dock-split]')) {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.dockSplit) === split));
+  }
+  if (byId('remodel-split')) byId('remodel-split').value = String(split);
+  if (byId('remodel-split-readout')) {
+    byId('remodel-split-readout').textContent = split === 0 ? 'Before (100%)' : split === 100 ? 'After (100%)' : `${100 - split}% Before · ${split}% After`;
+  }
+  for (const id of ['add-porch', 'add-dormers', 'add-shutters']) byId(id).disabled = split === 0;
   for (const button of document.querySelectorAll('[data-roof]')) button.setAttribute('aria-pressed', String(button.dataset.roof === remodelDesign.roof));
   byId('roof-name').textContent = ROOF_COLORS[remodelDesign.roof].name;
   const additions = [['porch', 'covered porch'], ['dormers', 'dormers'], ['shutters', 'shutters']]
     .filter(([key]) => remodelDesign[key]).map(([, label]) => label);
   const p = projectOptions();
-  byId('remodel-compare-note').textContent = remodelDesign.before
+  if (byId('dock-choice-readout')) {
+    byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+  }
+  const afterDesc = `${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${ROOF_COLORS[remodelDesign.roof].name.toLowerCase()}, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}`;
+  byId('remodel-compare-note').textContent = split === 0
     ? `Before: the same house in a dated palette, with no porch, dormers or shutters.`
-    : `After: ${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${ROOF_COLORS[remodelDesign.roof].name.toLowerCase()}, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}.`;
+    : split === 100
+    ? `After: ${afterDesc}.`
+    : `Split comparison (${100 - split}% Before on left, ${split}% After on right): comparing the dated palette against ${afterDesc}.`;
   byId('remodel-download').disabled = remodelState !== 'ready';
 }
 function notify(message) { byId('project-toast').textContent = message; byId('project-toast').hidden = false; }
@@ -126,8 +182,18 @@ function refreshReport() {
   byId('save-project').disabled = !lastResult;
   byId('result-address').textContent = addressEl.value.trim() || 'No address provided — manual estimate';
 }
+let lastRangeText = '';
+let pulseTimer = null;
 function paintLiveRange(text) {
+  const changed = Boolean(lastRangeText && lastRangeText !== text);
+  lastRangeText = text;
+  const nodes = [...document.querySelectorAll('[data-live-range]'), byId('total-range')].filter(Boolean);
   for (const node of document.querySelectorAll('[data-live-range]')) node.textContent = text;
+  if (changed) {
+    clearTimeout(pulseTimer);
+    for (const node of nodes) node.dataset.pulse = 'true';
+    pulseTimer = setTimeout(() => { for (const node of nodes) delete node.dataset.pulse; }, 360);
+  }
 }
 function paintResult(result) {
   byId('empty-state').hidden = true;
@@ -148,6 +214,7 @@ function paintResult(result) {
   byId('geometry-details').hidden = byId('geometry-note').hidden = !result.project.siding;
   byId('selection-summary').textContent = `${result.productNames.tier} tier · ${['siding','windows','doors'].filter(key => result.project[key]).map(key => result.productNames[key]).join(' · ')}${result.project.siding ? ` · ${result.project.coveragePercent}% siding coverage` : ''}`;
   byId('pricing-source').textContent = `${result.pricing.version}${result.pricing.customized ? ' · edited example rates' : ' · example rates'} · ${result.modelVersion}`;
+  paintChoiceHints();
   refreshReport();
 }
 function calculate({ scroll = false, focus = false } = {}) {
@@ -202,6 +269,11 @@ form.addEventListener('input', event => {
   }
   syncProjectControls();
   // Keep recalculating after invalid edits so correcting a field restores the results.
+  if (hasCalculated) calculate();
+});
+byId('reset-rates')?.addEventListener('click', () => {
+  setCatalogRates();
+  syncProjectControls();
   if (hasCalculated) calculate();
 });
 function cancelAddressLookup() {
@@ -335,7 +407,7 @@ function showStudioTab(tab) {
     byId(panelId).hidden = !active;
     byId(tabId).setAttribute('aria-selected', String(active)); byId(tabId).tabIndex = active ? 0 : -1;
   }
-  if (selected === 'remodel') remodel.open(); else remodel.close();
+  if (selected === 'remodel') remodel.open(byId('remodel-stage')); else remodel.close();
 }
 for (const [name, tabId] of STUDIO_TABS.map(([n, t]) => [n, t])) {
   byId(tabId).addEventListener('click', () => showStudioTab(name));
@@ -347,7 +419,8 @@ for (const [name, tabId] of STUDIO_TABS.map(([n, t]) => [n, t])) {
     showStudioTab(STUDIO_TABS[next][0]); byId(STUDIO_TABS[next][1]).focus();
   });
 }
-byId('remodel-open').addEventListener('click', () => remodel.open());
+byId('remodel-open').addEventListener('click', () => remodel.open(byId('remodel-stage')));
+byId('step3-3d-open')?.addEventListener('click', () => remodel.open(byId('step3-3d-stage')));
 /** Any "Preview in 3D" control lands on the estimate step with the studio on screen. */
 function openStudio() {
   wizard.show(5, { focus: true });
@@ -360,18 +433,38 @@ function openStudio() {
 }
 for (const button of document.querySelectorAll('[data-open-studio]')) button.addEventListener('click', openStudio);
 byId('jump-to-3d').addEventListener('click', openStudio);
-for (const [id, before] of [['remodel-before', true], ['remodel-after', false]]) byId(id).addEventListener('click', () => {
-  remodelDesign.before = before; syncRemodelControls(); remodel.refresh();
-  byId('remodel-status').textContent = before ? 'Before: the home as it stands, in a dated palette with no additions.' : 'After: your siding, materials and additions below.';
-});
-for (const button of document.querySelectorAll('[data-remodel-view]')) button.addEventListener('click', () => remodel.setView(button.dataset.remodelView));
+function applyRemodelSplit(splitValue, { animate = false } = {}) {
+  const split = Math.max(0, Math.min(100, Number(splitValue)));
+  remodelDesign.split = split;
+  remodelDesign.before = split === 0;
+  remodel.setSplit(split, { animate });
+  syncRemodelControls();
+  if (!animate) remodel.refresh();
+  const msg = split === 0
+    ? 'Before: the home as it stands, in a dated palette with no additions.'
+    : split === 100
+    ? 'After: your siding, materials and additions below.'
+    : `Split comparison: ${100 - split}% Before on left, ${split}% After on right.`;
+  byId('remodel-status').textContent = msg;
+  if (byId('step3-3d-status')) byId('step3-3d-status').textContent = msg;
+}
+for (const [id, split] of [['remodel-before', 0], ['remodel-split-half', 50], ['remodel-after', 100]]) {
+  byId(id)?.addEventListener('click', () => applyRemodelSplit(split, { animate: true }));
+}
+for (const button of document.querySelectorAll('[data-dock-split]')) {
+  button.addEventListener('click', () => applyRemodelSplit(button.dataset.dockSplit, { animate: true }));
+}
+byId('remodel-split')?.addEventListener('input', event => applyRemodelSplit(event.target.value, { animate: false }));
+for (const button of document.querySelectorAll('[data-remodel-view], [data-step3-view]')) {
+  button.addEventListener('click', () => remodel.setView(button.dataset.remodelView || button.dataset.step3View));
+}
 byId('remodel-download').addEventListener('click', () => remodel.download());
 byId('roof-picker').addEventListener('click', event => {
   const button = event.target.closest('[data-roof]'); if (!button) return;
   remodelDesign.roof = button.dataset.roof; syncRemodelControls(); remodel.refresh();
 });
 for (const [id, key] of [['add-porch', 'porch'], ['add-dormers', 'dormers'], ['add-shutters', 'shutters']]) byId(id).addEventListener('change', () => {
-  remodelDesign[key] = byId(id).checked; remodel.refresh();
+  remodelDesign[key] = byId(id).checked; syncRemodelControls(); remodel.refresh();
 });
 syncRemodelControls();
 function renderSavedProjects() {
@@ -452,7 +545,7 @@ byId('new-project').addEventListener('click', () => {
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
   addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
-  remodelDesign = { ...DEFAULT_DESIGN }; byId('add-porch').checked = byId('add-shutters').checked = true; byId('add-dormers').checked = false; syncRemodelControls();
+  remodelDesign = { ...DEFAULT_DESIGN, split: 100 }; remodel.setSplit(100); byId('add-porch').checked = byId('add-shutters').checked = true; byId('add-dormers').checked = false; syncRemodelControls();
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab('remodel'); projectDialog.close(); wizard.show(1); notify('New project started with clearly labeled example measurements.');
   assistant?.restore();
 });

@@ -137,7 +137,9 @@ export function setupPropertyPreview({ onPhoto }) {
       stage.removeAttribute('aria-busy'); syncMarker();
       byId('aerial-width').textContent = `View width · ${Math.round(width)} m`;
       byId('aerial-zoom-in').disabled = width <= 60; byId('aerial-zoom-out').disabled = width >= 1200;
-      status.textContent = 'Aerial view ready. The pin is an approximate Census address point. Pan or tap the image to center the building.';
+      status.textContent = has3d || view3d.hasLocal(match)
+        ? 'Aerial view ready. The pin is an approximate Census address point. Pan or tap the image to center the building.'
+        : 'Aerial view ready (optional 3D tiles are not connected here). The pin is an approximate Census address point. Pan or tap the image to center the building.';
     };
     timeout = setTimeout(error, 25000); img.src = next.url;
   }

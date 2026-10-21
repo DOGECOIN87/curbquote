@@ -6,7 +6,7 @@
  */
 const THREE_BASE = new URL('./vendor/three/', import.meta.url).href;
 
-export function setupRemodel3D({ stage, getSpec, onStatus }) {
+export function setupRemodel3D({ stage, getSpec, onStatus, onReady, onError }) {
   let Three = null, renderer = null, scene = null, camera = null, sun = null, hemi = null;
   let house = null, open = false, starting = null, spec = null, observer = null, resizer = null;
   let azimuth = .65, elevation = .38, radius = 90, fitRadius = 90;
@@ -281,6 +281,7 @@ export function setupRemodel3D({ stage, getSpec, onStatus }) {
     } catch {
       open = false; stage.removeAttribute('aria-busy');
       onStatus?.('The 3D preview could not start on this device. The example home and your photo still work.');
+      onError?.();
       return false;
     }
     if (!open) return false;
@@ -288,6 +289,7 @@ export function setupRemodel3D({ stage, getSpec, onStatus }) {
     renderer.setAnimationLoop(() => { renderer.render(scene, camera); stage.dataset.ready = 'true'; });
     stage.removeAttribute('aria-busy');
     onStatus?.(`3D preview ready — ${spec.label}. Drag to look around, scroll or pinch to zoom.`);
+    onReady?.();
     return true;
   }
   function closeView() { open = false; renderer?.setAnimationLoop(null); }

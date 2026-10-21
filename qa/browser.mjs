@@ -145,9 +145,18 @@ try {
   checks.push('Slow imagery times out, late images cannot cross addresses, unsupported coverage is explicit, and the photo fallback opens');
   await go('#calculate'); await page.locator('#calculate').click();
   assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
+  assert.match(await page.locator('#jump-to-3d').textContent(), /See your home in 3D/);
+  assert.equal(await page.locator('#jump-to-3d').isVisible(), false, 'the phone jump is redundant beside the studio on desktop');
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.locator('#jump-to-3d').isVisible(), true);
+  await page.locator('#jump-to-3d').click();
+  assert.equal(await page.locator('#remodel-panel').isVisible(), true);
+  await page.clock.runFor(120);
+  assert.equal(await page.evaluate(() => document.querySelector('#remodel-stage').getBoundingClientRect().top < innerHeight), true, 'the jump brings the 3D house on screen');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   assert.equal(await page.locator('#results').isVisible(), true);
   assert.equal(await page.locator('#total-range').textContent(), '$19,020 – $53,453');
-  checks.push('See my estimate opens the estimate step, and the default manual estimate reconciles with the tested calculation');
+  checks.push('See my estimate opens the estimate step, the total offers a one-tap 3D jump, and the default manual estimate reconciles with the tested calculation');
   await go('#existingWindows'); await page.locator('#existingWindows').fill('2');
   assert.equal(await resultsShown(), false);
   assert.equal(await page.locator('#form-error').isVisible(), true);
@@ -179,6 +188,25 @@ try {
   await page.emulateMedia({ media: 'screen' });
   await page.locator('#lengthFt').fill('48');
   checks.push('Browser-menu print cannot expose a stale estimate after invalid input');
+  // Steps 3 and 4 keep a visible estimate and a route into the 3D studio.
+  await go('#lengthFt');
+  const liveRange = await page.locator('[data-live-range]').first().textContent();
+  assert.match(liveRange, /^\$/);
+  await page.locator('#lengthFt').fill('60');
+  assert.notEqual(await page.locator('[data-live-range]').first().textContent(), liveRange);
+  await page.locator('#lengthFt').fill('48');
+  await page.locator('.wizard-step[data-step="3"] [data-open-studio]').click();
+  assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
+  assert.equal(await page.locator('#remodel-panel').isVisible(), true);
+  await go('#sidingProduct');
+  assert.match(await page.locator('#siding-product-hint').textContent(), /Example \$/);
+  await page.locator('#sidingProduct').selectOption('fiber');
+  assert.match(await page.locator('#siding-product-hint').textContent(), /\$10–\$20/);
+  assert.match(await page.locator('#window-product-hint').textContent(), /Standard tier/);
+  await page.locator('#sidingProduct').selectOption('vinyl');
+  // Choosing a product resets the editable example rates; restore the edited window rate for the report checks.
+  await page.evaluate(() => { document.querySelector('#windowLowEach').value = '600.25'; });
+  checks.push('Steps 3 and 4 show the live range, report per-choice example prices, and open the 3D studio directly');
   await go('#property-address'); await page.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
   await page.locator('#verify-address').click();
   await page.waitForFunction(() => !document.querySelector('#verify-address').disabled, undefined, { timeout: 12000 });

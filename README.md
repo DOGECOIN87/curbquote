@@ -9,7 +9,9 @@ examples, and accuracy hasn't been checked against completed jobs yet.
 ## What the MVP does
 
 1. **Find the home.** Type a U.S. address. After a short pause, the Census Bureau matches an
-   approximate location.
+   approximate location. A "What each property view shows" summary on the same panel explains the
+   aerial photo, the optional Google 3D view, the Austin lidar example, the remodel studio and your
+   own photo, and what each one can and cannot tell you.
 2. **See it in 3D.** When a 3D credential is configured, Google's photorealistic 3D model opens on
    the address, angled like a drone shot. The Top view, rotate and recenter buttons adjust it, and
    "Aerial photo" switches to the free USGS image. The 3D view is display-only. Without a
@@ -19,13 +21,16 @@ examples, and accuracy hasn't been checked against completed jobs yet.
    a measured roof surface and simplified walls. This covers one reviewed property;
    it does not supply estimate measurements. See [the prototype guide](docs/15-lidar-exterior-prototype.md).
 3. **Build the budget.** Pick siding, windows and doors, then a material and a Standard, Enhanced or
-   Premium tier, and enter the home's measurements. You get an itemized range and see how each
-   number was calculated.
+   Premium tier, and enter the home's measurements. Steps 3 and 4 keep a running estimate visible
+   (with a "Preview in 3D" route into the studio), and each product shows its example installed
+   price for the tier you picked. You get an itemized range and see how each number was calculated.
 4. **Plan and visualize.**
    - Compare plans against a budget, or let the assistant suggest one.
    - Walk around your home in the **3D remodel** studio: a house sized from your measurements you
      can restyle with your siding, roofing, windows and door, try a porch, dormers or shutters,
-     flip between Before and After, and download the view. Additions are shown, not priced yet.
+     flip between Before and After, and download the view. Before and After are labelled with what
+     they mean, the studio says plainly that it is a concept model, and additions are shown, not
+     priced yet. On phones the total offers a one-tap jump to the studio.
    - Try siding colours on the example house, or on your own photo after you mark its walls.
 5. **Keep it.** Save projects on this device, then download or print the summary for a contractor.
 
@@ -36,8 +41,8 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 74 Node tests, public build
-npm run test:browser   # 50 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run check          # syntax checks, 77 Node tests, public build
+npm run test:browser   # 51 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, controls, cancellation and fallback
 ```
 
@@ -99,6 +104,7 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
 | 13 | [3D view](docs/13-google-3d-view.md) | Google 3D via CesiumJS: setup, free-tier cap, security changes, open questions |
 | 15 | [Lidar exterior prototype](docs/15-lidar-exterior-prototype.md) | One-property example, data provenance, rebuild steps and SAT-Skylines integration path |
 | 16 | [3D remodel studio](docs/16-3d-remodel-studio.md) | Editable before-and-after 3D house from the homeowner's measurements: materials, additions, limits |
+| 17 | [Homeowner journey UI/UX](docs/17-homeowner-journey-ux.md) | The v0.11 review: findings, design direction, what changed, remaining limitations |
 
 **Research**
 

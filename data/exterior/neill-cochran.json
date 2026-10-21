@@ -1,0 +1,129 @@
+{
+  "id": "neill-cochran",
+  "name": "Neill-Cochran House Museum",
+  "address": "2310 San Gabriel St, Austin, TX 78705",
+  "center": {
+    "lon": -97.74825016366779,
+    "lat": 30.28748144026809
+  },
+  "lidar": {
+    "url": "https://usgs-lidar-public.s3.amazonaws.com/USGS_LPC_TX_Central_B1_2017_LAS_2019/",
+    "collection": "USGS_LPC_TX_Central_B1_2017_LAS_2019",
+    "surveyYear": 2017,
+    "license": "Public domain \u2014 USGS 3DEP",
+    "sourcePage": "https://registry.opendata.aws/usgs-lidar/"
+  },
+  "footprint": {
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            -97.7481736375269,
+            30.287557696804324
+          ],
+          [
+            -97.74826742168437,
+            30.287564181626614
+          ],
+          [
+            -97.74826801456278,
+            30.287557723404646
+          ],
+          [
+            -97.74833443019413,
+            30.28756231533378
+          ],
+          [
+            -97.7483393218155,
+            30.287509019537826
+          ],
+          [
+            -97.74838768480781,
+            30.287512363762172
+          ],
+          [
+            -97.74838886207826,
+            30.287499541689385
+          ],
+          [
+            -97.74841163589646,
+            30.287501116643366
+          ],
+          [
+            -97.74841357298342,
+            30.287480039959835
+          ],
+          [
+            -97.74841774265185,
+            30.287480326899047
+          ],
+          [
+            -97.74841901708777,
+            30.28746646509375
+          ],
+          [
+            -97.74842136673936,
+            30.287440855228574
+          ],
+          [
+            -97.74842273986235,
+            30.287425896995757
+          ],
+          [
+            -97.7483355612099,
+            30.287419868686055
+          ],
+          [
+            -97.7482900788517,
+            30.28741672350092
+          ],
+          [
+            -97.74828138967422,
+            30.28741612192983
+          ],
+          [
+            -97.74828175221315,
+            30.28741219969063
+          ],
+          [
+            -97.74816882827815,
+            30.28740439024009
+          ],
+          [
+            -97.7481488025731,
+            30.287403006475344
+          ],
+          [
+            -97.74812191652822,
+            30.287401145684086
+          ],
+          [
+            -97.74811621693635,
+            30.28746323142848
+          ],
+          [
+            -97.74811439951337,
+            30.287483017861646
+          ],
+          [
+            -97.74810796137847,
+            30.28755315408798
+          ],
+          [
+            -97.7481736375269,
+            30.287557696804324
+          ]
+        ]
+      ]
+    },
+    "source": {
+      "name": "City of Austin \u2014 Building Footprints 2023",
+      "objectId": 593853,
+      "url": "https://maps.austintexas.gov/arcgis/rest/services/Shared/PlanimetricsSurvey_1/MapServer/0",
+      "attribution": "City of Austin Watershed Protection Department",
+      "selection": "Reviewed against USGS/USDA aerial imagery and the public museum address; not chosen from an address-range point alone."
+    }
+  },
+  "identitySource": "https://www.nchmuseum.org/contact/"
+}

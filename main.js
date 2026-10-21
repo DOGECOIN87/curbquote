@@ -7,6 +7,7 @@ import { buildEstimateSummary } from './summary.js';
 import { setupAssistant } from './assistant-ui.js';
 import { setupPropertyLookup } from './property-ui.js';
 import { setupPropertyPreview } from './property-preview.js';
+import { EXTERIOR_EXAMPLE } from './exterior-catalog.js';
 import { STATIC_SITE } from './config.js';
 import { lookupCensus } from './census-jsonp.js';
 import { setupWizard } from './wizard.js';
@@ -179,6 +180,15 @@ addressEl.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.isComposing && !addressComposing) { event.preventDefault(); lookupAddress(); }
 });
 lookupButton.addEventListener('click', () => lookupAddress());
+byId('exterior-example').addEventListener('click', () => {
+  addressEl.value = EXTERIOR_EXAMPLE.matchedAddress;
+  addressChanged(); cancelAddressLookup();
+  matched = { matchedAddress: EXTERIOR_EXAMPLE.matchedAddress, coordinates: { ...EXTERIOR_EXAMPLE.coordinates }, source: EXTERIOR_EXAMPLE.source };
+  propertyPreview.show(matched);
+  addressStatus.className = 'field-help success';
+  addressStatus.textContent = `Example: ${EXTERIOR_EXAMPLE.name}, Austin. This prototype model covers this address only. Enter your address to return to your property.`;
+  refreshReport();
+});
 async function lookupAddress({ automatic = false } = {}) {
   clearTimeout(lookupTimer); lookupTimer = null;
   let address;

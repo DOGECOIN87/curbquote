@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "neill-cochran",
+  "name": "Neill-Cochran House Museum",
+  "address": "2310 San Gabriel St, Austin, TX 78705",
+  "center": {
+    "lon": -97.74825016366779,
+    "lat": 30.28748144026809
+  },
+  "units": "metres",
+  "axes": "glTF: +X east, +Y up, +Z south",
+  "groundElevationM": 182.09,
+  "groundDatum": "Source lidar datum; local display only, no ellipsoid placement",
+  "lidar": {
+    "url": "https://usgs-lidar-public.s3.amazonaws.com/USGS_LPC_TX_Central_B1_2017_LAS_2019/",
+    "collection": "USGS_LPC_TX_Central_B1_2017_LAS_2019",
+    "surveyYear": 2017,
+    "license": "Public domain \u2014 USGS 3DEP",
+    "sourcePage": "https://registry.opendata.aws/usgs-lidar/",
+    "nodeCount": 16,
+    "nodes": [
+      "0-0-0-0",
+      "1-0-1-0",
+      "1-0-1-1",
+      "10-275-535-511",
+      "11-550-1070-1022",
+      "11-550-1071-1022",
+      "11-551-1070-1022",
+      "11-551-1071-1022",
+      "2-1-2-1",
+      "3-2-4-3",
+      "4-4-8-7",
+      "5-8-16-15",
+      "6-17-33-31",
+      "7-34-66-63",
+      "8-68-133-127",
+      "9-137-267-255"
+    ],
+    "pointCount": 52505
+  },
+  "footprint": {
+    "name": "City of Austin \u2014 Building Footprints 2023",
+    "objectId": 593853,
+    "url": "https://maps.austintexas.gov/arcgis/rest/services/Shared/PlanimetricsSurvey_1/MapServer/0",
+    "attribution": "City of Austin Watershed Protection Department",
+    "selection": "Reviewed against USGS/USDA aerial imagery and the public museum address; not chosen from an address-range point alone."
+  },
+  "processing": {
+    "buildingReturns": 1907,
+    "roofSamples": 1024,
+    "roofCoverage": 0.9962,
+    "maxBoundaryInterpolationM": 2.591,
+    "gridCellM": 0.6,
+    "maxRoofTriangleEdgeM": 3.0,
+    "groundReturns": 6691
+  },
+  "model": {
+    "url": "model.glb",
+    "sha256": "0ab7f44e8ecb3442ada9e6f8267856720eecd1141e11596249df8053cdb9a1c6",
+    "bytes": 76164
+  },
+  "limitations": [
+    "2017 survey and 2023 footprint can differ from today's building.",
+    "Roof triangles interpolate classified lidar returns; small gaps and trees can affect the result.",
+    "Walls are inferred vertical surfaces. No windows, doors, siding, textures or dimensions are verified.",
+    "The ground pad is a presentation surface, not a parcel boundary or terrain model.",
+    "Visualization only. No geometry feeds renovation estimates."
+  ],
+  "generation": {
+    "method": "measured-lidar",
+    "aiGenerated": false
+  }
+}

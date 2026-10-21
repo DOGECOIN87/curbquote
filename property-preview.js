@@ -12,7 +12,7 @@ export function setupPropertyPreview({ onPhoto }) {
   let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null;
   const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top');
   const north = document.querySelector('.aerial-north'), usgsCredit = document.querySelector('.aerial-meta a');
-  const view3d = setupProperty3D({ stage, onFailure: () => { if (saved) unavailable3d(); } });
+  const view3d = setupProperty3D({ stage, onFailure: () => { if (saved) unavailable3d(); }, onViewChange: () => sync3d() });
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution');
   const viewMap = setupPropertyMap({
     stage, onFailure: unavailableMap,
@@ -21,11 +21,12 @@ export function setupPropertyPreview({ onPhoto }) {
   });
   view3d.available.then(ok => { has3d = ok; sync3d(); });
   function sync3d() {
-    toggle3d.hidden = !has3d || !match;
-    toggle3d.textContent = view3d.isOpen ? 'Aerial photo' : 'View in 3D';
+    toggle3d.hidden = !match || !(has3d || view3d.hasLocal(match));
+    toggle3d.textContent = view3d.isOpen ? 'Aerial photo' : view3d.hasLocal(match) ? 'Exterior model' : 'View in 3D';
     if (!view3d.isOpen) tools3d.hidden = true;
-    // North-up and the USGS credit describe the aerial photo; the 3D view rotates and credits Google on screen.
+    // Aerial orientation/credits do not describe the rotating model. Each 3D source has its own credit.
     north.hidden = usgsCredit.hidden = view3d.isOpen;
+    byId('exterior-credit').hidden = !(view3d.isOpen && view3d.isExterior);
     topButton.setAttribute('aria-pressed', String(view3d.isOpen && view3d.isTop));
   }
   function syncMap() {
@@ -65,15 +66,18 @@ export function setupPropertyPreview({ onPhoto }) {
     const location = match;
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload };
     if (pendingImage) cancel();
-    tools.hidden = true; widthLabel.textContent = 'Google 3D · display only';
-    status.textContent = 'Loading the Google 3D view…';
+    const local = view3d.hasLocal(location);
+    tools.hidden = true; widthLabel.textContent = local ? 'Exterior model · 2017 survey' : 'Google 3D · display only';
+    status.textContent = local ? 'Loading the measured exterior model…' : 'Loading the Google 3D view…';
     const pending = view3d.show(location); sync3d(); syncMap();
     let result;
     try { result = await pending; }
     catch { if (match === location && saved) unavailable3d(); return; }
     if (!result || !view3d.isOpen) return;
     tools3d.hidden = result !== 'framed'; sync3d();
-    status.textContent = result === 'framed'
+    status.textContent = local
+      ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
+      : result === 'framed'
       ? 'Google 3D view. The dot is the approximate address point. Drag to orbit, scroll or pinch to zoom, or use Top view. For recognizing the building only; it supplies no measurements.'
       : 'Google 3D view from above. Zoom in to find the building. It supplies no measurements.';
   }
@@ -147,7 +151,7 @@ export function setupPropertyPreview({ onPhoto }) {
       status.textContent = 'Address matched. Aerial imagery for Alaska, Hawaii and U.S. territories is not connected.';
     }
     // The 3D view leads when it is available; the aerial photo loads only if 3D is closed or fails.
-    if (has3d) open3d({ reload: covered });
+    if (view3d.hasLocal(location) || has3d) open3d({ reload: covered });
     else if (covered) load();
   }
   function pan(x, y) {

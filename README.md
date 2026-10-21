@@ -2,7 +2,7 @@
 
 **See your home, then see what new siding, windows and doors could cost, with every number explained.**
 
-Status: **v0.9 MVP prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
+Status: **v0.10 MVP prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
 measure buildings from an address and doesn't give binding contractor quotes. Prices are editable
 examples, and accuracy hasn't been checked against completed jobs yet.
 
@@ -14,6 +14,10 @@ examples, and accuracy hasn't been checked against completed jobs yet.
    the address, angled like a drone shot. The Top view, rotate and recenter buttons adjust it, and
    "Aerial photo" switches to the free USGS image. The 3D view is display-only. Without a
    credential, or on devices without WebGL2, the aerial photo shows instead.
+   **Exterior prototype:** select **Try an exterior example** for a key-free model
+   of a public Austin house, built from USGS lidar and a city footprint. It shows
+   a measured roof surface and simplified walls. This covers one reviewed property;
+   it does not supply estimate measurements. See [the prototype guide](docs/15-lidar-exterior-prototype.md).
 3. **Build the budget.** Pick siding, windows and doors, then a material and a Standard, Enhanced or
    Premium tier, and enter the home's measurements. You get an itemized range and see how each
    number was calculated.
@@ -32,8 +36,9 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 72 Node tests, public build
+npm run check          # syntax checks, 74 Node tests, public build
 npm run test:browser   # 50 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run test:exterior  # real local exterior model, controls, cancellation and fallback
 ```
 
 ## Configuration
@@ -92,6 +97,7 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
 | 9 | [Property data adapter](docs/09-property-data-adapter.md) | Licensed provider setup and review workflow |
 | 10 | [Live property preview](docs/10-live-property-preview.md) | Census matching and the USGS aerial photo |
 | 13 | [3D view](docs/13-google-3d-view.md) | Google 3D via CesiumJS: setup, free-tier cap, security changes, open questions |
+| 15 | [Lidar exterior prototype](docs/15-lidar-exterior-prototype.md) | One-property example, data provenance, rebuild steps and SAT-Skylines integration path |
 | 16 | [3D remodel studio](docs/16-3d-remodel-studio.md) | Editable before-and-after 3D house from the homeowner's measurements: materials, additions, limits |
 
 **Research**

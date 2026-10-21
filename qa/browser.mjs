@@ -510,14 +510,14 @@ try {
     assert.equal(googleRequests.length, 1);
     assert.equal(googleRequests[0].headers().referer, `${base}/`);
     assert.equal(new URL(googleRequests[0].url()).searchParams.get('key'), syntheticKey);
-    assert.equal(await page3d.locator('.aerial-3d').isHidden(), true);
+    assert.equal(await page3d.locator('.aerial-3d:visible').count(), 0);
     assert.equal(await page3d.locator('#aerial-3d-controls').isHidden(), true);
     assert.equal(await page3d.locator('#aerial-3d-toggle').textContent(), 'View in 3D');
     await page3d.locator('#aerial-3d-toggle').click();
     await page3d.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('3D view is unavailable'), null, { timeout: 30000 });
     assert.equal(googleRequests.length, 2);
     assert.equal(await page3d.locator('#aerial-controls').isVisible(), true);
-    assert.equal(await page3d.locator('.aerial-3d').isHidden(), true);
+    assert.equal(await page3d.locator('.aerial-3d:visible').count(), 0);
     checks.push('A configured 3D view opens automatically under the CSP, sends Google only the site origin, and a denied key falls back to the aerial photo');
   } else {
     assert.equal(await page3d.locator('#aerial-3d-toggle').isVisible(), false);

@@ -1,19 +1,35 @@
 /**
- * Optional Google Photorealistic 3D view. Display only: nothing it shows is measured, stored, exported
- * or sent to the estimator or assistant. CesiumJS loads on first use, and one tileset (one billed Google
- * session) is reused for the rest of the visit.
+ * Reviewed local exteriors take precedence for covered addresses. Other properties can use
+ * optional Google tiles. Both views are display-only and never feed the estimator or assistant.
+ * One Google tileset (one billed session) is reused for the rest of the visit.
  */
 import { STATIC_SITE, STATIC_MAP3D } from './config.js';
+import { loadCesium, webgl2Available } from './cesium-runtime.js';
+import { exteriorForLocation } from './exterior-catalog.js';
+import { setupExterior3D } from './property-exterior.js';
+export { webgl2Available } from './cesium-runtime.js';
 
-const CESIUM_BASE = new URL('./vendor/cesium/', import.meta.url).href;
 const HEIGHT_TIMEOUT = 15000;
 // CesiumJS defaults to a 1.5 GB in-memory tile cache for Google tiles, too much for phones.
 const CACHE_BYTES = 256 * 1024 * 1024;
 
-export function webgl2Available() {
-  try { return Boolean(document.createElement('canvas').getContext('webgl2')); } catch { return false; }
+export function setupProperty3D(options) {
+  const google = setupGoogle3D(options), exterior = setupExterior3D(options), localAvailable = webgl2Available();
+  let current = google, serial = 0;
+  const hasLocal = location => localAvailable && Boolean(exteriorForLocation(location));
+  return {
+    available: google.available, hasLocal,
+    async show(location) {
+      const request = ++serial; google.close(); exterior.close(); current = hasLocal(location) ? exterior : google;
+      try { const result = await current.show(location); return request === serial ? result : null; }
+      catch (error) { if (request !== serial) return null; throw error; }
+    },
+    close() { serial++; google.close(); exterior.close(); },
+    setTop: value => current.setTop(value), rotate: () => current.rotate(), recenter: () => current.recenter(),
+    get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }
+  };
 }
-export function setupProperty3D({ stage, onFailure }) {
+function setupGoogle3D({ stage, onFailure }) {
   const container = document.createElement('div');
   container.className = 'aerial-3d'; container.hidden = true;
   container.setAttribute('aria-label', 'Google 3D view around the approximate address location');
@@ -32,14 +48,14 @@ export function setupProperty3D({ stage, onFailure }) {
   }
   function start() {
     ready ??= (async () => {
-      globalThis.CESIUM_BASE_URL = CESIUM_BASE;
-      if (!document.querySelector('link[data-cesium]')) {
-        const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: `${CESIUM_BASE}Widgets/CesiumWidget/CesiumWidget.css` });
-        link.dataset.cesium = ''; document.head.append(link);
-      }
-      Cesium ??= await import(`${CESIUM_BASE}index.js`);
+      Cesium ??= await loadCesium();
       widget = new Cesium.CesiumWidget(container, { baseLayer: false, globe: false, skyBox: false, requestRenderMode: true, showRenderLoopErrors: false });
-      widget.scene.renderError.addEventListener((_, error) => { destroy(); close(); onFailure?.(error); });
+      widget.useDefaultRenderLoop = open;
+      widget.scene.renderError.addEventListener((_, error) => {
+        const active = open; destroy(); close();
+        // A hidden Google view must not replace a newer local exterior or map.
+        if (active) onFailure?.(error);
+      });
       // Without a Google key, CesiumJS requests the same tiles through Cesium ion with the configured token.
       if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
       widget.scene.primitives.add(await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }));

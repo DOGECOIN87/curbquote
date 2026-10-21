@@ -1,5 +1,5 @@
 import { DEFAULT_INPUT } from './estimate.js';
-import { DEFAULT_PROJECT, COLORS, catalogRates, estimateProject } from './project.js';
+import { DEFAULT_PROJECT, COLORS, PRODUCTS, TIERS, catalogRates, estimateProject } from './project.js';
 import { readProjects, saveProject, deleteProject, savePhoto, loadPhoto, deletePhoto } from './storage.js';
 import { PhotoEditor } from './photo-editor.js';
 import { isAddressMatch, validateAddress, isAutomaticAddressReady } from './address.js';
@@ -44,10 +44,18 @@ const propertyPreview = setupPropertyPreview({ onPhoto: () => {
 } });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 let remodelDesign = { ...DEFAULT_DESIGN };
+let remodelState = 'idle';
 const remodel = setupRemodel3D({
   stage: byId('remodel-stage'),
   getSpec: () => houseSpec(readInputs(), projectOptions(), remodelDesign),
-  onStatus: message => { byId('remodel-status').textContent = message; }
+  onStatus: message => { byId('remodel-status').textContent = message; },
+  // The download button stays disabled until a rendered scene exists, instead of failing silently.
+  onReady: () => { remodelState = 'ready'; byId('remodel-download').disabled = false; },
+  onError: () => {
+    remodelState = 'error'; byId('remodel-download').disabled = true;
+    byId('remodel-placeholder-title').textContent = '3D could not start here';
+    byId('remodel-placeholder-text').textContent = 'This device or browser could not open WebGL. The example home and your photo still work.';
+  }
 });
 const projectDialog = byId('projects-dialog');
 byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
@@ -63,8 +71,20 @@ function setCatalogRates() {
   const options = { ...projectOptions(), siding: true, coveragePercent: 100 };
   for (const [key, value] of Object.entries(catalogRates(options))) byId(key).value = value;
 }
+const exampleRate = (kind, product, unit) => {
+  const low = PRODUCTS[kind][product].rates[0] * TIERS[projectOptions().tier].multiplier;
+  const high = PRODUCTS[kind][product].rates[1] * TIERS[projectOptions().tier].multiplier;
+  return `Example ${dollars(Math.round(low))}–${dollars(Math.round(high))} ${unit} installed`;
+};
+function paintChoiceHints() {
+  const p = projectOptions();
+  byId('siding-product-hint').textContent = p.siding ? `${exampleRate('siding', p.sidingProduct, 'per sq ft')} · ${TIERS[p.tier].name} tier` : 'Siding is switched off in step 2.';
+  byId('window-product-hint').textContent = p.windows ? `${exampleRate('windows', p.windowProduct, 'each')} · ${TIERS[p.tier].name} tier` : 'Windows are switched off in step 2.';
+  byId('door-product-hint').textContent = p.doors ? `${exampleRate('doors', p.doorProduct, 'each')} · ${TIERS[p.tier].name} tier` : 'Doors are switched off in step 2.';
+}
 function syncProjectControls() {
   const p = projectOptions();
+  paintChoiceHints();
   for (const id of ['lengthFt','widthFt','stories','storyHeightFt','gables','gableRiseFt','masonryPercent','coveragePercent','sidingProduct']) byId(id).disabled = !p.siding;
   byId('replaceWindows').disabled = byId('windowProduct').disabled = !p.windows;
   byId('replaceDoors').disabled = byId('doorProduct').disabled = !p.doors;
@@ -83,6 +103,13 @@ function syncRemodelControls() {
   for (const id of ['add-porch', 'add-dormers', 'add-shutters']) byId(id).disabled = remodelDesign.before;
   for (const button of document.querySelectorAll('[data-roof]')) button.setAttribute('aria-pressed', String(button.dataset.roof === remodelDesign.roof));
   byId('roof-name').textContent = ROOF_COLORS[remodelDesign.roof].name;
+  const additions = [['porch', 'covered porch'], ['dormers', 'dormers'], ['shutters', 'shutters']]
+    .filter(([key]) => remodelDesign[key]).map(([, label]) => label);
+  const p = projectOptions();
+  byId('remodel-compare-note').textContent = remodelDesign.before
+    ? `Before: the same house in a dated palette, with no porch, dormers or shutters.`
+    : `After: ${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${ROOF_COLORS[remodelDesign.roof].name.toLowerCase()}, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}.`;
+  byId('remodel-download').disabled = remodelState !== 'ready';
 }
 function notify(message) { byId('project-toast').textContent = message; byId('project-toast').hidden = false; }
 
@@ -99,10 +126,14 @@ function refreshReport() {
   byId('save-project').disabled = !lastResult;
   byId('result-address').textContent = addressEl.value.trim() || 'No address provided — manual estimate';
 }
+function paintLiveRange(text) {
+  for (const node of document.querySelectorAll('[data-live-range]')) node.textContent = text;
+}
 function paintResult(result) {
   byId('empty-state').hidden = true;
   byId('results').hidden = false;
   byId('total-range').textContent = range(result.total);
+  paintLiveRange(range(result.total));
   byId('siding-range').textContent = result.project.siding ? range(result.items.siding) : 'Not selected';
   byId('window-range').textContent = result.project.windows ? range(result.items.windows) : 'Not selected';
   byId('door-range').textContent = result.project.doors ? range(result.items.doors) : 'Not selected';
@@ -137,6 +168,7 @@ function calculate({ scroll = false, focus = false } = {}) {
     return true;
   } catch (error) {
     lastResult = null;
+    paintLiveRange('Needs a fix');
     errorEl.textContent = error.message;
     errorEl.hidden = false;
     byId('results').hidden = true;
@@ -316,6 +348,18 @@ for (const [name, tabId] of STUDIO_TABS.map(([n, t]) => [n, t])) {
   });
 }
 byId('remodel-open').addEventListener('click', () => remodel.open());
+/** Any "Preview in 3D" control lands on the estimate step with the studio on screen. */
+function openStudio() {
+  wizard.show(5, { focus: true });
+  showStudioTab('remodel');
+  requestAnimationFrame(() => {
+    byId('remodel-stage').scrollIntoView({ block: 'center', behavior: 'instant' });
+    byId('remodel-stage').setAttribute('tabindex', '-1');
+    byId('remodel-stage').focus({ preventScroll: true });
+  });
+}
+for (const button of document.querySelectorAll('[data-open-studio]')) button.addEventListener('click', openStudio);
+byId('jump-to-3d').addEventListener('click', openStudio);
 for (const [id, before] of [['remodel-before', true], ['remodel-after', false]]) byId(id).addEventListener('click', () => {
   remodelDesign.before = before; syncRemodelControls(); remodel.refresh();
   byId('remodel-status').textContent = before ? 'Before: the home as it stands, in a dated palette with no additions.' : 'After: your siding, materials and additions below.';

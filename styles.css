@@ -70,7 +70,7 @@ input[aria-invalid="true"],select[aria-invalid="true"]{border-color:#a63d22;box-
 @media(max-width:1100px){.hero-copy{padding:32px 25px}.property-preview{padding:22px}.hero .address-entry{flex-direction:column}.hero .address-entry button{align-self:flex-start}.hero .address-entry input{flex:none}.aerial-header h2{font-size:20px}}
 @media(max-width:920px){.hero{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.hero-copy{padding:30px 24px}.property-preview{padding:22px 18px}.aerial-header h2{font-size:19px}.aerial-controls{gap:8px}.aerial-stage{margin-top:auto}.aerial-controls button{min-width:32px}}
 @media(max-width:720px){.hero{grid-template-columns:minmax(0,1fr)}.hero-copy{padding:30px 24px}.hero h1{font-size:clamp(24px,9cqi,48px)}.hero .address-entry{flex-direction:row}.hero .address-entry input{flex:1}.hero .address-entry button{align-self:stretch}.hero .address-section{margin-top:21px}.hero-meta{margin-top:9px}.property-preview{border-left:0;border-top:1px solid #333;padding:22px 24px}.aerial-header h2{font-size:23px}.aerial-stage{aspect-ratio:8/5}.aerial-controls button{min-width:36px}.source-below-hero .property-facts{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:440px){.hero-copy{padding:26px 21px}.hero .address-entry{flex-direction:column}.hero .address-entry input{flex:none;font-size:16px}.hero .address-entry button{min-height:38px}.hero .hero-meta{gap:9px}.property-preview{padding:20px 17px}.aerial-header h2{font-size:21px}.aerial-placeholder{padding:13px}.aerial-place-icon{font-size:36px;margin-bottom:8px}.aerial-placeholder strong{font-size:16px}.aerial-placeholder p{font-size:10px;margin-top:7px}.aerial-controls{row-gap:8px}.aerial-status{font-size:10px}.aerial-actions{gap:4px 14px}.aerial-meta{letter-spacing:0}}
+@media(max-width:440px){.hero-copy{padding:22px 20px}.hero .address-entry{flex-direction:column}.hero .address-entry input{flex:none;font-size:16px}.hero .address-entry button{min-height:38px}.hero .hero-meta{gap:9px}.property-preview{padding:20px 17px}.aerial-header h2{font-size:21px}.aerial-placeholder{padding:13px}.aerial-place-icon{font-size:36px;margin-bottom:8px}.aerial-placeholder strong{font-size:16px}.aerial-placeholder p{font-size:10px;margin-top:7px}.aerial-controls{row-gap:8px}.aerial-status{font-size:10px}.aerial-actions{gap:4px 14px}.aerial-meta{letter-spacing:0}}
 @media(prefers-reduced-motion:reduce){.aerial-stage[aria-busy=true] .aerial-place-icon{animation:none}}
 
 /* Optional interactive, display-only OpenStreetMap / USGS view. */
@@ -135,7 +135,7 @@ input,select,textarea{border-radius:0!important}input,select{height:46px;border-
 .more-options{margin:26px 0 0}.more-options>summary{font-size:14px;padding:16px 18px}.more-options-body{padding:18px;border-top:1px solid #e8e8e8}.more-options .field-grid{margin-bottom:14px}
 .pricing-section .privacy-hint{margin-top:16px;font-size:12px}
 .estimate-step{max-width:1200px;margin:0 auto}.estimate-step .result-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-items:start}.estimate-step .result-panel>*{grid-column:1}
-.estimate-step .design-studio{grid-column:2;grid-row:1 / span 3;align-self:stretch;border-top:0;border-left:1px solid var(--line)}.estimate-step .result-footer{grid-column:1 / -1}
+.estimate-step .design-studio{grid-column:2;grid-row:1 / span 3;align-self:start;border-top:0;border-left:1px solid var(--line)}.estimate-step .result-footer{grid-column:1 / -1}
 .help-drawer{margin-top:22px;border:1px solid var(--line);border-radius:0;background:var(--soft);overflow:visible}.help-drawer>summary{padding:20px 24px;font-size:16px}
 .help-drawer .assistant-panel{margin:0;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none}
 @media(max-width:920px){.estimate-step .result-panel{display:block}.estimate-step .design-studio{border-left:0;border-top:1px solid var(--line)}}
@@ -164,3 +164,142 @@ input,select,textarea{border-radius:0!important}input,select{height:46px;border-
 .remodel-additions input:disabled+span{opacity:.45}
 @media(max-width:560px){.remodel-stage{aspect-ratio:1/1;min-height:250px}.remodel-views .outline-button{flex:1 1 40%}.studio-tabs-3 button{font-size:10px}}
 @media(max-width:360px){.tier-picker label{padding-inline:3px}.tier-picker strong{font-size:13px}}
+
+/* ---------------------------------------------------------------------------------------------
+   Homeowner journey pass: earlier 3D discovery, live cost feedback, clearer view relationships.
+   Colour and type stay in the Alco system; no uppercase, letter-spaced overlines anywhere.
+   --------------------------------------------------------------------------------------------- */
+.hero .exterior-example{border:1px solid var(--accent);background:#fff;color:var(--main);min-height:44px;padding:0 16px;text-decoration:none;font-size:14px}
+.hero .exterior-example:hover{background:var(--mint)}
+.hero .exterior-example:focus-visible{outline-color:var(--main)}
+.hero-copy{padding-top:clamp(28px,4vw,48px);padding-bottom:clamp(26px,3.4vw,42px)}
+.hero-copy>p{margin-bottom:0}
+.hero .hero-meta{margin-top:18px;gap:10px}
+.property-preview{display:flex;flex-direction:column;padding-bottom:24px}
+.property-preview .aerial-stage{margin-top:6px}
+.property-preview .aerial-meta{margin-top:12px}
+.property-preview .aerial-status{margin:12px 0 0;font-size:12.5px;line-height:1.6}
+.property-preview .visual-guide{margin-top:0}
+@media(min-width:721px){
+  /* The photo grows to fill the hero column so the two halves end on the same line. */
+  .property-preview .aerial-stage{aspect-ratio:16/10;min-height:260px}
+  .property-preview .aerial-status{min-height:0}
+  .property-preview .visual-guide{margin-top:14px}
+  
+  }
+
+/* What the different property views are, in one honest place. */
+.property-preview .visual-guide{margin:14px 0 0;border:1px solid #35512a;background:#0b1a02;border-radius:0}
+.property-preview .visual-guide>summary{color:#fff;font-size:13px;padding:12px 14px}
+.property-preview .visual-guide>summary:focus-visible{outline:3px solid var(--brand);outline-offset:-3px}
+.property-preview .visual-guide dl{margin:0;padding:0 14px 14px;display:grid;gap:11px;border-top:1px solid #35512a}
+.property-preview .visual-guide dl>div{display:grid;gap:2px}
+.property-preview .visual-guide dt{font-weight:700;color:var(--brand);font-size:12.5px}
+.property-preview .visual-guide dd{margin:0;color:#cfdcc7;font-size:12.5px;line-height:1.6}
+
+/* Step 2: what each scope covers. */
+.wizard-step .scope-choice small{display:block;font-size:12px;font-weight:500;line-height:1.4;color:var(--ink-light);text-align:center;max-width:15ch}
+.scope-choice:has(input:checked) small{color:#33502a}
+.choice-note{margin:16px 0 0;font-size:13px;line-height:1.6;color:var(--ink-light)}
+
+/* Steps 3 and 4: the estimate so far, and the way into the 3D studio. */
+.live-estimate{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;margin:0 0 22px;padding:12px 16px;background:var(--mint);border:1px solid #d5e5c6}
+.live-estimate p{margin:0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.live-estimate p>span{font-size:13px;color:#33502a}
+.live-estimate strong{font-size:18px;font-weight:700;color:var(--main);white-space:nowrap}
+.live-estimate .outline-button{min-height:40px;background:#fff;border-color:var(--accent);font-weight:600}
+.live-estimate .outline-button:hover{background:#fff;color:var(--main);box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* Step 3: what length and width mean. */
+.measure-diagram{margin:0 0 24px;padding:12px 14px 14px;border:1px solid var(--line);background:#fbfdf8}
+.measure-diagram svg{display:block;width:100%;max-width:330px;height:auto;margin:0 auto}
+.measure-diagram figcaption{margin-top:8px;font-size:12.5px;line-height:1.55;color:var(--ink-light);text-align:center}
+.choice-field{display:flex;flex-direction:column;min-width:0}
+.choice-hint{margin:7px 0 0;font-size:12.5px;line-height:1.5;color:var(--ink-light)}
+
+/* Estimate step: one tap from the total to the 3D view when the studio sits below the summary. */
+.jump-to-3d{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 38px);margin:0 19px 8px;min-height:48px;border:0;background:var(--main);color:#fff;font-size:14px;font-weight:600}
+.jump-to-3d:focus-visible{outline-color:var(--accent)}
+@media(min-width:921px){.jump-to-3d{display:none}}
+
+/* Estimate step: a plain next step, not a dead end. */
+.next-steps{margin:18px 23px 0;padding:16px 18px;border:1px solid var(--line);background:#fbfdf8}
+.next-steps h3{margin:0 0 10px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.next-steps ol{margin:0;padding-left:19px;display:grid;gap:8px;font-size:13px;line-height:1.65;color:var(--ink-light)}
+.next-steps li{padding-left:2px}
+.next-steps .link-button{margin-right:2px}
+.link-button{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--main);text-decoration:underline;text-underline-offset:3px}
+.link-button:hover{color:var(--accent)}
+.link-button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.next-steps a{text-decoration:underline;text-underline-offset:3px;font-weight:600;color:var(--main)}
+
+/* Design studio: say what it is, and what Before and After mean. */
+.studio-intro{margin:0 0 15px;font-size:13px;line-height:1.6;color:var(--ink-light)}
+.remodel-mode button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:54px;padding:6px 4px}
+.mode-hint{font-size:11.5px;font-weight:500;opacity:.8}
+.remodel-mode button[aria-pressed="true"] .mode-hint{opacity:.9}
+.compare-note{margin:0 0 14px;padding:10px 12px;border-left:3px solid var(--accent);background:#f1f8ea;font-size:12.5px;line-height:1.6;color:#33502a}
+.legend-note{display:block;margin-top:3px;font-size:11.5px;font-weight:500;color:var(--ink-light);letter-spacing:0}
+.remodel-stage[aria-busy="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,transparent,var(--brand),transparent);animation:remodel-progress 1.4s linear infinite}
+@keyframes remodel-progress{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.remodel-placeholder strong{font-size:20px}
+
+/* Comfortable touch targets for the colour choices. */
+.swatch{width:38px;height:38px}
+.color-picker{gap:12px}
+@media(max-width:560px){.swatch{width:44px;height:44px;border-width:4px}.color-picker{gap:10px}}
+
+/* Tablets: one column for the hero so neither half is squeezed; phones keep the same order. */
+@media(max-width:900px){
+  .hero{grid-template-columns:minmax(0,1fr)}
+  /* Keep the property preview visible sooner on tablets and phones. */
+  .hero-copy{padding:22px 24px 20px}
+  .hero h1{margin:10px 0 12px}
+  .hero .address-section{margin-top:16px}
+  .hero .address-entry{flex-direction:row}
+  .hero .address-entry input{flex:1 1 auto;min-width:0}
+  .hero .address-entry button{align-self:stretch;min-height:44px;padding:0 16px}
+  .hero .hero-meta{margin-top:14px}
+  .property-preview{padding:22px 24px;border-top:1px solid #333}
+  .property-preview .aerial-stage{aspect-ratio:16/10}
+}
+@media(max-width:560px){
+  .hero-copy{padding:24px 20px}
+  .hero .hero-meta{font-size:12.5px}
+  .live-estimate{padding:12px;gap:10px}
+  .live-estimate strong{font-size:17px}
+  .live-estimate .outline-button{width:100%;min-height:44px}
+  .wizard-step .scope-choice small{display:none}
+  .property-preview .visual-guide dl{padding:0 12px 12px}
+  .next-steps{margin-left:15px;margin-right:15px;padding:14px}
+  .measure-diagram{padding:10px}
+  .remodel-mode button{min-height:56px}
+}
+@media(max-width:360px){
+  .live-estimate p{gap:2px}
+  .live-estimate p>span{font-size:12.5px}
+  .mode-hint{font-size:11px}
+}
+
+/* Saved-project actions keep their own strong action colour; label text no longer overflows. */
+.project-name-row button{font-size:13px!important;font-weight:600}
+.project-name-row input{min-width:0}
+.saved-project-actions .outline-button{font-weight:600}
+
+/* Step 4: one readable column of choices on phones, no clipped select labels. */
+@media(max-width:720px){
+  .choice-grid{grid-template-columns:minmax(0,1fr)}
+  .choice-field select{white-space:normal}
+}
+
+/* Step 4: keep three example prices on one line where there is room. */
+@media(min-width:561px) and (max-width:720px){
+  .choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+/* Phones: stack the address field and its button so the placeholder never clips. */
+@media(max-width:440px){
+  .hero .address-entry{flex-direction:column}
+  .hero .address-entry input{flex:none;width:100%}
+  .hero .address-entry button{width:100%;min-height:44px;justify-self:stretch}
+}

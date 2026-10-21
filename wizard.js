@@ -1,7 +1,12 @@
-/** One step on screen at a time. The step list lets homeowners move back and forth freely; nothing is lost between steps. */
+/**
+ * One step on screen at a time. The step list lets homeowners move back and forth freely; nothing is
+ * lost between steps. `data-step-link` is delegated too, so in-page links (such as "Check your
+ * measurements" on the estimate) can jump without joining the step list itself.
+ */
 export function setupWizard({ root = document, onChange } = {}) {
-  const parts = [...root.querySelectorAll('[data-step]')], buttons = [...root.querySelectorAll('[data-goto]')];
-  const last = buttons.length;
+  const parts = [...root.querySelectorAll('[data-step]')];
+  const buttons = [...root.querySelectorAll('.wizard-steps [data-goto]')];
+  const last = parts.reduce((max, part) => Math.max(max, ...part.dataset.step.split(' ').map(Number)), 1);
   let current = 1;
   function show(step, { focus = false } = {}) {
     current = Math.min(Math.max(Number(step) || 1, 1), last);
@@ -24,10 +29,11 @@ export function setupWizard({ root = document, onChange } = {}) {
     if (part && part.hidden) show(part.dataset.step);
     for (let details = element?.closest('details'); details; details = details.parentElement?.closest('details')) details.open = true;
   }
-  for (const button of buttons) button.addEventListener('click', () => show(button.dataset.goto, { focus: true }));
   root.addEventListener('click', event => {
     const move = event.target.closest('[data-next], [data-back]');
-    if (move) show(current + (move.hasAttribute('data-next') ? 1 : -1), { focus: true });
+    if (move) { show(current + (move.hasAttribute('data-next') ? 1 : -1), { focus: true }); return; }
+    const jump = event.target.closest('[data-step-link], .wizard-steps [data-goto]');
+    if (jump) show(jump.dataset.stepLink || jump.dataset.goto, { focus: true });
   });
   return { show, reveal, get current() { return current; } };
 }

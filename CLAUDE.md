@@ -15,4 +15,4 @@
   Don't add `unsafe-eval` or `unsafe-inline` to the CSP; allow a specific inline style by hash.
 - Browser code must also work in the static GitHub Pages build (`config.js` `STATIC_SITE`): use relative URLs, and
   give anything that calls `api/` a static fallback.
-- Before pushing, run `npm run check` (74 Node tests) and, for UI changes, `npm run test:browser` (50 checks) plus `npm run test:exterior` (6 checks).
+- Before pushing, run `npm run check` (77 Node tests) and, for UI changes, `npm run test:browser` (51 checks) plus `npm run test:exterior` (6 checks).

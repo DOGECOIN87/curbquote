@@ -27,7 +27,7 @@
         <li><button type="button" data-goto="3" aria-label="Step 3: Your home"><span class="step-dot" aria-hidden="true">3</span><span class="step-name">Home</span></button></li>
         <li><button type="button" data-goto="4" aria-label="Step 4: Choices"><span class="step-dot" aria-hidden="true">4</span><span class="step-name">Choices</span></button></li>
         <li><button type="button" data-goto="5" aria-label="Step 5: Estimate"><span class="step-dot" aria-hidden="true">5</span><span class="step-name">Estimate</span></button></li>
-      </ol></nav>
+      </ol><span id="step-progress-readout" class="sr-only" role="status" aria-live="polite">Step 1 of 5</span></nav>
       <div class="draft-bar"><span id="draft-status" role="status"></span><button type="button" id="restore-draft" class="outline-button" hidden>Restore draft</button><button type="button" id="discard-draft" class="outline-button" hidden>Discard draft</button></div>
       <p id="form-error" class="error-message" role="alert" hidden></p>
       <div class="wizard-step" data-step="1">
@@ -196,6 +196,20 @@
               <strong data-live-range>—</strong>
               <small id="dock-scope-summary">Siding, windows &amp; doors included</small>
             </div>
+            <figure class="cost-share-summary dock-cost-share" aria-labelledby="dock-share-title">
+              <figcaption><strong id="dock-share-title">How the range is shared</strong><span>Illustrative share using the midpoint of each trade range.</span></figcaption>
+              <svg class="cost-share-bar" viewBox="0 0 100 12" preserveAspectRatio="none" role="img" aria-labelledby="dock-share-bar-title">
+                <title id="dock-share-bar-title">Cost shares appear when a valid estimate is available.</title>
+                <rect data-share-segment="siding" x="0" y="0" width="0" height="12"></rect>
+                <rect data-share-segment="windows" x="0" y="0" width="0" height="12"></rect>
+                <rect data-share-segment="doors" x="0" y="0" width="0" height="12"></rect>
+              </svg>
+              <ul class="cost-share-legend cost-share-amount-legend" aria-label="Illustrative range and midpoint share by trade">
+                <li data-cost-share-row="siding"><span class="cost-share-key siding" aria-hidden="true"></span><strong>Siding</strong><strong data-share-range="siding">—</strong><small data-share-percent="siding">—</small></li>
+                <li data-cost-share-row="windows"><span class="cost-share-key windows" aria-hidden="true"></span><strong>Windows</strong><strong data-share-range="windows">—</strong><small data-share-percent="windows">—</small></li>
+                <li data-cost-share-row="doors"><span class="cost-share-key doors" aria-hidden="true"></span><strong>Doors</strong><strong data-share-range="doors">—</strong><small data-share-percent="doors">—</small></li>
+              </ul>
+            </figure>
             <ul class="dock-scope-list" aria-label="Selected project trades">
               <li id="dock-pill-siding" class="is-active"><span>▥ Siding</span><small>Walls, gables &amp; trim</small></li>
               <li id="dock-pill-windows" class="is-active"><span>⊞ Windows</span><small>6 replacement windows</small></li>
@@ -210,6 +224,7 @@
             </div>
             <p class="step3-3d-pair">Sized from your Step 3 measurements and styled with your Step 4 choices — not your property's actual footprint from Step 1.</p>
             <div id="step3-3d-stage" class="remodel-stage step3-3d-stage" aria-describedby="step3-3d-status">
+              <div class="stage-corner-badges" aria-hidden="true"><span>Before · Existing</span><span>After · Your choices</span></div>
               <div class="remodel-placeholder">
                 <strong id="step3-placeholder-title">See your measurements in 3D</strong>
                 <p id="step3-placeholder-text">A concept house sized from your length, width, stories and window count.</p>
@@ -242,10 +257,24 @@
             <p id="result-address" class="result-address"></p>
             <div class="total-card"><div id="total-range" class="total-range">—</div><p>Preliminary project range. Illustrative, not a contractor quote.</p></div>
             <button type="button" id="jump-to-3d" class="jump-to-3d">See your home in 3D <span aria-hidden="true">↓</span></button>
+            <figure class="cost-share-summary estimate-cost-share" aria-labelledby="estimate-share-title">
+              <figcaption><strong id="estimate-share-title">A quick look at the mix</strong><span>Segments use each illustrative trade range's midpoint. Full ranges follow below.</span></figcaption>
+              <svg class="cost-share-bar" viewBox="0 0 100 12" preserveAspectRatio="none" role="img" aria-labelledby="estimate-share-bar-title">
+                <title id="estimate-share-bar-title">Cost shares appear when a valid estimate is available.</title>
+                <rect data-share-segment="siding" x="0" y="0" width="0" height="12"></rect>
+                <rect data-share-segment="windows" x="0" y="0" width="0" height="12"></rect>
+                <rect data-share-segment="doors" x="0" y="0" width="0" height="12"></rect>
+              </svg>
+              <ul class="cost-share-legend cost-share-key-legend" aria-label="Share of the illustrative midpoint by trade">
+                <li><span class="cost-share-key siding" aria-hidden="true"></span><strong>Siding</strong><small data-share-percent="siding">—</small></li>
+                <li><span class="cost-share-key windows" aria-hidden="true"></span><strong>Windows</strong><small data-share-percent="windows">—</small></li>
+                <li><span class="cost-share-key doors" aria-hidden="true"></span><strong>Doors</strong><small data-share-percent="doors">—</small></li>
+              </ul>
+            </figure>
             <div class="result-subtitle">Cost breakdown <span>Estimated range</span></div>
-            <div class="line-item"><div class="item-icon siding-icon">▥</div><div class="item-label"><strong>Siding</strong><span id="siding-qty">—</span></div><strong id="siding-range" class="item-price">—</strong></div>
-            <div class="line-item"><div class="item-icon window-icon">⊞</div><div class="item-label"><strong>Windows</strong><span id="window-qty">—</span></div><strong id="window-range" class="item-price">—</strong></div>
-            <div class="line-item"><div class="item-icon door-icon">▯</div><div class="item-label"><strong>Doors</strong><span id="door-qty">—</span></div><strong id="door-range" class="item-price">—</strong></div>
+            <div class="line-item"><div class="item-icon siding-icon">▥</div><div class="item-label"><strong>Siding</strong><span id="siding-qty">—</span></div><div class="item-amount"><strong id="siding-range" class="item-price">—</strong><small data-share-value="siding">—</small></div></div>
+            <div class="line-item"><div class="item-icon window-icon">⊞</div><div class="item-label"><strong>Windows</strong><span id="window-qty">—</span></div><div class="item-amount"><strong id="window-range" class="item-price">—</strong><small data-share-value="windows">—</small></div></div>
+            <div class="line-item"><div class="item-icon door-icon">▯</div><div class="item-label"><strong>Doors</strong><span id="door-qty">—</span></div><div class="item-amount"><strong id="door-range" class="item-price">—</strong><small data-share-value="doors">—</small></div></div>
             <div class="estimate-caveats-card">
               <div id="geometry-details" class="scope-section"><div class="scope-title">How this was calculated</div><dl class="scope-table"><div><dt>Exterior wall perimeter</dt><dd id="perimeter">—</dd></div><div><dt>Gross walls + gables</dt><dd id="gross-area">—</dd></div><div><dt>Net siding area</dt><dd id="net-area">—</dd></div><div><dt>Order qty + 10% waste</dt><dd id="order-area">—</dd></div><div><dt>Illustrative variation</dt><dd>±18% siding quantity</dd></div></dl></div>
               <div class="assumptions-stack">
@@ -274,7 +303,7 @@
               <button type="button" id="photo-tab" role="tab" aria-selected="false" aria-controls="photo-panel" tabindex="-1">Your photo</button>
             </div>
             <div id="remodel-panel" role="tabpanel" aria-labelledby="remodel-tab">
-              <div id="remodel-stage" class="remodel-stage" aria-describedby="remodel-status"><div class="remodel-placeholder"><strong id="remodel-placeholder-title">Your home, built in 3D</strong><p id="remodel-placeholder-text">A house sized from your measurements and styled with your choices. It is not an image of your property.</p><button type="button" id="remodel-open" class="secondary-button">Start the 3D view</button></div><div class="thirds-grid" aria-hidden="true"><span></span><span></span></div></div>
+              <div id="remodel-stage" class="remodel-stage" aria-describedby="remodel-status"><div class="stage-corner-badges" aria-hidden="true"><span>Before · Existing</span><span>After · Your choices</span></div><div class="remodel-placeholder"><strong id="remodel-placeholder-title">Your home, built in 3D</strong><p id="remodel-placeholder-text">A house sized from your measurements and styled with your choices. It is not an image of your property.</p><button type="button" id="remodel-open" class="secondary-button">Start the 3D view</button></div><div class="thirds-grid" aria-hidden="true"><span></span><span></span></div></div>
               <div class="remodel-mode" role="group" aria-label="Before and after">
                 <button type="button" id="remodel-before" aria-pressed="false">Before<span class="mode-hint">as it is today</span></button>
                 <button type="button" id="remodel-split-half" aria-pressed="false">Split 50/50<span class="mode-hint">side-by-side wipe</span></button>
@@ -282,7 +311,7 @@
               </div>
               <div class="remodel-split-row">
                 <label for="remodel-split" class="remodel-split-label"><span>Compare Before &amp; After</span><strong id="remodel-split-readout">After (100%)</strong></label>
-                <input id="remodel-split" type="range" min="0" max="100" step="5" value="100" aria-describedby="remodel-compare-note">
+                <input id="remodel-split" type="range" min="0" max="100" step="1" value="100" aria-describedby="remodel-compare-note">
               </div>
               <p id="remodel-compare-note" class="compare-note"></p>
               <div class="remodel-views" role="group" aria-label="Camera views">

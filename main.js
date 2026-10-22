@@ -60,6 +60,7 @@ remodel = setupRemodel3D({
     byId('remodel-status').textContent = message;
     if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
   },
+  onSplitChange: (split, state) => reflectCanvasSplit(split, state),
   // The download button stays disabled until a rendered scene exists, instead of failing silently.
   onReady: () => { remodelState = 'ready'; byId('remodel-download').disabled = false; },
   onError: () => {
@@ -110,7 +111,7 @@ function paintChoiceHints() {
   }
   if (byId('reset-rates')) byId('reset-rates').disabled = !customized;
 }
-function syncProjectControls() {
+function syncProjectControls({ microResponse = false } = {}) {
   const p = projectOptions();
   paintChoiceHints();
   for (const id of ['lengthFt','widthFt','stories','storyHeightFt','gables','gableRiseFt','masonryPercent','coveragePercent','sidingProduct']) byId(id).disabled = !p.siding;
@@ -136,10 +137,14 @@ function syncProjectControls() {
     byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
   }
   syncRemodelControls();
-  remodel.refresh();
+  remodel.refresh({ microResponse });
 }
 function syncRemodelControls() {
   const split = remodelDesign.before ? 0 : (remodelDesign.split ?? 100);
+  for (const stage of [byId('step3-3d-stage'), byId('remodel-stage')]) {
+    if (split > 0 && split < 100) stage.dataset.splitActive = 'true';
+    else delete stage.dataset.splitActive;
+  }
   byId('remodel-before').setAttribute('aria-pressed', String(split === 0));
   byId('remodel-after').setAttribute('aria-pressed', String(split === 100));
   if (byId('remodel-split-half')) byId('remodel-split-half').setAttribute('aria-pressed', String(split === 50));
@@ -166,6 +171,21 @@ function syncRemodelControls() {
     ? `After: ${afterDesc}.`
     : `Split comparison (${100 - split}% Before on left, ${split}% After on right): comparing the dated palette against ${afterDesc}.`;
   byId('remodel-download').disabled = remodelState !== 'ready';
+}
+function reflectCanvasSplit(value, { commit = false } = {}) {
+  const split = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  remodelDesign.split = split;
+  remodelDesign.before = split === 0;
+  syncRemodelControls();
+  if (commit) {
+    const message = split === 0
+      ? 'Before: the home as it stands, in a dated palette with no additions.'
+      : split === 100
+      ? 'After: your siding, materials and additions below.'
+      : `Split comparison: ${100 - split}% Before on left, ${split}% After on right.`;
+    byId('remodel-status').textContent = message;
+    if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
+  }
 }
 function notify(message) { byId('project-toast').textContent = message; byId('project-toast').hidden = false; }
 
@@ -195,6 +215,44 @@ function paintLiveRange(text) {
     pulseTimer = setTimeout(() => { for (const node of nodes) delete node.dataset.pulse; }, 360);
   }
 }
+const COST_TRADES = [
+  { key: 'siding', label: 'Siding' },
+  { key: 'windows', label: 'Windows' },
+  { key: 'doors', label: 'Doors' }
+];
+function paintCostShares(result) {
+  const amounts = COST_TRADES.map(({ key }) => {
+    const pair = result?.items?.[key] || [0, 0];
+    return result?.project?.[key] ? Math.max(0, (Number(pair[0]) + Number(pair[1])) / 2) : 0;
+  });
+  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+  const shares = amounts.map(amount => total > 0 ? amount / total : 0);
+  let cursor = 0;
+  const lastActive = amounts.reduce((last, amount, index) => amount > 0 ? index : last, -1);
+  COST_TRADES.forEach(({ key, label }, index) => {
+    const included = result ? Boolean(result.project[key]) : Boolean(byId(`scope-${key}`)?.checked);
+    let width = total > 0 && included ? shares[index] * 100 : 0;
+    if (index === lastActive) width = 100 - cursor;
+    for (const segment of document.querySelectorAll(`[data-share-segment="${key}"]`)) {
+      segment.setAttribute('x', cursor.toFixed(3));
+      segment.setAttribute('width', width.toFixed(3));
+    }
+    if (width > 0) cursor += width;
+    const percent = result ? included && total > 0 ? `${Math.round(shares[index] * 100)}%` : included ? '0%' : 'Off' : '—';
+    for (const node of document.querySelectorAll(`[data-share-percent="${key}"]`)) node.textContent = percent;
+    for (const node of document.querySelectorAll(`[data-share-range="${key}"]`)) {
+      node.textContent = result ? included ? range(result.items[key]) : 'Not included' : '—';
+    }
+    for (const node of document.querySelectorAll(`[data-share-value="${key}"]`)) {
+      node.textContent = result ? included ? `${percent} share` : 'Not included' : '—';
+    }
+    for (const row of document.querySelectorAll(`[data-cost-share-row="${key}"]`)) row.classList.toggle('is-excluded', !included);
+  });
+  const description = result && total > 0
+    ? `Illustrative cost share at the combined range midpoint: ${COST_TRADES.map(({ key, label }, index) => result.project[key] ? `${label} ${Math.round(shares[index] * 100)} percent` : `${label} not included`).join(', ')}.`
+    : 'Cost shares appear when a valid estimate is available.';
+  for (const title of document.querySelectorAll('.cost-share-bar title')) title.textContent = description;
+}
 function paintResult(result) {
   byId('empty-state').hidden = true;
   byId('results').hidden = false;
@@ -203,6 +261,7 @@ function paintResult(result) {
   byId('siding-range').textContent = result.project.siding ? range(result.items.siding) : 'Not selected';
   byId('window-range').textContent = result.project.windows ? range(result.items.windows) : 'Not selected';
   byId('door-range').textContent = result.project.doors ? range(result.items.doors) : 'Not selected';
+  paintCostShares(result);
   byId('siding-qty').textContent = result.project.siding ? `${number.format(result.geometry.squares)} whole 100-sq-ft squares (reference)` : 'Excluded from this budget';
   byId('window-qty').textContent = result.project.windows ? `${result.inputs.replaceWindows} window${result.inputs.replaceWindows === 1 ? '' : 's'} to replace` : 'Excluded from this budget';
   byId('door-qty').textContent = result.project.doors ? `${result.inputs.replaceDoors} door${result.inputs.replaceDoors === 1 ? '' : 's'} to replace` : 'Excluded from this budget';
@@ -236,6 +295,7 @@ function calculate({ scroll = false, focus = false } = {}) {
   } catch (error) {
     lastResult = null;
     paintLiveRange('Needs a fix');
+    paintCostShares(null);
     errorEl.textContent = error.message;
     errorEl.hidden = false;
     byId('results').hidden = true;
@@ -395,7 +455,7 @@ byId('color-picker').addEventListener('click', event => {
   const button = event.target.closest('[data-color]');
   if (!button) return;
   selectedColor = button.dataset.color;
-  syncProjectControls();
+  syncProjectControls({ microResponse: true });
   if (hasCalculated) calculate();
   assistant?.changed('color');
 });
@@ -461,10 +521,10 @@ for (const button of document.querySelectorAll('[data-remodel-view], [data-step3
 byId('remodel-download').addEventListener('click', () => remodel.download());
 byId('roof-picker').addEventListener('click', event => {
   const button = event.target.closest('[data-roof]'); if (!button) return;
-  remodelDesign.roof = button.dataset.roof; syncRemodelControls(); remodel.refresh();
+  remodelDesign.roof = button.dataset.roof; syncRemodelControls(); remodel.refresh({ microResponse: true });
 });
 for (const [id, key] of [['add-porch', 'porch'], ['add-dormers', 'dormers'], ['add-shutters', 'shutters']]) byId(id).addEventListener('change', () => {
-  remodelDesign[key] = byId(id).checked; syncRemodelControls(); remodel.refresh();
+  remodelDesign[key] = byId(id).checked; syncRemodelControls(); remodel.refresh({ microResponse: true });
 });
 syncRemodelControls();
 function renderSavedProjects() {

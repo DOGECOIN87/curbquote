@@ -16,6 +16,8 @@ export function setupWizard({ root = document, onChange } = {}) {
       if (n === current) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current');
       button.classList.toggle('done', n < current);
     }
+    const progressReadout = root.querySelector?.('#step-progress-readout');
+    if (progressReadout) progressReadout.textContent = `Step ${current} of ${last}`;
     if (focus) {
       const heading = parts.find(part => !part.hidden && part.classList.contains('wizard-step'))?.querySelector('h1, h2');
       if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }

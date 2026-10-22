@@ -17,11 +17,11 @@ test('aerial export uses the fixed government source, bounded size, and only coo
   assert.equal(url.searchParams.get('bboxSR'), '3857');
   assert.equal(url.searchParams.has('address'), false);
   assert.equal(url.searchParams.has('token'), false);
-  assert.equal(view.widthMeters, 180);
+  assert.equal(view.widthMeters, 90);
   const p = pointInView(view, coordinates);
   assert.ok(Math.abs(p.x - 480) < 1e-6); assert.ok(Math.abs(p.y - 300) < 1e-6);
   const groundWidth = (view.bbox[2] - view.bbox[0]) * Math.cos(coordinates.lat * Math.PI / 180);
-  assert.ok(Math.abs(groundWidth - 180) < 1e-6);
+  assert.ok(Math.abs(groundWidth - 90) < 1e-6);
 });
 test('pan directions and marker positions remain consistent with the displayed aerial image', () => {
   const center = { lat: 30.2, lon: -97.7 }, view = aerialView(center);

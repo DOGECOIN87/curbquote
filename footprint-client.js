@@ -191,8 +191,9 @@ export function parseGeoJsonFootprint(feature, styleId = DEFAULT_HOME_STYLE) {
  * `referrerPolicy: 'strict-origin'`. Uses relative `api/footprint` when hosted, with a direct
  * Overpass open-data fallback on static GitHub Pages builds.
  */
-export async function fetchPublicFootprint({ address, coordinates, styleId = DEFAULT_HOME_STYLE, consented = false, signal } = {}) {
-  if (!consented) {
+export async function fetchPublicFootprint({ address, coordinates, styleId = DEFAULT_HOME_STYLE, consented = false, openOnly = false, signal } = {}) {
+  // `openOnly` is the automatic lookup after an address match: open data, coordinate only, no confirmation.
+  if (!consented && !openOnly) {
     throw new Error('Confirm that you want to look up public or authorized building dimensions for this address first.');
   }
   if (!hasAerialCoverage(coordinates)) {
@@ -202,7 +203,7 @@ export async function fetchPublicFootprint({ address, coordinates, styleId = DEF
     const response = await fetch('api/footprint', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ address: address || undefined, coordinates, styleId, consented: true }),
+      body: JSON.stringify(openOnly ? { coordinates, styleId, consented: false, openOnly: true } : { address: address || undefined, coordinates, styleId, consented: true }),
       credentials: 'omit',
       referrerPolicy: 'strict-origin',
       cache: 'no-store',

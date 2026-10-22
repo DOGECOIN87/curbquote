@@ -38,6 +38,8 @@ let selectedColor = DEFAULT_PROJECT.color;
 let selectedHomeStyle = DEFAULT_PROJECT.homeStyle;
 let manualStyleOverride = false;
 let footprintData = null;
+// Typed size fields are never overwritten by the automatic open-data lookup.
+let measurementsTouched = false;
 let manualInputsBackup = null;
 let footprintController = null;
 let activeProjectId = null;
@@ -172,6 +174,7 @@ function syncProjectControls({ microResponse = false } = {}) {
     byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`;
   }
   syncRemodelControls();
+  paintInstant();
   remodel.refresh({ microResponse });
 }
 function syncRemodelControls() {
@@ -353,6 +356,7 @@ form.addEventListener('submit', event => {
   calculate({ scroll: true, focus: true });
 });
 form.addEventListener('input', event => {
+  if (event.target.matches('#lengthFt,#widthFt,#stories')) measurementsTouched = true;
   propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
   if (event.target.matches('#sidingProduct,#windowProduct,#doorProduct,[name="tier"]')) setCatalogRates();
@@ -466,23 +470,7 @@ byId('fetch-footprint')?.addEventListener('click', async () => {
       consented: true,
       signal: controller.signal
     });
-    if (!manualInputsBackup) manualInputsBackup = readInputs();
-    footprintData = result;
-    if (!manualStyleOverride && result.suggestedStyle) {
-      selectedHomeStyle = resolveHomeStyle(result.suggestedStyle).id;
-    }
-    const style = resolveHomeStyle(selectedHomeStyle);
-    byId('lengthFt').value = String(Math.round(Math.max(18, Math.min(90, result.lengthFt)) * 2) / 2);
-    byId('widthFt').value = String(Math.round(Math.max(16, Math.min(64, result.widthFt)) * 2) / 2);
-    if (result.stories) byId('stories').value = String(Math.min(4, Math.max(1, Math.round(result.stories))));
-    byId('storyHeightFt').value = String(style.storyHeightFt);
-    byId('gableRiseFt').value = String(style.gableRiseFt);
-    applyStyleDesign(style);
-    statusEl.className = 'field-help success';
-    statusEl.textContent = `${result.source?.provider || 'Public building outline'}: ~${Math.round(result.areaSqFt).toLocaleString()} sq ft ground outline (${Math.round(result.perimeterFt)} ft perimeter) · sized as ${byId('lengthFt').value} × ${byId('widthFt').value} ft (${style.name}). Style variant — approximate, not your surveyed footprint.`;
-    syncProjectControls({ microResponse: true });
-    if (hasCalculated) calculate();
-    refreshReport();
+    applyFootprint(result);
   } catch (error) {
     if (controller.signal.aborted) return;
     statusEl.className = 'field-help error';
@@ -493,6 +481,60 @@ byId('fetch-footprint')?.addEventListener('click', async () => {
   }
 });
 
+/** Sizes the house from a building outline. Automatic results are undone if the address changes. */
+function applyFootprint(result, { automatic = false } = {}) {
+  if (!manualInputsBackup) manualInputsBackup = readInputs();
+  footprintData = { ...result, automatic };
+  if (!manualStyleOverride && result.suggestedStyle) selectedHomeStyle = resolveHomeStyle(result.suggestedStyle).id;
+  const style = resolveHomeStyle(selectedHomeStyle);
+  byId('lengthFt').value = String(Math.round(Math.max(18, Math.min(90, result.lengthFt)) * 2) / 2);
+  byId('widthFt').value = String(Math.round(Math.max(16, Math.min(64, result.widthFt)) * 2) / 2);
+  if (result.stories) byId('stories').value = String(Math.min(4, Math.max(1, Math.round(result.stories))));
+  byId('storyHeightFt').value = String(style.storyHeightFt);
+  byId('gableRiseFt').value = String(style.gableRiseFt);
+  applyStyleDesign(style);
+  byId('footprint-status').className = 'field-help success';
+  byId('footprint-status').textContent = `${automatic ? 'Sized automatically from ' : ''}${result.source?.provider || 'Public building outline'}: ~${Math.round(result.areaSqFt).toLocaleString()} sq ft ground outline (${Math.round(result.perimeterFt)} ft perimeter) · sized as ${byId('lengthFt').value} × ${byId('widthFt').value} ft (${style.name}). Style variant — approximate, not your surveyed footprint.`;
+  syncProjectControls({ microResponse: true });
+  if (hasCalculated) calculate();
+  refreshReport();
+}
+/** After an address match, size the house from open data with no extra click, unless the homeowner typed a size. */
+async function autoFootprint(location) {
+  if (footprintData || measurementsTouched || !location?.coordinates) return;
+  footprintController?.abort();
+  const controller = new AbortController(), statusEl = byId('footprint-status');
+  footprintController = controller;
+  statusEl.className = 'field-help'; statusEl.textContent = 'Looking up the public building outline for this address…';
+  paintInstant('Sizing your home from public building outlines…');
+  try {
+    const result = await fetchPublicFootprint({ coordinates: location.coordinates, styleId: selectedHomeStyle, openOnly: true, signal: controller.signal });
+    if (controller.signal.aborted || matched !== location || measurementsTouched) return;
+    applyFootprint(result, { automatic: true });
+  } catch (error) {
+    if (controller.signal.aborted || matched !== location) return;
+    statusEl.className = 'field-help';
+    statusEl.textContent = error instanceof Error ? error.message : 'No public building outline is available. Enter measurements manually below.';
+  } finally {
+    if (footprintController === controller) footprintController = null;
+    paintInstant();
+  }
+}
+/** The Step 1 card: what the instant number is based on, in one line. */
+function paintInstant(busy = '') {
+  if (!byId('instant-basis')) return;
+  const p = projectOptions(), style = resolveHomeStyle(selectedHomeStyle);
+  const scopes = [['siding', 'siding'], ['windows', 'windows'], ['doors', 'doors']].filter(([key]) => p[key]).map(([, label]) => label);
+  const scope = scopes.length > 1 ? `${scopes.slice(0, -1).join(', ')} and ${scopes.at(-1)}` : scopes[0] || 'no trades selected';
+  const size = `${byId('lengthFt').value} × ${byId('widthFt').value} ft, ${byId('stories').value}-story ${style.name.toLowerCase()}`;
+  byId('instant-label').textContent = matched ? 'Instant estimate for this address' : 'Instant estimate for a typical home';
+  byId('instant-basis').textContent = busy || (footprintData
+    ? `${size}, sized from ${footprintData.source?.provider || 'a public building outline'} · ${scope} · ${TIERS[p.tier].name} tier.`
+    : matched
+    ? `Example ${size} · ${scope} · ${TIERS[p.tier].name} tier. Adjust the size in Customize for a closer range.`
+    : `Example ${size} · ${scope} · ${TIERS[p.tier].name} tier. Enter your address to size it to your home.`);
+}
+
 byId('clear-footprint')?.addEventListener('click', () => {
   resetFootprintState({ restoreManual: true });
   syncProjectControls({ microResponse: true });
@@ -501,7 +543,9 @@ byId('clear-footprint')?.addEventListener('click', () => {
 });
 
 function addressChanged() {
-  cancelAddressLookup(); resetFootprintState(); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
+  const undoAuto = footprintData?.automatic === true && !measurementsTouched;
+  cancelAddressLookup(); resetFootprintState({ restoreManual: undoAuto }); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
+  if (undoAuto) { syncProjectControls(); if (hasCalculated) calculate(); }
   addressEl.removeAttribute('aria-invalid'); addressStatus.className = 'field-help';
   addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. Your property view will load automatically.' : 'Your property view loads as you type a complete U.S. address. Location is approximate.';
   refreshReport(); scheduleAddressLookup();
@@ -567,6 +611,7 @@ async function lookupAddress({ automatic = false } = {}) {
     if (serial !== lookupSerial) return;
     matched = payload;
     propertyPreview.show(payload);
+    autoFootprint(payload);
     if (automatic) propertyLookup?.lookup({ automatic: true });
     addressStatus.textContent = `Approximate location matched: ${payload.matchedAddress}. This is not a building measurement or ownership check.`;
     addressStatus.className = 'field-help success';
@@ -773,7 +818,7 @@ byId('new-project').addEventListener('click', () => {
   projectLoadSerial++; cancelAddressLookup(); activeProjectId = null;
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
-  form.reset(); selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset();
+  form.reset(); measurementsTouched = false; selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset();
   addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
   remodelDesign = { ...DEFAULT_DESIGN, split: 100 }; remodel.setSplit(100); for (const [id, key] of ADDITIONS) byId(id).checked = DEFAULT_DESIGN[key]; syncRemodelControls();
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab('remodel'); projectDialog.close(); wizard.show(1); notify('New project started with clearly labeled example measurements.');

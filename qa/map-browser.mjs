@@ -7,7 +7,7 @@ import { createGeocodeHandler } from '../api/geocode.js';
 import { createMap3DHandler } from '../api/map3d.js';
 import { mapTileJSON, syntheticMapTile, mapImageryPng } from './fixtures/map.mjs';
 
-const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }), geocodeHandler: createGeocodeHandler(async () => ({ matchedAddress: 'SYNTHETIC QA PROPERTY, DC', coordinates: { lat: 38.84, lon: -76.9 }, source: 'Synthetic test location' })) });
+const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }), dimensionsHandler: async (req, res) => { res.setHeader('Cache-Control', 'no-store'); return res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }); }, geocodeHandler: createGeocodeHandler(async () => ({ matchedAddress: 'SYNTHETIC QA PROPERTY, DC', coordinates: { lat: 38.84, lon: -76.9 }, source: 'Synthetic test location' })) });
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined });

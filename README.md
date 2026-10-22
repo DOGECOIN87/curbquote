@@ -9,7 +9,9 @@ examples, and accuracy hasn't been checked against completed jobs yet.
 ## What the MVP does
 
 1. **Find the home.** Type a U.S. address. After a short pause, the Census Bureau matches an
-   approximate location. A "What each property view shows" summary on the same panel explains the
+   approximate location, the open building outline sizes the house automatically, and an instant
+   estimate appears under the address: **See my estimate** is the only click needed to reach the
+   full breakdown. A "What each property view shows" summary on the same panel explains the
    aerial photo, the optional Google 3D view, the Austin lidar example, the remodel studio and your
    own photo, and what each one can and cannot tell you.
 2. **See it in 3D.** When a 3D credential is configured, Google's photorealistic 3D model opens on
@@ -46,8 +48,8 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 95 Node tests, public build
-npm run test:browser   # 56 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run check          # syntax checks, 96 Node tests, public build
+npm run test:browser   # 57 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, controls, cancellation and fallback
 ```
 

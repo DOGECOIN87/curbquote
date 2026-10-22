@@ -42,6 +42,12 @@
             <div class="field-help" id="address-status" role="status" aria-live="polite">Your property view loads as you type. Location is approximate.</div>
             <button type="button" id="exterior-example" class="exterior-example">Try an exterior example <span aria-hidden="true">↗</span></button>
           </div>
+          <section id="instant-estimate" class="instant-estimate" aria-labelledby="instant-label">
+            <h2 id="instant-label">Instant estimate for a typical home</h2>
+            <p class="instant-range"><strong data-live-range>—</strong></p>
+            <p id="instant-basis" class="instant-basis" aria-live="polite">Example 48 × 34 ft, 2-story colonial · siding, windows and doors · Standard tier. Enter your address to size it to your home.</p>
+            <div class="instant-actions"><button type="button" class="primary-button" data-step-link="5">See my estimate <span aria-hidden="true">→</span></button><button type="button" class="outline-button" data-step-link="2">Customize</button></div>
+          </section>
           <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick">✓</span>No sign-up required</span><span class="meta-divider"></span><span class="hero-benefit"><span class="meta-tick">✓</span>Save projects on this device</span></div>
           <ol class="hero-steps" aria-label="How CurbQuote works">
             <li><span class="hero-step-dot" aria-hidden="true">1</span><div><strong>Find your home</strong><p>An approximate Census match with an aerial or 3D view.</p></div></li>
@@ -103,7 +109,6 @@
         </div>
         <div id="property-applied" class="property-applied" hidden><p id="property-applied-note" class="studio-help"></p><button type="button" id="undo-property" class="outline-button">Undo imported details</button></div>
       </div>
-        <div class="wizard-nav"><span></span><button type="button" class="primary-button" data-next>Next: your project <span aria-hidden="true">→</span></button></div>
       </div>
       <div class="workspace">
         <form id="estimate-form" class="entry-panel" data-step="2 3 4" novalidate hidden>

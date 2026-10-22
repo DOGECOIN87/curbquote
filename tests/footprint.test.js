@@ -185,3 +185,27 @@ test('parseGeoJsonFootprint and storage persistence preserve footprint metadata 
   assert.equal(saved.options.homeStyle, 'craftsman-bungalow');
   assert.equal(saved.footprintData.source.approximate, true);
 });
+
+test('the automatic open-data lookup needs no confirmation, skips licensed providers and never sends the address', async () => {
+  const licensedCalls = [], microsoftUrls = [];
+  const result = await resolveFootprint(
+    { address: '123 Example St, Austin, TX 78701', coordinates: AUSTIN_CENTER, consented: false, openOnly: true },
+    {
+      env: { DATA_USE_APPROVED: 'true', EARTHDEFINE_KEY: 'earthdefine-secret-key', MICROSOFT_FOOTPRINTS_URL: 'https://footprints.example/v1' },
+      fetchJson: async url => { if (url.hostname === 'footprints.example') { microsoftUrls.push(url); return { status: 500, payload: null }; } licensedCalls.push(url.hostname); return { status: 200, payload: {} }; },
+      propertyResolver: async () => { licensedCalls.push('property'); throw new Error('must not run'); },
+      fetchOverpass: async () => ({ elements: [{ type: 'way', tags: { building: 'yes' }, geometry: HOUSE_RING.map(([lon, lat]) => ({ lon, lat })) }] }),
+      now: Date.parse('2026-10-22T12:00:00Z')
+    }
+  );
+  assert.deepEqual(licensedCalls, []);
+  assert.equal(microsoftUrls.length, 1);
+  assert.equal(microsoftUrls[0].searchParams.has('address'), false);
+  assert.equal(result.source.provider, 'OpenStreetMap / Overpass (ODbL)');
+  await assert.rejects(() => resolveFootprint({ coordinates: AUSTIN_CENTER, consented: false }, { env: {} }), error => error.code === 'FOOTPRINT_CONSENT_REQUIRED');
+  const handler = createFootprintHandler({ resolve: async body => ({ received: body }), allow: () => true });
+  const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
+  await handler({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ coordinates: AUSTIN_CENTER, consented: false, openOnly: true }) }, res);
+  assert.equal(res.code, 200);
+  assert.equal(res.data.received.openOnly, true);
+});

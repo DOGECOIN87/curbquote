@@ -13,6 +13,8 @@ import { propertyEnv, providerObject, propertyRecord } from './fixtures/property
 const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
 const server = createAppServer({
   mapHandler: createMap3DHandler({ env: {} }),
+  // Automatic open-data sizing runs after every match; a fixed outage keeps the default example dimensions here.
+  dimensionsHandler: async (req, res) => { res.setHeader('Cache-Control', 'no-store'); return res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }); },
   geocodeHandler: createGeocodeHandler(value => resolveAddress(value, async url => {
     assert.equal(new URL(url).hostname, 'geocoding.geo.census.gov');
     return { ok: true, json: async () => ({ result: { addressMatches: [{
@@ -549,6 +551,37 @@ try {
   await page.locator('#verify-address').click(); await page.waitForFunction(() => document.querySelector('#property-status').textContent.includes('could not be read'));
   assert.equal(await resultsShown(), true); await page.unroute('**/api/property');
   checks.push('Expiring source records are cleared from the DOM; malformed provider responses leave manual estimating usable');
+  const quick = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const footprintBodies = [];
+  quick.on('pageerror', error => errors.push(error.message));
+  await quick.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await quick.route('**/api/footprint', route => {
+    footprintBodies.push(JSON.parse(route.request().postData() || '{}'));
+    return route.fulfill({ json: { areaSqFt: 1917, perimeterFt: 179, lengthFt: 54, widthFt: 35.5, stories: 2, suggestedStyle: 'foursquare', source: { provider: 'OpenStreetMap / Overpass (ODbL)', license: 'ODbL-1.0', retrievedAt: '2026-10-22T12:00:00Z', approximate: true } } });
+  });
+  await quick.goto(base);
+  assert.equal(await quick.locator('#instant-estimate').isVisible(), true);
+  const typicalRange = await quick.locator('#instant-estimate [data-live-range]').textContent();
+  assert.match(typicalRange, /^\$/, 'a typical-home range shows before any input');
+  await quick.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
+  await quick.waitForFunction(() => document.querySelector('#footprint-status').textContent.startsWith('Sized automatically'), null, { timeout: 15000 });
+  assert.deepEqual([await quick.locator('#lengthFt').inputValue(), await quick.locator('#widthFt').inputValue()], ['54', '35.5']);
+  assert.equal(footprintBodies.length, 1);
+  assert.deepEqual(footprintBodies[0], { coordinates: { lat: 38.84, lon: -76.9 }, styleId: 'colonial-2story', consented: false, openOnly: true }, 'the automatic lookup sends open-data mode and the coordinate only, never the street address');
+  assert.match(await quick.locator('#instant-basis').textContent(), /54 × 35.5 ft, 2-story foursquare, sized from OpenStreetMap/);
+  const sizedRange = await quick.locator('#instant-estimate [data-live-range]').textContent();
+  assert.notEqual(sizedRange, typicalRange);
+  await quick.locator('#instant-estimate .primary-button').click();
+  assert.equal(await quick.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
+  assert.equal(await quick.locator('#total-range').textContent(), sizedRange, 'one click after typing the address reaches the full estimate');
+  await go('#lengthFt', quick); await quick.locator('#lengthFt').fill('60');
+  await go('#property-address', quick); await quick.locator('#property-address').fill('4601 Silver Hill Rd, Washington, DC 20233');
+  await quick.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
+  await quick.waitForTimeout(300);
+  assert.equal(footprintBodies.length, 1, 'a typed size is never replaced by a later automatic lookup');
+  assert.equal(await quick.locator('#lengthFt').inputValue(), '60');
+  await quick.close();
+  checks.push('Express path: a typical-home range shows on arrival, the matched address sizes the home from open data with no extra click and no street address sent, one click reaches the full estimate, and typed sizes are never overwritten');
   const page3d = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const googleRequests = [], syntheticKey = 'SYNTHETIC-TEST-KEY-NOT-REAL-0000';
   page3d.on('pageerror', error => errors.push(error.message));

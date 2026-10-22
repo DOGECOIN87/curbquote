@@ -10,7 +10,8 @@ const requestSchema = z.object({
     lon: z.number().finite().min(-180).max(180)
   }).strict(),
   styleId: z.string().max(48).optional(),
-  consented: z.boolean()
+  consented: z.boolean(),
+  openOnly: z.boolean().optional()
 }).strict();
 
 const limiter = createRequestLimiter({ limit: 10 });

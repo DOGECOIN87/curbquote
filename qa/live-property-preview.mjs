@@ -7,7 +7,8 @@ import { chromium } from 'playwright';
 import { createAppServer } from '../lib/web.mjs';
 
 if (process.env.LIVE_PROPERTY_PREVIEW !== '1') throw new Error('Set LIVE_PROPERTY_PREVIEW=1 to contact Census and USGS with the public test address.');
-const server = createAppServer(); server.listen(0, '127.0.0.1'); await once(server, 'listening');
+// This live check covers Census and USGS; building outlines are exercised by the fixture suites.
+const server = createAppServer({ dimensionsHandler: async (req, res) => { res.setHeader('Cache-Control', 'no-store'); return res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }); } }); server.listen(0, '127.0.0.1'); await once(server, 'listening');
 let browser;
 const proxyUrl = process.env.HTTPS_PROXY ? new URL(process.env.HTTPS_PROXY) : null;
 try {

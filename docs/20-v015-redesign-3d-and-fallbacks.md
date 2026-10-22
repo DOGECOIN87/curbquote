@@ -6,6 +6,34 @@ the property view degrade through a chain of free fallbacks until the Google Map
 Estimate maths, pricing, disclosures and the "concept model, not a measurement" guardrails are
 unchanged. No eyebrow labels were added.
 
+## Express path: fewest clicks to an estimate
+
+The product goal is the fewest clicks and inputs from arrival to a finished estimate.
+
+| | Inputs | Clicks to the full estimate |
+|---|---|---|
+| Before | 1 (address) | 4 (Next, Next, Next, See my estimate) |
+| Now | 1 (address) | 1 (See my estimate) |
+| Now, without an address | 0 | 1 (a typical-home range shows on arrival) |
+
+- **Instant estimate on Step 1.** A card under the address field shows a live range for a typical home
+  on arrival, and re-prices as soon as the address matches. **See my estimate** opens Step 5 directly;
+  **Customize** walks through Steps 2–4. The separate "Next: your project" button is gone.
+- **Automatic open-data sizing.** After a real address match, the open building outline (Microsoft
+  ODbL when configured, else OpenStreetMap) fills in length, width and stories and suggests a style,
+  with no confirmation click. This mode skips licensed providers and sends only the coordinate, never
+  the street address. Licensed providers (EarthDefine, EagleView, ATTOM, property records) still need
+  the explicit confirmation in Step 3.
+- **Typed sizes win.** Once a homeowner types a length, width or story count, later automatic lookups
+  never overwrite it. If the address changes, an automatic sizing is undone before the new lookup.
+- Saving still pre-fills the project name from the address, so saving is two clicks with no typing.
+
+![Step 1 after an address match](assets/ui-review/v015-express-matched-desktop.png)
+
+[On arrival](assets/ui-review/v015-express-arrival-desktop.png) ·
+[On a phone](assets/ui-review/v015-express-matched-mobile.png). These use a synthetic address match,
+aerial tile and outline, because this sandbox cannot reach Census, USGS or OpenStreetMap.
+
 ## Rebuilt 3D houses
 
 The old studio built roofs from rotated boxes. Hip roofs (Ranch, Foursquare) came out as broken,
@@ -119,7 +147,7 @@ origin by the `strict-origin` referrer policy, and every failure mode lands on t
 ## Verification
 
 ```text
-npm run check          # syntax checks, 95 Node tests, public build
-npm run test:browser   # 56 Chromium checks: app (39), map (11), 3D remodel (6)
+npm run check          # syntax checks, 96 Node tests, public build
+npm run test:browser   # 57 Chromium checks: app (40), map (11), 3D remodel (6)
 npm run test:exterior  # 6 checks for the Austin exterior model
 ```

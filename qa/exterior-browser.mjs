@@ -6,7 +6,7 @@ import { createAppServer } from '../lib/web.mjs';
 import { createMap3DHandler } from '../api/map3d.js';
 import { EXTERIOR_EXAMPLE } from '../exterior-catalog.js';
 
-const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }) });
+const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }), dimensionsHandler: async (req, res) => { res.setHeader('Cache-Control', 'no-store'); return res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }); } });
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true, args: ['--enable-unsafe-swiftshader'] });

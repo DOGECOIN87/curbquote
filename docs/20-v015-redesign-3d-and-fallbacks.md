@@ -6,6 +6,31 @@ the property view degrade through a chain of free fallbacks until the Google Map
 Estimate maths, pricing, disclosures and the "concept model, not a measurement" guardrails are
 unchanged. No eyebrow labels were added.
 
+## Step 1 canvas: one screen, map above the address bar
+
+Step 1 is a single screen on desktop, at 1366 × 768, 1440 × 900 and 1920 × 1080 alike:
+
+- **The property view is the canvas.** The map, 3D view or exterior model fills the space under the
+  header. Before an address the canvas is transparent and shows the welcome headline behind it.
+- **The address bar floats at the foot of the map**, like a chat input. It only takes an address;
+  "Try an example home" sits beside its label.
+- **The instant estimate floats top left**, so "See my estimate" is always one click away. View tools
+  (zoom, pan, map modes, 3D controls) and the view's status float top right; "Explore map",
+  "View in 3D" and "Use my exterior photo" sit bottom left, with imagery credits bottom right.
+- **Phones stack the same parts**: headline, then a card with the map (once an address matches)
+  directly above the address bar, then the instant estimate.
+- The draft notice floats over the top of the canvas on wide screens instead of pushing it down.
+- In the DOM the address input comes first, so keyboard and screen-reader users reach it before
+  the map tools; the grid places it visually under the map.
+
+| Before an address | After a match |
+|---|---|
+| ![Canvas before an address](assets/ui-review/v015-canvas-arrival-desktop.png) | ![Canvas after a match](assets/ui-review/v015-canvas-matched-desktop.png) |
+
+On a phone: [before an address](assets/ui-review/v015-canvas-arrival-phone.png) ·
+[after a match](assets/ui-review/v015-canvas-matched-phone.png). The green map is the synthetic QA
+imagery, because this sandbox cannot reach USGS.
+
 ## Express path: fewest clicks to an estimate
 
 The product goal is the fewest clicks and inputs from arrival to a finished estimate.
@@ -78,6 +103,8 @@ a black metal roof); trim, lighting, garage and fence stay as the homeowner set 
 options touch `estimate.js` or the price.
 
 ## Professional redesign
+
+This section describes the first redesign pass; the minimal canvas above supersedes its Step 1 layout.
 
 `styles.css` was several theme layers overriding each other (about 78 KB). It is now one design
 system (about 61 KB): a single token set for color, radius, elevation and focus; one type scale; card

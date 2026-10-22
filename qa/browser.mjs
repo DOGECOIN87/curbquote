@@ -85,7 +85,9 @@ try {
   await page.locator('#aerial-stage').focus(); await page.keyboard.press('ArrowRight');
   await page.waitForFunction(() => document.querySelector('#aerial-controls').hidden === false);
   const beforeTap = await page.locator('#aerial-images img').getAttribute('src');
-  await page.locator('#aerial-stage').click({ position: { x: 70, y: 70 } });
+  // The instant estimate floats over the map's top left, so tap the open left middle.
+  const tapBounds = await page.locator('#aerial-stage').boundingBox();
+  await page.locator('#aerial-stage').click({ position: { x: 70, y: Math.round(tapBounds.height / 2) } });
   await page.waitForFunction(previous => {
     const image = document.querySelector('#aerial-images img'); return image?.complete && image.getAttribute('src') !== previous;
   }, beforeTap);

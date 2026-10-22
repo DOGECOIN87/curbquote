@@ -8,6 +8,7 @@ import { setupPropertyMap } from './property-map.js';
  * The property view degrades in tiers, so something useful always shows:
  * reviewed local exterior → Google 3D (key or Cesium ion) → key-free open 3D buildings
  * (OpenStreetMap heights) → USGS aerial photo → street map → the homeowner's own photo.
+ * The stage's data-view (empty, busy, error, matched) lets the Step 1 canvas show its welcome state.
  */
 export function setupPropertyPreview({ onPhoto }) {
   const byId = id => document.getElementById(id);
@@ -146,17 +147,17 @@ export function setupPropertyPreview({ onPhoto }) {
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
-    byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'Aerial preview';
+    stage.dataset.view = 'empty'; byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'Aerial preview';
     placeholder('Your place starts here.', 'Type a complete U.S. address. Your property will appear automatically.');
     status.textContent = 'An aerial view helps you recognize the building. It does not supply renovation measurements.';
   }
   function searching() {
-    clear(); stage.setAttribute('aria-busy', 'true');
+    clear(); stage.setAttribute('aria-busy', 'true'); stage.dataset.view = 'busy';
     placeholder('Finding your place…', 'Matching the address, then bringing the surrounding buildings into view.');
     status.textContent = 'Looking up the approximate address location…';
   }
   function failed(message = 'No location match yet. Check the address or continue with your home details.') {
-    clear(); placeholder('Let’s find your place.', message); status.textContent = message;
+    clear(); stage.dataset.view = 'error'; placeholder('Let’s find your place.', message); status.textContent = message;
   }
   function syncMarker() {
     const p = pointInView(view, match.coordinates);
@@ -199,7 +200,7 @@ export function setupPropertyPreview({ onPhoto }) {
   }
   function show(location) {
     if (!isAddressMatch(location)) { failed(); return; }
-    clear(); match = location; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
+    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
     const covered = hasAerialCoverage(location.coordinates);
     if (covered) center = { ...location.coordinates };
     else {

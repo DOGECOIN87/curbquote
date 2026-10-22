@@ -10,6 +10,7 @@ import { setupExterior3D } from './property-exterior.js';
 export { webgl2Available } from './cesium-runtime.js';
 
 const HEIGHT_TIMEOUT = 15000;
+const TILE_FAILURES = 6;
 // CesiumJS defaults to a 1.5 GB in-memory tile cache for Google tiles, too much for phones.
 const CACHE_BYTES = 256 * 1024 * 1024;
 
@@ -68,7 +69,15 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange }) {
       });
       // Without a Google key, CesiumJS requests the same tiles through Cesium ion with the configured token.
       if (ionToken) Cesium.Ion.defaultAccessToken = ionToken;
-      widget.scene.primitives.add(await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }));
+      const tileset = widget.scene.primitives.add(await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }));
+      // A key that runs out of quota or is revoked mid-visit fails tile by tile; hand over to the next tier.
+      let loadedTiles = 0, failedTiles = 0;
+      tileset.tileLoad.addEventListener(() => { loadedTiles++; });
+      tileset.tileFailed.addEventListener(() => {
+        if (++failedTiles < TILE_FAILURES || loadedTiles > failedTiles * 4) return;
+        const active = open; destroy(); close();
+        if (active) onFailure?.(new Error('Google 3D tiles were refused.'));
+      });
       marker = widget.scene.primitives.add(new Cesium.PointPrimitiveCollection()).add({
         pixelSize: 14, color: Cesium.Color.fromCssColorString('#89C63F'), outlineColor: Cesium.Color.fromCssColorString('#102303'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
       });

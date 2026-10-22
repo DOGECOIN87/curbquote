@@ -8,8 +8,13 @@ export const PRODUCTS = Object.freeze({
   doors: Object.freeze({ steel: { name: 'Steel entry door', rates: [1200, 3000] }, fiberglass: { name: 'Fiberglass entry door', rates: [1800, 4200] }, wood: { name: 'Wood entry door', rates: [2500, 6000] } })
 });
 export const TIERS = Object.freeze({ standard: { name: 'Standard', multiplier: 1 }, enhanced: { name: 'Enhanced', multiplier: 1.25 }, premium: { name: 'Premium', multiplier: 1.6 } });
-export const COLORS = Object.freeze({ sage: { name: 'Sage', hex: '#829581' }, cream: { name: 'Warm ivory', hex: '#e9dfc8' }, slate: { name: 'Coastal slate', hex: '#637c8a' }, charcoal: { name: 'Charcoal', hex: '#42494d' }, terracotta: { name: 'Terracotta', hex: '#b4765c' }, white: { name: 'Soft white', hex: '#e7e8e2' } });
-export const PROJECT_HOME_STYLES = Object.freeze(['colonial-2story', 'ranch-1story', 'craftsman-bungalow', 'cape-cod', 'tudor-gable', 'farmhouse-porch', 'split-level', 'midcentury-flat', 'victorian-gingerbread', 'foursquare', 'creole-cottage', 'contemporary-gable']);
+export const COLORS = Object.freeze({
+  sage: { name: 'Sage', hex: '#829581' }, cream: { name: 'Warm ivory', hex: '#e9dfc8' }, slate: { name: 'Coastal slate', hex: '#637c8a' },
+  charcoal: { name: 'Charcoal', hex: '#42494d' }, terracotta: { name: 'Terracotta', hex: '#b4765c' }, white: { name: 'Soft white', hex: '#e7e8e2' },
+  navy: { name: 'Deep navy', hex: '#3e4f63' }, forest: { name: 'Forest', hex: '#5a6a52' }, greige: { name: 'Warm greige', hex: '#a69d8a' },
+  barn: { name: 'Barn red', hex: '#8b3d35' }, butter: { name: 'Butter yellow', hex: '#e3cd92' }, iron: { name: 'Iron black', hex: '#2e3133' }
+});
+export const PROJECT_HOME_STYLES = Object.freeze(['colonial-2story', 'ranch-1story', 'craftsman-bungalow', 'cape-cod', 'tudor-gable', 'farmhouse-porch', 'split-level', 'midcentury-flat', 'victorian-gingerbread', 'foursquare', 'creole-cottage', 'contemporary-gable', 'dutch-colonial', 'saltbox', 'modern-farmhouse', 'prairie']);
 export const DEFAULT_PROJECT = Object.freeze({ siding: true, windows: true, doors: true, sidingProduct: 'vinyl', windowProduct: 'vinyl', doorProduct: 'steel', tier: 'standard', coveragePercent: 100, color: 'sage', homeStyle: 'colonial-2story' });
 
 export function validateProject(candidate = {}) {

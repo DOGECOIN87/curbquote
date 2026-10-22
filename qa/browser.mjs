@@ -69,8 +69,10 @@ try {
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
   assert.match(await page.locator('#aerial-status').textContent(), /approximate Census/);
   checks.push('A complete typed address automatically loads aerial imagery after one debounce; street fragments make no lookup');
-  assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), false);
-  checks.push('Without a configured Google key the 3D toggle stays hidden');
+  const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
+  assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), webgl2);
+  if (webgl2) assert.equal(await page.locator('#aerial-3d-toggle').textContent(), 'View in 3D');
+  checks.push('Without a Google key, View in 3D still offers the key-free open 3D buildings tier on WebGL2 devices');
   await page.locator('#aerial-zoom-in').click();
   await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('60'));
   const zoomUrl = await page.locator('#aerial-images img').getAttribute('src');
@@ -555,6 +557,9 @@ try {
   await page3d.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
   await page3d.route('**/api/map3d', route => route.fulfill({ json: { configured: true, provider: 'Google Photorealistic 3D Tiles', key: syntheticKey } }));
   await page3d.route('https://tile.googleapis.com/**', route => route.fulfill({ status: 403, headers: { 'Access-Control-Allow-Origin': '*' }, json: { error: { code: 403, message: 'Synthetic denial' } } }));
+  // The open 3D buildings tier is tried next; an outage there must still end on the aerial photo.
+  const openMapRequests = [];
+  await page3d.route('https://tiles.openfreemap.org/**', route => { openMapRequests.push(route.request().url()); return route.fulfill({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' }, json: { error: 'Synthetic map outage' } }); });
   await page3d.goto(base);
   await page3d.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
   await page3d.locator('#verify-address').click();
@@ -563,6 +568,7 @@ try {
     // 3D opens automatically after the match; the denied key falls back to the aerial photo.
     await page3d.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('Aerial view ready'), null, { timeout: 30000 });
     assert.equal(googleRequests.length, 1);
+    assert.ok(openMapRequests.length >= 1, 'a denied Google key falls back to the open 3D buildings tier before the aerial photo');
     assert.equal(googleRequests[0].headers().referer, `${base}/`);
     assert.equal(new URL(googleRequests[0].url()).searchParams.get('key'), syntheticKey);
     assert.equal(await page3d.locator('.aerial-3d:visible').count(), 0);
@@ -573,7 +579,7 @@ try {
     assert.equal(googleRequests.length, 2);
     assert.equal(await page3d.locator('#aerial-controls').isVisible(), true);
     assert.equal(await page3d.locator('.aerial-3d:visible').count(), 0);
-    checks.push('A configured 3D view opens automatically under the CSP, sends Google only the site origin, and a denied key falls back to the aerial photo');
+    checks.push('A configured 3D view opens automatically under the CSP, sends Google only the site origin, and a denied key falls back through open 3D buildings to the aerial photo');
   } else {
     assert.equal(await page3d.locator('#aerial-3d-toggle').isVisible(), false);
     checks.push('Without WebGL2 the configured 3D toggle stays hidden');

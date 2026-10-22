@@ -24,6 +24,7 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
   let map = null, open = false, serial = 0, location = null, mode = 'hybrid', stopWaiting, dataReady = false, aerialReady = false;
   const MODE_KEY = 'curbquote.map.mode';
   const loadMode = () => { try { const v = localStorage.getItem(MODE_KEY); return v === 'hybrid' || v === 'map' ? v : null; } catch { return null; } };
+  const motion = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900;
   const saveMode = v => { try { localStorage.setItem(MODE_KEY, v); } catch {} };
   const available = webgl2Available();
   function refreshHousenumbers() {
@@ -55,15 +56,26 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     container.replaceChildren(); container.hidden = true; container.removeAttribute('aria-busy'); onSelection?.(false);
   }
   function message() {
+    if (mode === '3d') return 'Open 3D buildings ready. Heights come from OpenStreetMap where mapped and are approximate. Drag to pan, right-drag or two-finger drag to tilt and rotate. Display only; no measurements.';
     const prefix = mode === 'hybrid' ? aerialReady ? 'Hybrid view ready.' : 'Map ready; aerial imagery is loading.' : 'Map view ready.';
     return `${prefix} Tap a mapped building to highlight it. Drag, use arrow keys, or use two fingers on a phone. The dot is an approximate address point.`;
   }
   function setMode(value) {
-    const next = value === 'hybrid' && hasAerialCoverage(location?.coordinates) ? 'hybrid' : 'map';
-    if (next === mode && map?.getLayer('aerial') && map.getLayoutProperty('aerial', 'visibility') === (next === 'hybrid' ? 'visible' : 'none')) return mode;
+    const covered = hasAerialCoverage(location?.coordinates);
+    const next = value === '3d' ? '3d' : value === 'hybrid' && covered ? 'hybrid' : 'map';
+    const imagery = next !== 'map' && covered;
+    if (next === mode && map?.getLayer('aerial') && map.getLayoutProperty('aerial', 'visibility') === (imagery ? 'visible' : 'none') && map.getLayoutProperty('building-3d', 'visibility') === (next === '3d' ? 'visible' : 'none')) return mode;
+    const wasPitched = mode === '3d';
     mode = next;
-    saveMode(mode);
-    if (map?.getLayer('aerial')) map.setLayoutProperty('aerial', 'visibility', mode === 'hybrid' ? 'visible' : 'none');
+    if (mode !== '3d') saveMode(mode);
+    if (map?.getLayer('aerial')) map.setLayoutProperty('aerial', 'visibility', imagery ? 'visible' : 'none');
+    if (map?.getLayer('building-3d')) {
+      const solid = mode === '3d';
+      map.setLayoutProperty('building-3d', 'visibility', solid ? 'visible' : 'none');
+      for (const layer of ['building-fill', 'building-outline']) map.setLayoutProperty(layer, 'visibility', solid ? 'none' : 'visible');
+      if (solid) { map.dragRotate.enable(); map.touchPitch.enable(); map.easeTo({ pitch: 58, bearing: -24, zoom: Math.min(map.getZoom(), 18.4), duration: motion() }); }
+      else if (wasPitched) { map.dragRotate.disable(); map.touchPitch.disable(); map.easeTo({ pitch: 0, bearing: 0, duration: motion() }); }
+    }
     if (map?.getLayer('building-fill')) {
       map.setPaintProperty('building-fill', 'fill-opacity', mode === 'hybrid' ? .22 : .75);
       map.setPaintProperty('building-outline', 'line-color', mode === 'hybrid' ? '#d4ffac' : '#49654e');
@@ -78,12 +90,13 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     if (Number.isFinite(entry.lon) && Number.isFinite(entry.lat)) map.jumpTo({ center: [entry.lon, entry.lat], zoom: Math.max(map.getZoom(), 19) });
     else if (location) map.jumpTo({ center: [location.coordinates.lon, location.coordinates.lat], zoom: 19 });
   }
-  async function show(value) {
+  /** `initialMode` '3d' opens straight into the key-free 3D buildings view. */
+  async function show(value, { initialMode = null } = {}) {
     close();
     if (!available || !isAddressMatch(value)) throw new Error('Interactive map is unavailable on this device.');
     const request = serial; location = value;
     const saved = loadMode();
-    mode = saved ? (saved === 'hybrid' && !hasAerialCoverage(value.coordinates) ? 'map' : saved) : (hasAerialCoverage(value.coordinates) ? 'hybrid' : 'map');
+    mode = initialMode === '3d' ? '3d' : saved ? (saved === 'hybrid' && !hasAerialCoverage(value.coordinates) ? 'map' : saved) : (hasAerialCoverage(value.coordinates) ? 'hybrid' : 'map');
     open = true; container.hidden = false; container.setAttribute('aria-busy', 'true');
     let importTimeout;
     const api = await Promise.race([loadRenderer(), new Promise((_, reject) => { importTimeout = setTimeout(() => reject(new Error('Map runtime timed out.')), 10000); })]).finally(() => clearTimeout(importTimeout));
@@ -102,7 +115,7 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     const selectAt = point => {
       if (request !== serial || !open) return;
       if (!instance.getLayer('building-fill')) return;
-      const feature = instance.queryRenderedFeatures(point, { layers: ['building-fill'] }).map(buildingHighlight).find(Boolean);
+      const feature = instance.queryRenderedFeatures(point, { layers: [mode === '3d' ? 'building-3d' : 'building-fill'] }).map(buildingHighlight).find(Boolean);
       instance.getSource('selected').setData(feature || emptySelection()); onSelection?.(Boolean(feature));
     };
     instance.getCanvas().setAttribute('aria-label', 'Property map. Arrow keys pan, plus and minus zoom, Enter highlights a building at the center, and Escape clears the highlight.');
@@ -124,15 +137,17 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
       const deadline = setTimeout(fail, LOAD_TIMEOUT);
       stopWaiting = () => finish(null, null);
       instance.on('sourcedata', event => {
-        if (request === serial && open && event.sourceId === 'naip' && event.coord && mode === 'hybrid') {
+        if (request === serial && open && event.sourceId === 'naip' && event.coord && mode !== 'map') {
           aerialReady = instance.isSourceLoaded('naip'); if (dataReady) onStatus?.(message());
         }
         if (request !== serial || !open || event.sourceId !== 'openmaptiles' || !event.coord || !instance.isSourceLoaded('openmaptiles') || ready) return;
-        ready = dataReady = true; container.removeAttribute('aria-busy'); setMode(mode); refreshHousenumbers(); finish(null, true);
+        ready = dataReady = true; container.removeAttribute('aria-busy');
+        const initial = mode; mode = null; setMode(initial); refreshHousenumbers(); finish(null, true);
       });
       instance.on('error', event => {
         if (request !== serial || !open) return;
         if (event.sourceId === 'naip') {
+          if (mode === '3d') { map.setLayoutProperty('aerial', 'visibility', 'none'); onStatus?.('Open 3D buildings shown on the street map; the aerial tile service is unavailable.'); return; }
           setMode('map'); onStatus?.('Map shown. The aerial tile service is unavailable; street names and mapped outlines are still usable.');
         } else if (event.sourceId === 'openmaptiles') fail();
       });
@@ -141,7 +156,7 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
   }
   return {
     available, show, close, setMode, clearSelection, focusHousenumber, refreshHousenumbers,
-    recenter: () => { if (map && location) { const { lon, lat } = location.coordinates; map.jumpTo({ center: [lon, lat], zoom: 19, bearing: 0, pitch: 0 }); } },
+    recenter: () => { if (map && location) { const { lon, lat } = location.coordinates; map.jumpTo(mode === '3d' ? { center: [lon, lat], zoom: 18.4, bearing: -24, pitch: 58 } : { center: [lon, lat], zoom: 19, bearing: 0, pitch: 0 }); } },
     get isOpen() { return open; }, get mode() { return mode; }, get message() { return message(); }
   };
 }

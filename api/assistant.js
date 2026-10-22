@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { createHash } from 'node:crypto';
 import { validateSnapshot } from '../planning.js';
 import { runProjectAgent, agentAvailability, hasAgentCredentials } from '../lib/agent.mjs';
-import { createRequestLimiter } from '../lib/rate-limit.mjs';
+import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
 import { authorizePropertyContext, PropertyLookupError } from '../lib/property.mjs';
 export { createRequestLimiter } from '../lib/rate-limit.mjs';
 
@@ -40,8 +39,7 @@ export function createAssistantHandler({ run = runProjectAgent, available = agen
     try { authorizeProperty(request.snapshot.propertyData); }
     catch (error) { if (error instanceof PropertyLookupError) return res.status(error.status).json({ error: error.message, code: error.code }); return res.status(403).json({ error: 'Property-source facts cannot be used by the assistant.', code: 'PROPERTY_USE_DENIED' }); }
     if (!configured()) return res.status(503).json({ code: 'AI_UNAVAILABLE', error: 'AI is not connected here. Use automatic planning below.' });
-    const ip = String(req.headers?.['x-real-ip'] || req.socket?.remoteAddress || 'local');
-    if (!allow(createHash('sha256').update(ip).digest('hex'))) { res.setHeader('Retry-After', '600'); return res.status(429).json({ code: 'RATE_LIMIT', error: 'Assistant request limit reached. Automatic planning is still available.' }); }
+    if (!allow(clientKey(req))) { res.setHeader('Retry-After', '600'); return res.status(429).json({ code: 'RATE_LIMIT', error: 'Assistant request limit reached. Automatic planning is still available.' }); }
     try { return res.status(200).json(await run(request)); }
     catch {
       // Provider errors may contain prompts, billing details and authentication metadata.

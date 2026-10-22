@@ -113,6 +113,20 @@ commercial use" until you move to Google or a paid Cesium plan ([pricing](https:
 6. **Add a budget alert as a backstop:** https://console.cloud.google.com/billing/budgets
 7. Set **`GOOGLE_MAP_TILES_KEY`** in Vercel (and `.env.local`), then redeploy.
 
+### Until the Google key is live: the fallback order
+
+The property view never depends on a key. It degrades in this order, and each step happens
+automatically when the one above is missing or fails (denied key, used-up daily quota, network):
+
+1. Reviewed local exterior (the Austin lidar example only).
+2. Google Photorealistic 3D, via `GOOGLE_MAP_TILES_KEY`, or via `CESIUM_ION_TOKEN` for testing.
+3. Open 3D buildings: OpenStreetMap heights extruded over the aerial photo. No key; needs WebGL2.
+4. USGS / USDA aerial photo (the default after an address match while no 3D credential is set).
+5. OpenFreeMap street map.
+6. The homeowner's own exterior photo.
+
+Details: [docs/20](20-v015-redesign-3d-and-fallbacks.md#property-view-fallback-chain).
+
 Google's guide: https://developers.google.com/maps/documentation/tile/get-api-key. Pricing:
 https://developers.google.com/maps/billing-and-pricing/pricing. Before launch, confirm the open
 geocoder question in [docs/13](13-google-3d-view.md).

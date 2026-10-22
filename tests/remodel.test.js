@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { houseSpec, windowLayout, BEFORE_LOOK } from '../house-spec.js';
+import { houseSpec, windowLayout, BEFORE_LOOK, ROOF_COLORS, ROOF_MATERIALS, TRIM_COLORS, MASONRY_FINISHES, SCENES } from '../house-spec.js';
 import { COLORS } from '../project.js';
 import { isThreeFile, PUBLIC_ASSETS, THREE_FILES } from '../lib/web.mjs';
 
@@ -22,10 +22,22 @@ test('house spec mirrors the homeowner measurements and choices', () => {
 });
 
 test('before shows the dated palette and never the additions', () => {
-  const spec = houseSpec({}, { color: 'charcoal' }, { before: true, porch: true, dormers: true, shutters: true });
+  const spec = houseSpec({}, { color: 'charcoal' }, { before: true, porch: true, dormers: true, shutters: true, garage: true, fence: true, roofMaterial: 'metal' });
   assert.equal(spec.sidingHex, BEFORE_LOOK.sidingHex);
   assert.equal(spec.roofHex, BEFORE_LOOK.roofHex);
-  assert.deepEqual([spec.porch, spec.dormers, spec.shutters], [false, false, false]);
+  assert.deepEqual([spec.porch, spec.dormers, spec.shutters, spec.garage, spec.fence], [false, false, false, false, false]);
+  assert.equal(spec.roofMaterial, 'shingle');
+});
+
+test('studio finishes, lighting and additions are validated and fall back safely', () => {
+  const spec = houseSpec({}, { color: 'navy' }, { roof: 'onyx', roofMaterial: 'tile', trim: 'bronze', masonry: 'stone', scene: 'dusk', garage: true, fence: true });
+  assert.equal(spec.sidingHex, COLORS.navy.hex);
+  assert.deepEqual([spec.roofHex, spec.roofMaterial, spec.trimHex, spec.masonry, spec.scene], [ROOF_COLORS.onyx.hex, 'tile', TRIM_COLORS.bronze.hex, 'stone', 'dusk']);
+  assert.deepEqual([spec.garage, spec.fence], [true, true]);
+  const junk = houseSpec({}, {}, { roofMaterial: 'gold', trim: 'plaid', masonry: 'marble', scene: 'noon' });
+  assert.deepEqual([junk.roofMaterial, junk.trim, junk.masonry, junk.scene], ['shingle', 'style', 'brick', 'day']);
+  for (const catalog of [ROOF_MATERIALS, MASONRY_FINISHES, SCENES]) assert.ok(Object.keys(catalog).length >= 3);
+  assert.equal(Object.keys(COLORS).length, 12);
 });
 
 test('invalid or extreme typing falls back instead of breaking the preview', () => {

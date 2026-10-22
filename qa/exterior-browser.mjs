@@ -62,7 +62,7 @@ try {
   assert.equal(await page.locator('#exterior-model canvas').count(), 0);
   await page.locator('#verify-address').click();
   await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
-  assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), false);
+  assert.notEqual(await page.locator('#aerial-3d-toggle').textContent(), 'Exterior model', 'only the reviewed property offers its exterior model');
   checks.push('Editing the address immediately destroys the previous model; unrelated properties retain the aerial fallback');
   modelBehavior = 'hold'; started = new Promise(resolve => { announce = resolve; });
   await page.locator('#exterior-example').click(); await started;

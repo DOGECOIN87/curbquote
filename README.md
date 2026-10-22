@@ -2,7 +2,7 @@
 
 **See your home, then see what new siding, windows and doors could cost, with every number explained.**
 
-Status: **v0.14 UI/UX prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
+Status: **v0.15 UI/UX prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
 measure buildings from an address and doesn't give binding contractor quotes. Prices are editable
 examples, and accuracy hasn't been checked against completed jobs yet.
 
@@ -15,7 +15,9 @@ examples, and accuracy hasn't been checked against completed jobs yet.
 2. **See it in 3D.** When a 3D credential is configured, Google's photorealistic 3D model opens on
    the address, angled like a drone shot. The Top view, rotate and recenter buttons adjust it, and
    "Aerial photo" switches to the free USGS image. The 3D view is display-only. Without a
-   credential, or on devices without WebGL2, the aerial photo shows instead.
+   credential, or if Google refuses the key, **View in 3D** shows key-free open 3D buildings
+   (OpenStreetMap heights over the aerial photo); on devices without WebGL2 the aerial photo shows.
+   The full fallback order is in [docs/20](docs/20-v015-redesign-3d-and-fallbacks.md#property-view-fallback-chain).
    **Exterior prototype:** select **Try an exterior example** for a key-free model
    of a public Austin house, built from USGS lidar and a city footprint. It shows
    a measured roof surface and simplified walls. This covers one reviewed property;
@@ -26,8 +28,10 @@ examples, and accuracy hasn't been checked against completed jobs yet.
    price for the tier you picked. You get an itemized range and see how each number was calculated.
 4. **Plan and visualize.**
    - Compare plans against a budget, or let the assistant suggest one.
-   - Walk around your home in the **3D remodel** studio: a house sized from your measurements you
-     can restyle with your siding, roofing, windows and door, try a porch, dormers or shutters,
+   - Pick one of 16 North-American home styles, then walk around your home in the **3D remodel**
+     studio: a house sized from your measurements you can restyle with your siding (12 colors),
+     roof color and covering, trim and masonry, view from six angles or in four lighting presets,
+     try a porch, dormers, shutters, a garage or a picket fence,
      flip between Before and After, drag the split seam directly on the canvas, and download the
      view. Before and After are labelled with what they mean, the studio says plainly that it is a
      concept model, and additions are shown, not priced yet. A visual cost-share bar explains how
@@ -42,8 +46,8 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 78 Node tests, public build
-npm run test:browser   # 54 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run check          # syntax checks, 95 Node tests, public build
+npm run test:browser   # 56 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, controls, cancellation and fallback
 ```
 
@@ -108,6 +112,7 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
 | 17 | [Homeowner journey UI/UX](docs/17-homeowner-journey-ux.md) | The v0.11 review: findings, design direction, what changed, remaining limitations |
 | 18 | [Inline Step 3 3D preview & split UX](docs/18-3d-preview-and-split-ux.md) | The v0.12 review: Step 3 inline 3D preview, Before/After split wipe, Step 4 rate summary/reset, Step 5 caveats card |
 | 19 | [v0.14 visual and interaction pass](docs/19-v014-ui-ux.md) | On-canvas split dragging, cost-share visuals, proportional framing, and responsive screenshot review |
+| 20 | [v0.15 redesign, 3D and fallbacks](docs/20-v015-redesign-3d-and-fallbacks.md) | One design system, rebuilt roof geometry for 16 home styles, studio finishes and lighting, the key-free property-view fallback chain, and backend caching and limits |
 
 **Research**
 

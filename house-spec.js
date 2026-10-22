@@ -7,12 +7,42 @@ import { DEFAULT_INPUT } from './estimate.js';
 import { COLORS, DEFAULT_PROJECT } from './project.js';
 
 export const ROOF_COLORS = Object.freeze({
-  charcoal: { name: 'Charcoal shingles', hex: '#3d4148' },
-  weathered: { name: 'Weathered brown', hex: '#6d5a48' },
+  charcoal: { name: 'Charcoal', hex: '#3d4148' },
+  weathered: { name: 'Weathered wood', hex: '#6d5a48' },
   slate: { name: 'Slate blue', hex: '#4d6472' },
-  clay: { name: 'Clay red', hex: '#8a4f3d' }
+  clay: { name: 'Clay red', hex: '#8a4f3d' },
+  onyx: { name: 'Onyx black', hex: '#2a2c2f' },
+  forest: { name: 'Forest green', hex: '#3f5443' },
+  sand: { name: 'Desert sand', hex: '#9d8b70' }
 });
-export const DEFAULT_DESIGN = Object.freeze({ roof: 'charcoal', porch: true, dormers: false, shutters: true, before: false });
+/** Roof coverings change texture and sheen only; every roof is shown, none is priced. */
+export const ROOF_MATERIALS = Object.freeze({
+  shingle: { name: 'Architectural shingle' },
+  metal: { name: 'Standing-seam metal' },
+  shake: { name: 'Cedar shake' },
+  tile: { name: 'Barrel tile' }
+});
+/** `style` keeps the trim color each home style is drawn with. */
+export const TRIM_COLORS = Object.freeze({
+  style: { name: 'Style default', hex: null },
+  white: { name: 'Classic white', hex: '#f4f2ea' },
+  cream: { name: 'Cream', hex: '#e6dcc3' },
+  black: { name: 'Black', hex: '#26282a' },
+  bronze: { name: 'Bronze', hex: '#4a3b2e' }
+});
+export const MASONRY_FINISHES = Object.freeze({
+  brick: { name: 'Red brick', hex: '#9a5a48' },
+  stone: { name: 'Fieldstone', hex: '#8f8a80' },
+  whitewash: { name: 'Painted brick', hex: '#dcd8cf' }
+});
+/** Lighting presets for the studio. They change the view only, never the estimate. */
+export const SCENES = Object.freeze({
+  day: { name: 'Midday' },
+  golden: { name: 'Golden hour' },
+  overcast: { name: 'Overcast' },
+  dusk: { name: 'Dusk' }
+});
+export const DEFAULT_DESIGN = Object.freeze({ roof: 'charcoal', porch: true, dormers: false, shutters: true, garage: false, fence: false, roofMaterial: 'shingle', trim: 'style', masonry: 'brick', scene: 'day', before: false });
 /** The dated "existing home" palette used by Before. Additions never show in Before. */
 export const BEFORE_LOOK = Object.freeze({ sidingHex: '#b3a58c', roofHex: '#6f6459', doorHex: '#5d564c', frameHex: '#d8d2c4' });
 export const DOOR_HEX = Object.freeze({ steel: '#294e51', fiberglass: '#8a6844', wood: '#603c2d' });
@@ -78,7 +108,14 @@ export function houseSpec(inputs = {}, options = {}, design = {}) {
     before: Boolean(d.before),
     porch: Boolean(d.porch) && !d.before,
     dormers: Boolean(d.dormers) && !d.before,
-    shutters: Boolean(d.shutters) && !d.before
+    shutters: Boolean(d.shutters) && !d.before,
+    garage: Boolean(d.garage) && !d.before,
+    fence: Boolean(d.fence) && !d.before,
+    // The existing home keeps plain asphalt and its masonry; finishes are After choices.
+    roofMaterial: !d.before && ROOF_MATERIALS[d.roofMaterial] ? d.roofMaterial : 'shingle',
+    trim: TRIM_COLORS[d.trim] ? d.trim : 'style',
+    masonry: MASONRY_FINISHES[d.masonry] ? d.masonry : 'brick',
+    scene: SCENES[d.scene] ? d.scene : 'day'
   };
   spec.wallHeightFt = Math.round(spec.stories * spec.storyHeightFt * 10) / 10;
   spec.texture = SIDING_TEXTURE[spec.sidingProduct];
@@ -86,6 +123,8 @@ export function houseSpec(inputs = {}, options = {}, design = {}) {
   spec.sidingName = spec.before ? 'Existing siding' : COLORS[spec.color].name;
   spec.roofHex = spec.before ? BEFORE_LOOK.roofHex : ROOF_COLORS[spec.roof].hex;
   spec.doorHex = spec.before ? BEFORE_LOOK.doorHex : DOOR_HEX[spec.doorProduct];
+  spec.masonryHex = MASONRY_FINISHES[spec.masonry].hex;
+  spec.trimHex = spec.before ? BEFORE_LOOK.frameHex : TRIM_COLORS[spec.trim].hex || '#f6f4e8';
   spec.frameHex = spec.before ? BEFORE_LOOK.frameHex : spec.windowProduct === 'wood' ? '#d3bc93' : spec.windowProduct === 'fiberglass' ? '#3a3f44' : '#f6f4e8';
   spec.windows = windowLayout({ ...spec, existingWindows: source.existingWindows });
   spec.label = `${Math.round(spec.lengthFt)} × ${Math.round(spec.widthFt)} ft · ${spec.stories} ${spec.stories === 1 ? 'story' : 'stories'} · ${spec.windows.length} windows shown`;
@@ -103,5 +142,6 @@ export {
   dimensionsFromFootprint,
   suggestStyleFromFootprint,
   modelGuardrailLabel,
-  houseSpecFromStyle
+  houseSpecFromStyle,
+  styleSilhouette
 } from './home-styles.js';

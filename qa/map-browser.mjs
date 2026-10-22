@@ -64,6 +64,16 @@ try {
   await page.waitForFunction(() => !document.querySelector('#map-selection').hidden);
   await page.keyboard.press('Escape'); assert.equal(await page.locator('#map-selection').isVisible(), false);
   checks.push('Map keyboard navigation, Map/Hybrid switching and recenter operate without editing estimate measurements');
+  const flat = await canvas.screenshot();
+  await page.locator('[data-map-mode="3d"]').click();
+  assert.equal(await page.locator('[data-map-mode="3d"]').getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction(() => document.querySelector('#aerial-status').textContent.includes('Open 3D buildings ready'));
+  assert.equal(await page.locator('#aerial-3d-toggle').textContent(), 'Aerial photo');
+  await page.waitForTimeout(150);
+  assert.notDeepEqual(await canvas.screenshot(), flat, 'extruded buildings and a tilted camera must change the view');
+  assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  await page.locator('#map-hybrid').click(); assert.equal(await page.locator('#map-hybrid').getAttribute('aria-pressed'), 'true');
+  checks.push('The key-free 3D buildings mode extrudes mapped heights, tilts the camera and returns to the flat hybrid view');
   await mkdir('qa-output', { recursive: true });
   await page.locator('.hero').screenshot({ path: 'qa-output/map-desktop.png' });
   for (const [width, height] of [[320,740],[360,800],[390,844],[560,800],[768,1024],[921,800],[1024,768],[1440,1000],[2560,1440],[844,390]]) {
@@ -75,6 +85,10 @@ try {
   await page.locator('#aerial-map-toggle').click();
   assert.equal(await page.locator('#property-map canvas').count(), 0);
   assert.equal(await page.locator('#aerial-images img').getAttribute('src'), originalImage);
+  await page.locator('#aerial-3d-toggle').click(); await ready();
+  await page.waitForFunction(() => document.querySelector('[data-map-mode="3d"]').getAttribute('aria-pressed') === 'true');
+  await page.locator('#aerial-3d-toggle').click();
+  assert.equal(await page.locator('#property-map canvas').count(), 0);
   assert.equal(await page.locator('#aerial-controls').isVisible(), true);
   checks.push('Closing the map releases its canvas and restores the existing aerial view and controls');
   rasterUnavailable = true; await page.locator('#aerial-map-toggle').click(); await ready();

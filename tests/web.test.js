@@ -4,7 +4,8 @@ import { once } from 'node:events';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAppServer, SECURITY_HEADERS } from '../lib/web.mjs';
+import { createAppServer, SECURITY_HEADERS, CACHE_RULES, cacheControl } from '../lib/web.mjs';
+import { clientKey } from '../lib/rate-limit.mjs';
 import { createGeocodeHandler } from '../api/geocode.js';
 import { resolveAddress } from '../lib/geocode.mjs';
 import { AddressLookupError } from '../address.js';
@@ -101,3 +102,39 @@ test('vercel.json security headers match lib/web.mjs byte-for-byte and /api/foot
   assert.deepEqual(await res.json(), { openFallback: true });
 });
 
+
+test('vercel.json static cache rules and function budgets match the development server', async t => {
+  const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const rules = vercel.headers.slice(1).map(({ source, headers }) => [source, Object.fromEntries(headers.map(({ key, value }) => [key, value]))['Cache-Control']]);
+  assert.deepEqual(rules, CACHE_RULES.map(rule => [...rule]));
+  for (const file of ['geocode', 'map3d', 'property', 'footprint', 'assistant']) assert.ok(vercel.functions[`api/${file}.js`].maxDuration <= 30, file);
+  assert.ok(vercel.functions['api/assistant.js'].maxDuration * 1000 > 25000, 'the assistant budget covers its 25-second agent deadline');
+  assert.equal(cacheControl('/assets/fonts/poppins-latin-400-normal.woff2'), 'public, max-age=31536000, immutable');
+  assert.equal(cacheControl('/main.js'), 'no-cache');
+  const base = await withServer(t);
+  const fresh = await fetch(`${base}/vendor/three/three.module.js`, { headers: { 'Accept-Encoding': 'br' } });
+  assert.equal(fresh.status, 200);
+  assert.equal(fresh.headers.get('content-encoding'), 'br');
+  assert.match(fresh.headers.get('cache-control'), /max-age=604800/);
+  assert.match(await fresh.text(), /REVISION/);
+  const again = await fetch(`${base}/vendor/three/three.module.js`, { headers: { 'If-None-Match': fresh.headers.get('etag') } });
+  assert.equal(again.status, 304);
+  const page = await fetch(base, { headers: { 'Accept-Encoding': 'gzip' } });
+  assert.equal(page.headers.get('content-encoding'), 'gzip');
+  assert.equal(page.headers.get('cache-control'), 'no-cache');
+  assert.equal(page.headers.get('permissions-policy'), SECURITY_HEADERS['Permissions-Policy']);
+});
+
+test('the geocoder has a per-caller request guard and caller keys never contain the address or IP', async t => {
+  let calls = 0;
+  const base = await withServer(t, { geocodeHandler: createGeocodeHandler(async () => { calls++; return {}; }, { allow: () => false }) });
+  const limited = await fetch(`${base}/api/geocode?address=123`);
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.get('retry-after'), '600');
+  assert.equal((await limited.json()).code, 'RATE_LIMIT');
+  assert.equal(calls, 0);
+  const forwarded = clientKey({ headers: { 'x-forwarded-for': '203.0.113.9, 10.0.0.1' } });
+  assert.equal(forwarded, clientKey({ headers: { 'x-real-ip': '203.0.113.9' } }));
+  assert.notEqual(forwarded, clientKey({ headers: { 'x-forwarded-for': '198.51.100.4' } }));
+  assert.doesNotMatch(forwarded, /203/);
+});

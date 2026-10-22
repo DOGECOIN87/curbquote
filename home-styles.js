@@ -4,7 +4,7 @@
  * into `houseSpec()` proportions without altering `estimate.js` pricing formulas.
  */
 import { DEFAULT_INPUT } from './estimate.js';
-import { houseSpec, ROOF_COLORS, windowLayout } from './house-spec.js';
+import { houseSpec, ROOF_COLORS, ROOF_MATERIALS, MASONRY_FINISHES, TRIM_COLORS, windowLayout } from './house-spec.js';
 
 export const DEFAULT_HOME_STYLE = 'colonial-2story';
 export const STYLE_VARIANT_BADGE = 'Style variant — approximate, not your surveyed footprint';
@@ -27,6 +27,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'portico',
     accent: 'pediment',
     texture: 'lap',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'charcoal',
     trimHex: '#f6f4e8',
     timberHex: '#4a3728',
@@ -52,6 +54,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'stoop',
     accent: 'picture-window',
     texture: 'lap',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'weathered',
     trimHex: '#f4f1e6',
     timberHex: '#4a3728',
@@ -77,6 +81,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'full',
     accent: 'rafters',
     texture: 'lap-wide',
+    roofMaterial: 'shingle',
+    masonry: 'stone',
     roof: 'weathered',
     trimHex: '#ede6d3',
     timberHex: '#5a4432',
@@ -102,6 +108,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'stoop',
     accent: 'steep-dormer',
     texture: 'lap',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'slate',
     trimHex: '#f7f6ef',
     timberHex: '#4a3728',
@@ -127,6 +135,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'stoop',
     accent: 'half-timber',
     texture: 'board',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'weathered',
     trimHex: '#efe8d8',
     timberHex: '#4a3728',
@@ -152,6 +162,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'wraparound',
     accent: 'wrap-porch',
     texture: 'board',
+    roofMaterial: 'metal',
+    masonry: 'stone',
     roof: 'charcoal',
     trimHex: '#2c3135',
     timberHex: '#2c3135',
@@ -177,6 +189,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'stoop',
     accent: 'split-wing',
     texture: 'lap',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'charcoal',
     trimHex: '#f5f3ea',
     timberHex: '#4a3728',
@@ -202,6 +216,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'cantilever',
     accent: 'parapet',
     texture: 'board',
+    roofMaterial: 'shingle',
+    masonry: 'stone',
     roof: 'charcoal',
     trimHex: '#353a3d',
     timberHex: '#353a3d',
@@ -227,6 +243,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'full',
     accent: 'gingerbread',
     texture: 'lap',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'slate',
     trimHex: '#faf6ea',
     timberHex: '#faf6ea',
@@ -252,6 +270,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'full',
     accent: 'hip-dormer',
     texture: 'lap-wide',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
     roof: 'weathered',
     trimHex: '#f5f2e6',
     timberHex: '#4a3728',
@@ -277,7 +297,9 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'full',
     accent: 'gallery',
     texture: 'lap',
-    roof: 'clay',
+    roofMaterial: 'metal',
+    masonry: 'brick',
+    roof: 'forest',
     trimHex: '#f6f3e7',
     timberHex: '#4a3728',
     porch: true,
@@ -302,6 +324,8 @@ export const HOME_STYLES = Object.freeze({
     porchStyle: 'cantilever',
     accent: 'modern-fascia',
     texture: 'lap-wide',
+    roofMaterial: 'metal',
+    masonry: 'stone',
     roof: 'charcoal',
     trimHex: '#2f3437',
     timberHex: '#2f3437',
@@ -310,8 +334,117 @@ export const HOME_STYLES = Object.freeze({
     shutters: false,
     windowDensity: 1.2,
     masonryPercent: 15
+  }),
+  'dutch-colonial': Object.freeze({
+    id: 'dutch-colonial',
+    name: 'Dutch Colonial',
+    detail: '1.5-story · gambrel roof',
+    ratio: 1.44,
+    lengthFt: 46,
+    widthFt: 32,
+    stories: 1,
+    storyHeightFt: 9,
+    gableRiseFt: 12,
+    roofPitch: '18:12',
+    overhangFt: 1.1,
+    roofForm: 'gambrel',
+    porchStyle: 'portico',
+    accent: 'shed-dormer',
+    texture: 'lap',
+    roofMaterial: 'shingle',
+    masonry: 'brick',
+    roof: 'charcoal',
+    trimHex: '#f6f4e8',
+    timberHex: '#4a3728',
+    porch: true,
+    dormers: true,
+    shutters: true,
+    windowDensity: 1,
+    masonryPercent: 10
+  }),
+  saltbox: Object.freeze({
+    id: 'saltbox',
+    name: 'Saltbox',
+    detail: '2-story front · long rear slope',
+    ratio: 1.38,
+    lengthFt: 44,
+    widthFt: 32,
+    stories: 2,
+    storyHeightFt: 8.5,
+    gableRiseFt: 9,
+    roofPitch: '9:12',
+    overhangFt: 0.9,
+    roofForm: 'saltbox',
+    porchStyle: 'portico',
+    accent: 'center-chimney',
+    texture: 'lap',
+    roofMaterial: 'shake',
+    masonry: 'stone',
+    roof: 'weathered',
+    trimHex: '#efe9da',
+    timberHex: '#4a3728',
+    porch: false,
+    dormers: false,
+    shutters: true,
+    windowDensity: 0.95,
+    masonryPercent: 10
+  }),
+  'modern-farmhouse': Object.freeze({
+    id: 'modern-farmhouse',
+    name: 'Modern farmhouse',
+    detail: '2-story · board & batten · metal',
+    ratio: 1.5,
+    lengthFt: 50,
+    widthFt: 32,
+    stories: 2,
+    storyHeightFt: 9.5,
+    gableRiseFt: 12,
+    roofPitch: '10:12',
+    overhangFt: 1.2,
+    roofForm: 'gable',
+    porchStyle: 'full',
+    accent: 'black-frames',
+    texture: 'board',
+    roofMaterial: 'metal',
+    masonry: 'stone',
+    roof: 'onyx',
+    trimHex: '#26282a',
+    timberHex: '#26282a',
+    porch: true,
+    dormers: false,
+    shutters: false,
+    windowDensity: 1.1,
+    masonryPercent: 10
+  }),
+  prairie: Object.freeze({
+    id: 'prairie',
+    name: 'Prairie',
+    detail: '2-story · low hip · wide eaves',
+    ratio: 1.6,
+    lengthFt: 52,
+    widthFt: 32,
+    stories: 2,
+    storyHeightFt: 9,
+    gableRiseFt: 4.5,
+    roofPitch: '4:12',
+    overhangFt: 3.2,
+    roofForm: 'hip-low',
+    porchStyle: 'cantilever',
+    accent: 'banded',
+    texture: 'lap-wide',
+    roofMaterial: 'tile',
+    masonry: 'stone',
+    roof: 'sand',
+    trimHex: '#4a3b2e',
+    timberHex: '#4a3b2e',
+    porch: true,
+    dormers: false,
+    shutters: false,
+    windowDensity: 1.1,
+    masonryPercent: 35
   })
 });
+
 
 export const HOME_STYLE_IDS = Object.freeze(Object.keys(HOME_STYLES));
 
@@ -329,7 +462,9 @@ export const HOME_STYLE_ALIASES = Object.freeze({
   tudor: 'tudor-gable',
   tudor_revival: 'tudor-gable',
   farmhouse: 'farmhouse-porch',
-  modern_farmhouse: 'farmhouse-porch',
+  dutch_colonial: 'dutch-colonial',
+  gambrel: 'dutch-colonial',
+  salt_box: 'saltbox',
   split_level: 'split-level',
   midcentury: 'midcentury-flat',
   mid_century_modern: 'midcentury-flat',
@@ -340,7 +475,7 @@ export const HOME_STYLE_ALIASES = Object.freeze({
   folk_victorian: 'victorian-gingerbread',
   second_empire: 'victorian-gingerbread',
   american_foursquare: 'foursquare',
-  prairie: 'foursquare',
+  prairie_school: 'prairie',
   creole: 'creole-cottage',
   shotgun: 'creole-cottage',
   acadian: 'creole-cottage',
@@ -446,7 +581,9 @@ export function suggestStyleFromFootprint(footprintData = {}) {
   const ratio = length > 0 && width > 0 ? Math.max(length, width) / Math.min(length, width) : 0;
   if (roofShape === 'flat') return 'midcentury-flat';
   if (roofShape === 'skillion') return 'contemporary-gable';
-  if (roofShape === 'gambrel' || roofShape === 'mansard') return 'cape-cod';
+  if (roofShape === 'gambrel') return 'dutch-colonial';
+  if (roofShape === 'saltbox') return 'saltbox';
+  if (roofShape === 'mansard') return 'victorian-gingerbread';
   if (roofShape === 'hipped' && stories >= 2) return 'foursquare';
   if (stories === 1 && ratio >= 1.55) return 'ranch-1story';
   if (stories === 1 && stories > 0) return 'craftsman-bungalow';
@@ -483,6 +620,8 @@ export function houseSpecFromStyle(inputs = {}, styleId = DEFAULT_HOME_STYLE, fo
   }
   const mergedDesign = {
     roof: ROOF_COLORS[style.roof] ? style.roof : 'charcoal',
+    roofMaterial: ROOF_MATERIALS[style.roofMaterial] ? style.roofMaterial : 'shingle',
+    masonry: MASONRY_FINISHES[style.masonry] ? style.masonry : 'brick',
     porch: style.porch,
     dormers: style.dormers,
     shutters: style.shutters,
@@ -496,11 +635,62 @@ export function houseSpecFromStyle(inputs = {}, styleId = DEFAULT_HOME_STYLE, fo
   spec.roofForm = style.roofForm;
   spec.porchStyle = style.porchStyle;
   spec.overhangFt = style.overhangFt;
-  spec.trimHex = spec.before ? '#d8d2c4' : style.trimHex;
-  spec.timberHex = spec.before ? '#6c6256' : style.timberHex;
+  const trimOverride = TRIM_COLORS[spec.trim]?.hex;
+  spec.trimHex = spec.before ? '#d8d2c4' : trimOverride || style.trimHex;
+  spec.timberHex = spec.before ? '#6c6256' : trimOverride && style.timberHex === style.trimHex ? trimOverride : style.timberHex;
   spec.accent = style.accent;
   spec.modelBadge = modelGuardrailLabel(footprintData);
   spec.footprintSource = footprintData?.source?.provider || footprintData?.provider || null;
   spec.label = `${style.name} · ${Math.round(spec.lengthFt)} × ${Math.round(spec.widthFt)} ft · ${spec.stories} ${spec.stories === 1 ? 'story' : 'stories'} · ${spec.windows.length} windows shown`;
   return spec;
+}
+
+/**
+ * A small front-elevation drawing of each style for the picker cards, in a 96 × 56 box with the
+ * ground at y = 52. Returns SVG path data only, so callers build the element without inline styles.
+ */
+export function styleSilhouette(styleId) {
+  const s = resolveHomeStyle(styleId), r = n => Math.round(n * 10) / 10;
+  const w = Math.max(44, Math.min(70, 30 + s.ratio * 22)), x0 = (96 - w) / 2, x1 = x0 + w, cx = 48;
+  const storyPx = 11.5, bodyH = s.roofForm === 'gambrel' ? 12 : Math.max(1, s.stories) * storyPx, top = 52 - bodyH;
+  const rise = Math.max(4, Math.min(16, s.gableRiseFt * 1.25)), o = Math.min(5, 1 + s.overhangFt * 1.2);
+  let body = `M${r(x0)} 52V${r(top)}H${r(x1)}V52Z`, roof;
+  switch (s.roofForm) {
+    case 'hip': case 'hip-low':
+      roof = `M${r(x0 - o)} ${r(top)}L${r(x0 + w * .3)} ${r(top - rise)}H${r(x1 - w * .3)}L${r(x1 + o)} ${r(top)}Z`; break;
+    case 'flat':
+      roof = `M${r(x0 - o)} ${r(top - 3.5)}H${r(x1 + o)}V${r(top)}H${r(x0 - o)}Z`; break;
+    case 'gambrel': {
+      const knee = top - rise * .62, kx = w * .12;
+      roof = `M${r(x0 - o)} ${r(top)}L${r(x0 + kx)} ${r(knee)}L${cx} ${r(top - rise - 2)}L${r(x1 - kx)} ${r(knee)}L${r(x1 + o)} ${r(top)}Z`; break;
+    }
+    case 'saltbox':
+      roof = `M${r(x0 - o)} ${r(top)}L${r(cx - w * .14)} ${r(top - rise)}L${r(x1 + o)} ${r(top + storyPx * .9)}V${r(top)}Z`; break;
+    case 'split': {
+      const mid = x0 + w * .48, low = 52 - storyPx;
+      body = `M${r(x0)} 52V${r(low)}H${r(mid)}V${r(top)}H${r(x1)}V52Z`;
+      roof = `M${r(x0 - o)} ${r(low)}L${r((x0 + mid) / 2)} ${r(low - rise * .7)}L${r(mid + 1)} ${r(low)}ZM${r(mid - o)} ${r(top)}L${r((mid + x1) / 2)} ${r(top - rise)}L${r(x1 + o)} ${r(top)}Z`; break;
+    }
+    case 'shed-modern':
+      roof = `M${r(x0 - o)} ${r(top)}L${r(cx + 4)} ${r(top - rise * .55)}V${r(top - rise)}L${r(x1 + o)} ${r(top - rise * .45)}V${r(top)}Z`; break;
+    case 'cross-gable': {
+      const gx0 = x0 + w * .08, gx1 = x0 + w * .46, gcx = (gx0 + gx1) / 2;
+      roof = `M${r(x0 - o)} ${r(top)}L${cx} ${r(top - rise * .8)}L${r(x1 + o)} ${r(top)}ZM${r(gx0 - 2)} ${r(top + 1)}L${r(gcx)} ${r(top - rise - 2)}L${r(gx1 + 2)} ${r(top + 1)}Z`; break;
+    }
+    default:
+      roof = `M${r(x0 - o)} ${r(top)}L${cx} ${r(top - rise)}L${r(x1 + o)} ${r(top)}Z`;
+  }
+  const door = `M${r(cx - 3)} 52V44H${r(cx + 3)}V52Z`, eave = 52 - storyPx + 2;
+  // Two windows a floor, kept clear of the door; split-levels skip the low wing's upper floor.
+  let windows = '';
+  const floors = s.roofForm === 'gambrel' ? 1 : Math.max(1, s.stories);
+  for (let f = 0; f < floors; f++) for (const wx of [x0 + w * .16, x1 - w * .16 - 6]) {
+    if (s.roofForm === 'split' && f > 0 && wx < cx) continue;
+    const wy = 52 - f * storyPx - 9.5;
+    windows += `M${r(wx)} ${r(wy)}h6v5h-6Z`;
+  }
+  const porch = !s.porch ? '' : s.porchStyle === 'full' || s.porchStyle === 'wraparound'
+    ? `M${r(x0 - 1)} ${r(eave)}H${r(x1 + 1)}M${r(x0 + 1)} 52V${r(eave)}M${r(x1 - 1)} 52V${r(eave)}M${r(cx - 9)} 52V${r(eave)}M${r(cx + 9)} 52V${r(eave)}`
+    : `M${r(cx - 7)} ${r(eave)}H${r(cx + 7)}M${r(cx - 6)} 52V${r(eave)}M${r(cx + 6)} 52V${r(eave)}`;
+  return { body, roof, door, porch, windows };
 }

@@ -43,6 +43,11 @@
             <button type="button" id="exterior-example" class="exterior-example">Try an exterior example <span aria-hidden="true">↗</span></button>
           </div>
           <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick">✓</span>No sign-up required</span><span class="meta-divider"></span><span class="hero-benefit"><span class="meta-tick">✓</span>Save projects on this device</span></div>
+          <ol class="hero-steps" aria-label="How CurbQuote works">
+            <li><span class="hero-step-dot" aria-hidden="true">1</span><div><strong>Find your home</strong><p>An approximate Census match with an aerial or 3D view.</p></div></li>
+            <li><span class="hero-step-dot" aria-hidden="true">2</span><div><strong>Measure and choose</strong><p>Siding, windows and doors, with a quality tier and color.</p></div></li>
+            <li><span class="hero-step-dot" aria-hidden="true">3</span><div><strong>Price it and see it</strong><p>An itemized range and a 3D house you can restyle.</p></div></li>
+          </ol>
         </div>
         <section class="property-preview" aria-labelledby="aerial-heading">
           <div class="aerial-header"><div><h2 id="aerial-heading">Your property, in view.</h2></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
@@ -57,7 +62,7 @@
             <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
             <div class="aerial-tool-group"><button type="button" data-pan="-.3,0" aria-label="Move view west">←</button><button type="button" data-pan="0,-.3" aria-label="Move view north">↑</button><button type="button" data-pan="0,.3" aria-label="Move view south">↓</button><button type="button" data-pan=".3,0" aria-label="Move view east">→</button></div>
           </div>
-          <div id="map-mode-controls" class="map-mode-controls" aria-label="Map display controls" hidden><div class="map-mode-picker"><button type="button" id="map-hybrid" data-map-mode="hybrid" aria-pressed="true">Hybrid</button><button type="button" data-map-mode="map" aria-pressed="false">Map</button></div><button type="button" id="map-recenter">Recenter</button><button type="button" id="map-clear-selection" hidden>Clear highlight</button></div>
+          <div id="map-mode-controls" class="map-mode-controls" aria-label="Map display controls" hidden><div class="map-mode-picker"><button type="button" id="map-hybrid" data-map-mode="hybrid" aria-pressed="true">Hybrid</button><button type="button" data-map-mode="map" aria-pressed="false">Map</button><button type="button" data-map-mode="3d" aria-pressed="false">3D buildings</button></div><button type="button" id="map-recenter">Recenter</button><button type="button" id="map-clear-selection" hidden>Clear highlight</button></div>
           <p id="map-selection" class="map-selection" hidden>Map outline highlighted for visual reference. This does not confirm the building’s identity or supply measurements.</p>
           <div id="map-housenumbers" class="map-housenumbers" hidden aria-live="polite"><strong>Nearby house numbers</strong><p class="micro-note">Tap a number to centre the map. Use a highlighted building outline as your visual confirmation before you enter measurements in Step 3 — this does not auto-fill the estimate.</p><div id="map-housenumber-list" class="housenumber-list" role="list"></div></div>
           <div id="map-attribution" class="map-attribution" hidden><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></div>
@@ -75,6 +80,7 @@
             <dl>
               <div><dt>This aerial photo</dt><dd>An approximate location from U.S. Census matching and USGS imagery. It helps you recognize the building; it supplies no measurements.</dd></div>
               <div><dt>3D view of the real property</dt><dd>Optional Google Photorealistic 3D Tiles, only when this site has a 3D credential. Display only — never measured, traced or turned into a model.</dd></div>
+              <div><dt>Open 3D buildings</dt><dd>When Google 3D is not connected or is unavailable, View in 3D extrudes OpenStreetMap building heights over the aerial photo. No key needed; heights are approximate and unmapped buildings show as one story.</dd></div>
               <div><dt>Exterior example</dt><dd>One reviewed Austin property, the Neill-Cochran House Museum, built from City of Austin footprint data and USGS lidar. It shows what a measured model looks like.</dd></div>
               <div><dt>3D remodel studio</dt><dd>A concept house sized from the measurements and choices you enter. It is not your property's actual footprint, and porch, dormer and shutter additions are visual only.</dd></div>
               <div><dt>Your own photo</dt><dd>Your exterior photo, with the wall areas you mark yourself, tinted in your chosen siding color. Nothing is detected or uploaded.</dd></div>
@@ -118,8 +124,8 @@
               <button type="button" class="outline-button" data-open-studio>Preview in 3D <span aria-hidden="true">↗</span></button>
             </div>
             <div class="style-picker-block">
-              <h3 id="home-style-heading" class="sub-heading">North-American home style</h3>
-              <p class="choice-hint" id="home-style-hint">Pick the closest architectural silhouette to shape roof form, porch style and proportions in 3D. Architectural details are visual only and do not add to the price.</p>
+              <h3 id="home-style-heading" class="sub-heading">Home style</h3>
+              <p class="choice-hint" id="home-style-hint">Pick the closest match. It shapes the roof, porch and proportions of your 3D house; style details are visual only and never change the price.</p>
               <div id="home-style-picker" class="style-picker-grid" role="group" aria-labelledby="home-style-heading">
                 <button type="button" class="style-card" data-archetype="colonial-2story" aria-pressed="true"><strong>Colonial 2-story</strong><span>Side gable · portico · shutters</span></button>
                 <button type="button" class="style-card" data-archetype="ranch-1story" aria-pressed="false"><strong>Ranch / rambler</strong><span>1 story · wide low hip roof</span></button>
@@ -132,7 +138,11 @@
                 <button type="button" class="style-card" data-archetype="victorian-gingerbread" aria-pressed="false"><strong>Victorian Queen Anne</strong><span>Cross-gable · spindle porch</span></button>
                 <button type="button" class="style-card" data-archetype="foursquare" aria-pressed="false"><strong>American Foursquare</strong><span>Cubic 2-story · hipped dormer</span></button>
                 <button type="button" class="style-card" data-archetype="creole-cottage" aria-pressed="false"><strong>Creole cottage</strong><span>Full gallery porch · deep eaves</span></button>
-                <button type="button" class="style-card" data-archetype="contemporary-gable" aria-pressed="false"><strong>Contemporary gable</strong><span>Clean modern gable · dark trim</span></button>
+                <button type="button" class="style-card" data-archetype="contemporary-gable" aria-pressed="false"><strong>Contemporary</strong><span>Clerestory roofline · dark trim</span></button>
+                <button type="button" class="style-card" data-archetype="dutch-colonial" aria-pressed="false"><strong>Dutch Colonial</strong><span>Gambrel roof · long shed dormer</span></button>
+                <button type="button" class="style-card" data-archetype="saltbox" aria-pressed="false"><strong>Saltbox</strong><span>2-story front · long rear slope</span></button>
+                <button type="button" class="style-card" data-archetype="modern-farmhouse" aria-pressed="false"><strong>Modern farmhouse</strong><span>Board &amp; batten · metal roof</span></button>
+                <button type="button" class="style-card" data-archetype="prairie" aria-pressed="false"><strong>Prairie</strong><span>Low hip · wide eaves · banding</span></button>
               </div>
             </div>
             <div id="footprint-panel" class="footprint-panel" aria-labelledby="footprint-heading">
@@ -198,15 +208,21 @@
             </fieldset>
             <div class="mini-heading with-gap" id="color-heading">Siding color</div>
             <p class="choice-hint" id="color-hint">Your color appears on the 3D house and the example home. It does not change the price.</p>
-            <div id="color-picker" class="color-picker" role="group" aria-labelledby="color-heading">
-              <button type="button" data-color="sage" class="swatch sage" aria-label="Sage" aria-pressed="true"></button>
-              <button type="button" data-color="cream" class="swatch cream" aria-label="Warm ivory" aria-pressed="false"></button>
-              <button type="button" data-color="slate" class="swatch slate" aria-label="Coastal slate" aria-pressed="false"></button>
-              <button type="button" data-color="charcoal" class="swatch charcoal" aria-label="Charcoal" aria-pressed="false"></button>
-              <button type="button" data-color="terracotta" class="swatch terracotta" aria-label="Terracotta" aria-pressed="false"></button>
-              <button type="button" data-color="white" class="swatch white" aria-label="Soft white" aria-pressed="false"></button>
-              <span id="color-name" role="status">Sage</span>
+            <div id="color-picker" class="color-picker chip-picker" role="group" aria-labelledby="color-heading">
+              <button type="button" data-color="sage" class="swatch-chip" aria-pressed="true"><span class="swatch sage" aria-hidden="true"></span><span class="swatch-label">Sage</span></button>
+              <button type="button" data-color="cream" class="swatch-chip" aria-pressed="false"><span class="swatch cream" aria-hidden="true"></span><span class="swatch-label">Warm ivory</span></button>
+              <button type="button" data-color="slate" class="swatch-chip" aria-pressed="false"><span class="swatch slate" aria-hidden="true"></span><span class="swatch-label">Coastal slate</span></button>
+              <button type="button" data-color="charcoal" class="swatch-chip" aria-pressed="false"><span class="swatch charcoal" aria-hidden="true"></span><span class="swatch-label">Charcoal</span></button>
+              <button type="button" data-color="terracotta" class="swatch-chip" aria-pressed="false"><span class="swatch terracotta" aria-hidden="true"></span><span class="swatch-label">Terracotta</span></button>
+              <button type="button" data-color="white" class="swatch-chip" aria-pressed="false"><span class="swatch white" aria-hidden="true"></span><span class="swatch-label">Soft white</span></button>
+              <button type="button" data-color="navy" class="swatch-chip" aria-pressed="false"><span class="swatch navy" aria-hidden="true"></span><span class="swatch-label">Deep navy</span></button>
+              <button type="button" data-color="forest" class="swatch-chip" aria-pressed="false"><span class="swatch forest" aria-hidden="true"></span><span class="swatch-label">Forest</span></button>
+              <button type="button" data-color="greige" class="swatch-chip" aria-pressed="false"><span class="swatch greige" aria-hidden="true"></span><span class="swatch-label">Warm greige</span></button>
+              <button type="button" data-color="barn" class="swatch-chip" aria-pressed="false"><span class="swatch barn" aria-hidden="true"></span><span class="swatch-label">Barn red</span></button>
+              <button type="button" data-color="butter" class="swatch-chip" aria-pressed="false"><span class="swatch butter" aria-hidden="true"></span><span class="swatch-label">Butter yellow</span></button>
+              <button type="button" data-color="iron" class="swatch-chip" aria-pressed="false"><span class="swatch iron" aria-hidden="true"></span><span class="swatch-label">Iron black</span></button>
             </div>
+            <p class="choice-hint">Selected: <strong id="color-name" role="status">Sage</strong></p>
             <details id="price-details" class="more-options"><summary><span>More options: coverage and example prices</span> <span id="price-details-summary" class="summary-meta">100% coverage · catalog rates <span aria-hidden="true">⌄</span></span></summary>
               <div class="price-grid">
                 <div class="coverage-row">
@@ -326,9 +342,9 @@
             <div class="next-steps">
               <h3>What you can do next</h3>
               <ol>
-                <li><button type="button" class="link-button" data-step-link="4">Adjust materials, quality or coverage</button> to see how each choice moves the range.</li>
-                <li><button type="button" class="link-button" data-step-link="3">Check your measurements</button> — wall area is the biggest driver of the siding price.</li>
-                <li>Take the saved summary to a contractor. Alco Products can review it with you on <a href="tel:3015931691">(301) 593-1691</a>.</li>
+                <li><button type="button" class="link-button" data-step-link="4">Adjust materials, quality or coverage <span aria-hidden="true">→</span></button><span>See how each choice moves the range.</span></li>
+                <li><button type="button" class="link-button" data-step-link="3">Check your measurements <span aria-hidden="true">→</span></button><span>Wall area is the biggest driver of the siding price.</span></li>
+                <li><a class="link-button" href="tel:3015931691">Call Alco Products on (301) 593-1691</a><span>Take the saved summary to a contractor; we can review it with you.</span></li>
               </ol>
             </div>
           </div>
@@ -352,24 +368,75 @@
                 <input id="remodel-split" type="range" min="0" max="100" step="1" value="100" aria-describedby="remodel-compare-note">
               </div>
               <p id="remodel-compare-note" class="compare-note"></p>
-              <div class="remodel-views" role="group" aria-label="Camera views">
-                <button type="button" class="outline-button" data-remodel-view="corner">Corner</button>
-                <button type="button" class="outline-button" data-remodel-view="front">Front</button>
-                <button type="button" class="outline-button" data-remodel-view="top">Top</button>
-                <button type="button" class="outline-button" id="remodel-download" disabled>Download this view ↓</button>
+              <div class="studio-toolbar">
+                <div class="remodel-views" role="group" aria-label="Camera views">
+                  <button type="button" class="outline-button" data-remodel-view="corner">Corner</button>
+                  <button type="button" class="outline-button" data-remodel-view="front">Front</button>
+                  <button type="button" class="outline-button" data-remodel-view="side">Side</button>
+                  <button type="button" class="outline-button" data-remodel-view="back">Back</button>
+                  <button type="button" class="outline-button" data-remodel-view="top">Top</button>
+                  <button type="button" class="outline-button" data-remodel-view="street">Street</button>
+                </div>
+                <div class="studio-actions">
+                  <button type="button" class="outline-button" id="remodel-orbit" aria-pressed="false">Turntable <span aria-hidden="true">⟳</span></button>
+                  <button type="button" class="outline-button" id="remodel-download" disabled>Download this view <span aria-hidden="true">↓</span></button>
+                </div>
               </div>
-              <div class="mini-heading with-gap">Roof shingles</div>
-              <div id="roof-picker" class="color-picker" aria-label="Roof shingle color">
-                <button type="button" data-roof="charcoal" class="swatch roof-charcoal" aria-label="Charcoal shingles" aria-pressed="true"></button>
-                <button type="button" data-roof="weathered" class="swatch roof-weathered" aria-label="Weathered brown" aria-pressed="false"></button>
-                <button type="button" data-roof="slate" class="swatch roof-slate" aria-label="Slate blue" aria-pressed="false"></button>
-                <button type="button" data-roof="clay" class="swatch roof-clay" aria-label="Clay red" aria-pressed="false"></button>
-                <span id="roof-name">Charcoal shingles</span>
+              <div class="studio-options">
+                <section class="option-group" aria-labelledby="scene-heading">
+                  <h3 id="scene-heading" class="mini-heading">Lighting</h3>
+                  <div id="scene-picker" class="segmented segmented-4" role="group" aria-labelledby="scene-heading">
+                    <button type="button" data-scene="day" aria-pressed="true">Midday</button>
+                    <button type="button" data-scene="golden" aria-pressed="false">Golden hour</button>
+                    <button type="button" data-scene="overcast" aria-pressed="false">Overcast</button>
+                    <button type="button" data-scene="dusk" aria-pressed="false">Dusk</button>
+                  </div>
+                </section>
+                <section class="option-group" aria-labelledby="roof-heading">
+                  <h3 id="roof-heading" class="mini-heading">Roof</h3>
+                  <div id="roof-material-picker" class="segmented segmented-4" role="group" aria-label="Roof material">
+                    <button type="button" data-roof-material="shingle" aria-pressed="true">Shingles</button>
+                    <button type="button" data-roof-material="metal" aria-pressed="false">Metal</button>
+                    <button type="button" data-roof-material="shake" aria-pressed="false">Cedar shake</button>
+                    <button type="button" data-roof-material="tile" aria-pressed="false">Tile</button>
+                  </div>
+                  <div id="roof-picker" class="color-picker" role="group" aria-label="Roof color">
+                    <button type="button" data-roof="charcoal" class="swatch roof-charcoal" aria-label="Charcoal roof" aria-pressed="true"></button>
+                    <button type="button" data-roof="weathered" class="swatch roof-weathered" aria-label="Weathered wood roof" aria-pressed="false"></button>
+                    <button type="button" data-roof="slate" class="swatch roof-slate" aria-label="Slate blue roof" aria-pressed="false"></button>
+                    <button type="button" data-roof="clay" class="swatch roof-clay" aria-label="Clay red roof" aria-pressed="false"></button>
+                    <button type="button" data-roof="onyx" class="swatch roof-onyx" aria-label="Onyx black roof" aria-pressed="false"></button>
+                    <button type="button" data-roof="forest" class="swatch roof-forest" aria-label="Forest green roof" aria-pressed="false"></button>
+                    <button type="button" data-roof="sand" class="swatch roof-sand" aria-label="Desert sand roof" aria-pressed="false"></button>
+                  </div>
+                  <p class="option-readout" id="roof-name">Charcoal architectural shingle</p>
+                </section>
+                <section class="option-group" aria-labelledby="trim-heading">
+                  <h3 id="trim-heading" class="mini-heading">Trim</h3>
+                  <div id="trim-picker" class="color-picker" role="group" aria-labelledby="trim-heading">
+                    <button type="button" data-trim="style" class="swatch trim-style" aria-label="Style default trim" aria-pressed="true"></button>
+                    <button type="button" data-trim="white" class="swatch trim-white" aria-label="Classic white trim" aria-pressed="false"></button>
+                    <button type="button" data-trim="cream" class="swatch trim-cream" aria-label="Cream trim" aria-pressed="false"></button>
+                    <button type="button" data-trim="black" class="swatch trim-black" aria-label="Black trim" aria-pressed="false"></button>
+                    <button type="button" data-trim="bronze" class="swatch trim-bronze" aria-label="Bronze trim" aria-pressed="false"></button>
+                  </div>
+                  <p class="option-readout" id="trim-name">Style default</p>
+                </section>
+                <section class="option-group" aria-labelledby="masonry-heading">
+                  <h3 id="masonry-heading" class="mini-heading">Masonry accent</h3>
+                  <div id="masonry-picker" class="segmented segmented-3" role="group" aria-labelledby="masonry-heading">
+                    <button type="button" data-masonry="brick" aria-pressed="true">Red brick</button>
+                    <button type="button" data-masonry="stone" aria-pressed="false">Fieldstone</button>
+                    <button type="button" data-masonry="whitewash" aria-pressed="false">Painted brick</button>
+                  </div>
+                </section>
               </div>
               <fieldset class="remodel-additions"><legend class="mini-heading">Try adding <span class="legend-note">Visual only — not priced</span></legend>
                 <label><input type="checkbox" id="add-porch" checked><span>Covered front porch</span></label>
                 <label><input type="checkbox" id="add-dormers"><span>Roof dormers</span></label>
                 <label><input type="checkbox" id="add-shutters" checked><span>Window shutters</span></label>
+                <label><input type="checkbox" id="add-garage"><span>Attached two-car garage</span></label>
+                <label><input type="checkbox" id="add-fence"><span>Front picket fence</span></label>
               </fieldset>
               <p id="remodel-status" class="studio-help" role="status" aria-live="polite">Your siding color, materials and door from step 4 appear here, on a house sized from your step 3 measurements.</p>
               <p class="studio-help">Additions are shown to help you decide — they are not priced in the estimate yet. This is a concept model, not a measurement of your home.</p>

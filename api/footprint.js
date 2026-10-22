@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { AddressLookupError } from '../address.js';
 import { FootprintLookupError, footprintAvailability, resolveFootprint } from '../lib/footprint.mjs';
-import { createRequestLimiter } from '../lib/rate-limit.mjs';
+import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
 
 const requestSchema = z.object({
   address: z.string().min(6).max(120).optional(),
@@ -44,8 +43,7 @@ export function createFootprintHandler({ resolve = resolveFootprint, available =
     } catch {
       return res.status(400).json({ error: 'Supply valid U.S. coordinates and confirmation to request building dimensions.', code: 'INVALID_REQUEST' });
     }
-    const ip = String(req.headers?.['x-real-ip'] || req.socket?.remoteAddress || 'local');
-    if (!allow(createHash('sha256').update(ip).digest('hex'))) {
+    if (!allow(clientKey(req))) {
       res.setHeader('Retry-After', '600');
       return res.status(429).json({ error: 'Footprint request limit reached. Enter measurements manually.', code: 'RATE_LIMIT' });
     }

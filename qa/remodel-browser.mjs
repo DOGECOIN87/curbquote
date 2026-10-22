@@ -174,7 +174,8 @@ try {
   await page.locator('[data-goto="1"]').click();
   await page.locator('#exterior-example').click();
   await page.locator('[data-goto="3"]').click();
-  assert.equal(await page.locator('#home-style-picker [data-archetype]').count(), 12);
+  assert.equal(await page.locator('#home-style-picker [data-archetype]').count(), 16);
+  assert.equal(await page.locator('#home-style-picker [data-archetype] svg.style-art').count(), 16, 'every style card shows its drawing');
   const preStyleHash = await canvasHash();
   await page.locator('[data-archetype="farmhouse-porch"]').click();
   await page.waitForTimeout(250);
@@ -185,7 +186,7 @@ try {
   await page.locator('#fetch-footprint').click();
   await page.waitForFunction(() => document.querySelector('#step3-studio-badge')?.textContent?.includes('Style variant — approximate'), undefined, { timeout: 10000 });
   assert.equal(await page.locator('#studio-model-badge').textContent(), 'Style variant — approximate, not your surveyed footprint');
-  checks.push('All 12 North-American style cards rebuild the 3D silhouette and public footprint lookup enforces approximate-model guardrails');
+  checks.push('All 16 North-American style cards rebuild the 3D silhouette and public footprint lookup enforces approximate-model guardrails');
 
   await page.locator('[data-goto="5"]').click();
   await page.locator('.design-studio').screenshot({ path: resolve(outputDir, 'remodel-browser.png') });

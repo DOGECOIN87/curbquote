@@ -12,7 +12,7 @@ import { STATIC_SITE } from './config.js';
 import { lookupCensus } from './census-jsonp.js';
 import { setupWizard } from './wizard.js';
 import { setupRemodel3D } from './remodel-3d.js';
-import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, ROOF_COLORS, DEFAULT_DESIGN } from './house-spec.js';
+import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, styleSilhouette, ROOF_COLORS, ROOF_MATERIALS, TRIM_COLORS, MASONRY_FINISHES, SCENES, DEFAULT_DESIGN } from './house-spec.js';
 import { fetchPublicFootprint } from './footprint-client.js';
 
 const form = document.querySelector('#estimate-form');
@@ -57,6 +57,19 @@ const propertyPreview = setupPropertyPreview({ onPhoto: () => {
 } });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 let remodelDesign = { ...DEFAULT_DESIGN, split: 100 };
+const ADDITIONS = [['add-porch', 'porch'], ['add-dormers', 'dormers'], ['add-shutters', 'shutters'], ['add-garage', 'garage'], ['add-fence', 'fence']];
+const DESIGN_PICKERS = [['roof', 'roof', ROOF_COLORS], ['roof-material', 'roofMaterial', ROOF_MATERIALS], ['trim', 'trim', TRIM_COLORS], ['masonry', 'masonry', MASONRY_FINISHES], ['scene', 'scene', SCENES]];
+// Each style card gets a small front-elevation drawing built from the style's own proportions.
+for (const card of document.querySelectorAll('[data-archetype]')) {
+  const svgNS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(svgNS, 'svg'), parts = styleSilhouette(card.dataset.archetype);
+  svg.setAttribute('viewBox', '0 0 96 56'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('class', 'style-art');
+  for (const [key, cls] of [['body', 'art-body'], ['roof', 'art-roof'], ['windows', 'art-window'], ['door', 'art-door'], ['porch', 'art-porch']]) {
+    if (!parts[key]) continue;
+    const path = document.createElementNS(svgNS, 'path'); path.setAttribute('d', parts[key]); path.setAttribute('class', cls); svg.append(path);
+  }
+  const ground = document.createElementNS(svgNS, 'path'); ground.setAttribute('d', 'M4 52.5H92'); ground.setAttribute('class', 'art-ground'); svg.prepend(ground);
+  card.prepend(svg);
+}
 let remodelState = 'idle';
 remodel = setupRemodel3D({
   stage: byId('remodel-stage'),
@@ -73,6 +86,7 @@ remodel = setupRemodel3D({
     if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
   },
   onSplitChange: (split, state) => reflectCanvasSplit(split, state),
+  onOrbitChange: on => byId('remodel-orbit')?.setAttribute('aria-pressed', String(on)),
   // The download button stays disabled until a rendered scene exists, instead of failing silently.
   onReady: () => { remodelState = 'ready'; byId('remodel-download').disabled = false; },
   onError: () => {
@@ -155,7 +169,7 @@ function syncProjectControls({ microResponse = false } = {}) {
     byId('dock-scope-summary').textContent = active.length ? `${active.join(', ')} included` : 'Choose at least one trade';
   }
   if (byId('dock-choice-readout')) {
-    byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+    byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`;
   }
   syncRemodelControls();
   remodel.refresh({ microResponse });
@@ -176,18 +190,19 @@ function syncRemodelControls() {
   if (byId('remodel-split-readout')) {
     byId('remodel-split-readout').textContent = split === 0 ? 'Before (100%)' : split === 100 ? 'After (100%)' : `${100 - split}% Before · ${split}% After`;
   }
-  for (const id of ['add-porch', 'add-dormers', 'add-shutters']) byId(id).disabled = split === 0;
-  for (const button of document.querySelectorAll('[data-roof]')) button.setAttribute('aria-pressed', String(button.dataset.roof === remodelDesign.roof));
-  byId('roof-name').textContent = ROOF_COLORS[remodelDesign.roof].name;
-  const additions = [['porch', 'covered porch'], ['dormers', 'dormers'], ['shutters', 'shutters']]
+  for (const id of ADDITIONS.map(([id]) => id)) byId(id).disabled = split === 0;
+  for (const [attr, key] of DESIGN_PICKERS) for (const button of document.querySelectorAll(`[data-${attr}]`)) button.setAttribute('aria-pressed', String(button.dataset[attr.replace(/-(\w)/g, (_, c) => c.toUpperCase())] === remodelDesign[key]));
+  byId('roof-name').textContent = `${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`;
+  if (byId('trim-name')) byId('trim-name').textContent = TRIM_COLORS[remodelDesign.trim].name;
+  const additions = [['porch', 'covered porch'], ['dormers', 'dormers'], ['shutters', 'shutters'], ['garage', 'garage'], ['fence', 'picket fence']]
     .filter(([key]) => remodelDesign[key]).map(([, label]) => label);
   const p = projectOptions();
   if (byId('dock-choice-readout')) {
-    byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+    byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`;
   }
-  const afterDesc = `${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${ROOF_COLORS[remodelDesign.roof].name.toLowerCase()}, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}`;
+  const afterDesc = `${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${`${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`.toLowerCase()} roof, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}`;
   byId('remodel-compare-note').textContent = split === 0
-    ? `Before: the same house in a dated palette, with no porch, dormers or shutters.`
+    ? `Before: the same house in a dated palette, with no porch, dormers, shutters, garage or fence.`
     : split === 100
     ? `After: ${afterDesc}.`
     : `Split comparison (${100 - split}% Before on left, ${split}% After on right): comparing the dated palette against ${afterDesc}.`;
@@ -386,6 +401,13 @@ function resetFootprintState({ restoreManual = false } = {}) {
   }
 }
 
+/** A style brings its own roof, masonry and typical additions; trim, lighting, garage and fence stay as chosen. */
+function applyStyleDesign(style) {
+  remodelDesign.roof = ROOF_COLORS[style.roof] ? style.roof : 'charcoal';
+  remodelDesign.roofMaterial = ROOF_MATERIALS[style.roofMaterial] ? style.roofMaterial : 'shingle';
+  remodelDesign.masonry = MASONRY_FINISHES[style.masonry] ? style.masonry : 'brick';
+  for (const key of ['porch', 'dormers', 'shutters']) { remodelDesign[key] = style[key]; byId(`add-${key}`).checked = style[key]; }
+}
 function applyStylePreset(styleId, { manual = true } = {}) {
   const style = resolveHomeStyle(styleId);
   selectedHomeStyle = style.id;
@@ -399,13 +421,7 @@ function applyStylePreset(styleId, { manual = true } = {}) {
   byId('storyHeightFt').value = String(style.storyHeightFt);
   byId('gableRiseFt').value = String(style.gableRiseFt);
   byId('masonryPercent').value = String(style.masonryPercent);
-  remodelDesign.roof = ROOF_COLORS[style.roof] ? style.roof : 'charcoal';
-  remodelDesign.porch = style.porch;
-  remodelDesign.dormers = style.dormers;
-  remodelDesign.shutters = style.shutters;
-  byId('add-porch').checked = style.porch;
-  byId('add-dormers').checked = style.dormers;
-  byId('add-shutters').checked = style.shutters;
+  applyStyleDesign(style);
   syncProjectControls({ microResponse: true });
   if (hasCalculated) calculate();
   assistant?.changed('homeStyle');
@@ -461,13 +477,7 @@ byId('fetch-footprint')?.addEventListener('click', async () => {
     if (result.stories) byId('stories').value = String(Math.min(4, Math.max(1, Math.round(result.stories))));
     byId('storyHeightFt').value = String(style.storyHeightFt);
     byId('gableRiseFt').value = String(style.gableRiseFt);
-    remodelDesign.porch = style.porch;
-    remodelDesign.dormers = style.dormers;
-    remodelDesign.shutters = style.shutters;
-    remodelDesign.roof = ROOF_COLORS[style.roof] ? style.roof : 'charcoal';
-    byId('add-porch').checked = style.porch;
-    byId('add-dormers').checked = style.dormers;
-    byId('add-shutters').checked = style.shutters;
+    applyStyleDesign(style);
     statusEl.className = 'field-help success';
     statusEl.textContent = `${result.source?.provider || 'Public building outline'}: ~${Math.round(result.areaSqFt).toLocaleString()} sq ft ground outline (${Math.round(result.perimeterFt)} ft perimeter) · sized as ${byId('lengthFt').value} × ${byId('widthFt').value} ft (${style.name}). Style variant — approximate, not your surveyed footprint.`;
     syncProjectControls({ microResponse: true });
@@ -670,13 +680,18 @@ for (const button of document.querySelectorAll('[data-remodel-view], [data-step3
   button.addEventListener('click', () => remodel.setView(button.dataset.remodelView || button.dataset.step3View));
 }
 byId('remodel-download').addEventListener('click', () => remodel.download());
-byId('roof-picker').addEventListener('click', event => {
-  const button = event.target.closest('[data-roof]'); if (!button) return;
-  remodelDesign.roof = button.dataset.roof; syncRemodelControls(); remodel.refresh({ microResponse: true });
-});
-for (const [id, key] of [['add-porch', 'porch'], ['add-dormers', 'dormers'], ['add-shutters', 'shutters']]) byId(id).addEventListener('change', () => {
+for (const [attr, key, catalog] of DESIGN_PICKERS) {
+  const dataKey = attr.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  document.addEventListener('click', event => {
+    const button = event.target.closest(`[data-${attr}]`);
+    if (!button || !Object.hasOwn(catalog, button.dataset[dataKey])) return;
+    remodelDesign[key] = button.dataset[dataKey]; syncRemodelControls(); remodel.refresh({ microResponse: key !== 'scene' });
+  });
+}
+for (const [id, key] of ADDITIONS) byId(id).addEventListener('change', () => {
   remodelDesign[key] = byId(id).checked; syncRemodelControls(); remodel.refresh({ microResponse: true });
 });
+byId('remodel-orbit')?.addEventListener('click', () => { byId('remodel-orbit').setAttribute('aria-pressed', String(remodel.orbit())); });
 syncRemodelControls();
 function renderSavedProjects() {
   const container = byId('saved-project-list'); container.replaceChildren();
@@ -760,7 +775,7 @@ byId('new-project').addEventListener('click', () => {
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset();
   addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
-  remodelDesign = { ...DEFAULT_DESIGN, split: 100 }; remodel.setSplit(100); byId('add-porch').checked = byId('add-shutters').checked = true; byId('add-dormers').checked = false; syncRemodelControls();
+  remodelDesign = { ...DEFAULT_DESIGN, split: 100 }; remodel.setSplit(100); for (const [id, key] of ADDITIONS) byId(id).checked = DEFAULT_DESIGN[key]; syncRemodelControls();
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab('remodel'); projectDialog.close(); wizard.show(1); notify('New project started with clearly labeled example measurements.');
   assistant?.restore();
 });

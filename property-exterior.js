@@ -2,19 +2,54 @@ import { loadCesium } from './cesium-runtime.js';
 import { exteriorForLocation } from './exterior-catalog.js';
 
 /** Key-free local exterior. Closing cancels pending work and frees the GPU context. */
-export function setupExterior3D({ stage, onFailure, onViewChange }) {
+export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange }) {
   const container = document.createElement('div'); container.className = 'aerial-3d exterior-3d'; container.id = 'exterior-model'; container.hidden = true;
   container.setAttribute('aria-label', 'Measured roof surface with simplified exterior walls'); stage.append(container);
   let serial = 0, open = false, widget = null, Cesium, stopWaiting, target;
   let heading = -0.65, pitch = -0.55, range = 62, top = false;
+  let orbitFrame = 0, orbiting = false;
   const pointers = new Map();
   function frame() {
     if (!widget || !target) return;
     widget.scene.camera.lookAt(target, new Cesium.HeadingPitchRange(heading, pitch, range));
     widget.scene.requestRender(); onViewChange?.();
   }
-  function recenter() { heading = -0.65; pitch = -0.55; range = 62; top = false; frame(); }
+  function recenter() { cancelOrbit(); heading = -0.65; pitch = -0.55; range = 62; top = false; frame(); }
+  function cancelOrbit() {
+    if (orbitFrame) cancelAnimationFrame(orbitFrame);
+    orbitFrame = 0;
+    if (orbiting) { orbiting = false; onOrbitChange?.(false); }
+  }
+  function orbit() {
+    if (!widget || !target) return;
+    if (orbiting) { cancelOrbit(); return; }
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      heading += Math.PI / 2; cancelOrbit(); frame(); return;
+    }
+    orbiting = true; onOrbitChange?.(true);
+    const startHeading = heading;
+    const duration = 16000;
+    const startPitch = pitch;
+    const startRange = range;
+    const startTime = performance.now();
+    const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const tick = now => {
+      if (!orbiting || !open || !widget) { cancelOrbit(); return; }
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(t);
+      heading = startHeading + eased * Math.PI * 2;
+      // Gentle pitch lift and range pull-back at the 180° side give a reveal.
+      pitch = startPitch + Math.sin(eased * Math.PI * 2) * 0.08;
+      range = startRange * (1 + Math.sin(eased * Math.PI * 2) * 0.04);
+      frame();
+      if (t < 1) orbitFrame = requestAnimationFrame(tick);
+      else { orbitFrame = 0; orbiting = false; pitch = startPitch; range = startRange; frame(); onOrbitChange?.(false); }
+    };
+    orbitFrame = requestAnimationFrame(tick);
+  }
   function close() {
+    cancelOrbit();
     serial++; open = false; stopWaiting?.(); stopWaiting = null; pointers.clear();
     const previous = widget; widget = null; target = null;
     try { previous?.destroy(); } catch { /* context already lost */ }
@@ -23,6 +58,8 @@ export function setupExterior3D({ stage, onFailure, onViewChange }) {
   function controls(canvas) {
     canvas.tabIndex = 0;
     canvas.setAttribute('aria-label', 'Exterior model. Drag or use arrow keys to orbit. Scroll, pinch, or use plus and minus to zoom. Home recenters.');
+    canvas.addEventListener('pointerdown', cancelOrbit);
+    canvas.addEventListener('wheel', cancelOrbit, { once: true });
     canvas.addEventListener('keydown', event => {
       if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','=','-','Home'].includes(event.key)) return;
       event.preventDefault(); event.stopPropagation();
@@ -54,6 +91,7 @@ export function setupExterior3D({ stage, onFailure, onViewChange }) {
     for (const type of ['pointerup','pointercancel','lostpointercapture']) canvas.addEventListener(type, event => pointers.delete(event.pointerId));
   }
   function constrain() {
+    cancelOrbit();
     range = Math.max(28, Math.min(130, range)); pitch = Math.max(-Math.PI/2 + .01, Math.min(-.12, pitch));
     top = pitch < -1.5; frame();
   }
@@ -101,5 +139,5 @@ export function setupExterior3D({ stage, onFailure, onViewChange }) {
       });
     } catch (error) { if (current()) close(); throw error; }
   }
-  return { show, close, recenter, rotate() { heading += Math.PI/2; frame(); }, setTop(value) { top = value; pitch = value ? -Math.PI/2 + .01 : -.55; frame(); }, get isOpen() { return open; }, get isTop() { return top; } };
+  return { show, close, recenter, rotate() { cancelOrbit(); heading += Math.PI/2; frame(); }, setTop(value) { cancelOrbit(); top = value; pitch = value ? -Math.PI/2 + .01 : -.55; frame(); }, orbit, get isOpen() { return open; }, get isTop() { return top; }, get isOrbiting() { return orbiting; } };
 }

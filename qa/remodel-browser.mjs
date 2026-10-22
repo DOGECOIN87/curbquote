@@ -182,6 +182,7 @@ try {
   assert.equal(await page.locator('[data-archetype="farmhouse-porch"]').getAttribute('aria-pressed'), 'true');
   assert.notEqual(await canvasHash(), preStyleHash, 'selecting a North-American home style rebuilds the 3D silhouette');
   assert.equal(await page.locator('#step3-studio-badge').textContent(), 'Concept model');
+  await page.locator('#measure-sources > summary').click();
   await page.locator('#footprint-consent').click();
   await page.locator('#fetch-footprint').click();
   await page.waitForFunction(() => document.querySelector('#step3-studio-badge')?.textContent?.includes('Style variant — approximate'), undefined, { timeout: 10000 });

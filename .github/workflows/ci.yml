@@ -19,7 +19,8 @@ jobs:
       - run: python3 -m unittest discover -s tests/python
   browser-regressions:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Software WebGL in CI makes the 3D welcome model and map views slow; the job takes about six minutes.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

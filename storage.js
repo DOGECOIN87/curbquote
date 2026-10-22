@@ -11,6 +11,28 @@ export function readProjects(storage) {
   if (!Array.isArray(projects) || projects.length > 30) throw new Error('Saved project data is invalid.');
   return projects.map(validateSavedProject);
 }
+function validateFootprintContext(fp) {
+  if (!fp || typeof fp !== 'object') return undefined;
+  const areaSqFt = Number(fp.areaSqFt), lengthFt = Number(fp.lengthFt), widthFt = Number(fp.widthFt);
+  if (!Number.isFinite(areaSqFt) || areaSqFt <= 0 || areaSqFt > 200000) return undefined;
+  return {
+    areaSqFt: Math.round(areaSqFt * 10) / 10,
+    ...(Number.isFinite(Number(fp.perimeterFt)) && Number(fp.perimeterFt) > 0 ? { perimeterFt: Math.round(Number(fp.perimeterFt) * 10) / 10 } : {}),
+    ...(Number.isFinite(lengthFt) && lengthFt > 0 ? { lengthFt: Math.round(lengthFt * 10) / 10 } : {}),
+    ...(Number.isFinite(widthFt) && widthFt > 0 ? { widthFt: Math.round(widthFt * 10) / 10 } : {}),
+    ...(Number.isFinite(Number(fp.heightFt)) && Number(fp.heightFt) > 0 ? { heightFt: Math.round(Number(fp.heightFt) * 10) / 10 } : {}),
+    ...(Number.isInteger(fp.stories) && fp.stories >= 1 && fp.stories <= 4 ? { stories: fp.stories } : {}),
+    ...(typeof fp.roofPitch === 'string' ? { roofPitch: fp.roofPitch.slice(0, 32) } : {}),
+    ...(typeof fp.suggestedStyle === 'string' ? { suggestedStyle: fp.suggestedStyle.slice(0, 48) } : {}),
+    source: {
+      provider: typeof fp.source?.provider === 'string' ? fp.source.provider.slice(0, 96) : 'Public footprint',
+      license: typeof fp.source?.license === 'string' ? fp.source.license.slice(0, 40) : 'ODbL-1.0',
+      retrievedAt: typeof fp.source?.retrievedAt === 'string' && Number.isFinite(Date.parse(fp.source.retrievedAt)) ? fp.source.retrievedAt : new Date(0).toISOString(),
+      approximate: true
+    }
+  };
+}
+
 export function validateSavedProject(project) {
   if (!project || typeof project.id !== 'string' || !/^[a-z0-9-]{8,80}$/i.test(project.id) || typeof project.name !== 'string' || !project.name.trim() || project.name.length > 80 || typeof project.address !== 'string' || project.address.length > 120 || typeof project.updatedAt !== 'string' || !Number.isFinite(Date.parse(project.updatedAt))) throw new Error('A saved project is invalid.');
   const options = validateProject(project.options);
@@ -23,11 +45,12 @@ export function validateSavedProject(project) {
     allowPhasing: p.allowPhasing === true
   } : undefined;
   const propertyData = validatePropertyContext(project.propertyData);
+  const footprintData = validateFootprintContext(project.footprintData);
   const inputs = { ...project.inputs, ...result.inputs };
   // Stories are unused for window/door budgets, but valid profile facts must survive a save.
   const stories = Number(project.inputs.stories);
   if (!options.siding && Number.isInteger(stories) && stories >= 1 && stories <= 4) inputs.stories = stories;
-  return { id: project.id, name: project.name.trim(), address: project.address, updatedAt: project.updatedAt, inputs, options, ...(planning ? { planning } : {}), ...(propertyData ? { propertyData } : {}) };
+  return { id: project.id, name: project.name.trim(), address: project.address, updatedAt: project.updatedAt, inputs, options, ...(planning ? { planning } : {}), ...(propertyData ? { propertyData } : {}), ...(footprintData ? { footprintData } : {}) };
 }
 export function saveProject(storage, project) {
   const valid = validateSavedProject(project);

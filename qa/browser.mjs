@@ -72,12 +72,12 @@ try {
   assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), false);
   checks.push('Without a configured Google key the 3D toggle stays hidden');
   await page.locator('#aerial-zoom-in').click();
-  await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('113'));
+  await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('60'));
   const zoomUrl = await page.locator('#aerial-images img').getAttribute('src');
   await page.locator('[data-pan=".3,0"]').click();
   await page.waitForFunction(previous => document.querySelector('#aerial-images img')?.getAttribute('src') !== previous, zoomUrl);
   await page.locator('#aerial-recenter').click();
-  await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('180'));
+  await page.waitForFunction(() => document.querySelector('#aerial-width').textContent.includes('90'));
   await page.locator('#aerial-stage').focus(); await page.keyboard.press('ArrowRight');
   await page.waitForFunction(() => document.querySelector('#aerial-controls').hidden === false);
   const beforeTap = await page.locator('#aerial-images img').getAttribute('src');

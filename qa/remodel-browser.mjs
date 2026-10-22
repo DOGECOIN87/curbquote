@@ -8,7 +8,24 @@ import { createMap3DHandler } from '../api/map3d.js';
 
 const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
 await mkdir(outputDir, { recursive: true });
-const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }) });
+const server = createAppServer({
+  mapHandler: createMap3DHandler({ env: {} }),
+  dimensionsHandler: async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (req.method === 'GET') return res.status(200).json({ openFallback: true });
+    return res.status(200).json({
+      areaSqFt: 1920,
+      perimeterFt: 180,
+      lengthFt: 54,
+      widthFt: 35.5,
+      stories: 2,
+      roofPitch: '8:12',
+      suggestedStyle: 'tudor-gable',
+      source: { provider: 'OpenStreetMap / Overpass (ODbL)', license: 'ODbL-1.0', retrievedAt: '2026-10-22T12:00:00Z', approximate: true },
+      warnings: ['Style variant — approximate, not your surveyed footprint.']
+    });
+  }
+});
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true, args: ['--enable-unsafe-swiftshader'] });
@@ -153,6 +170,24 @@ try {
   assert.notEqual(await canvasHash(), front);
   checks.push('Siding color from step 4 and story count from step 3 rebuild the 3D house');
 
+  // Verify North-American style picker + on-demand public footprint guardrail flow.
+  await page.locator('[data-goto="1"]').click();
+  await page.locator('#exterior-example').click();
+  await page.locator('[data-goto="3"]').click();
+  assert.equal(await page.locator('#home-style-picker [data-archetype]').count(), 12);
+  const preStyleHash = await canvasHash();
+  await page.locator('[data-archetype="farmhouse-porch"]').click();
+  await page.waitForTimeout(250);
+  assert.equal(await page.locator('[data-archetype="farmhouse-porch"]').getAttribute('aria-pressed'), 'true');
+  assert.notEqual(await canvasHash(), preStyleHash, 'selecting a North-American home style rebuilds the 3D silhouette');
+  assert.equal(await page.locator('#step3-studio-badge').textContent(), 'Concept model');
+  await page.locator('#footprint-consent').click();
+  await page.locator('#fetch-footprint').click();
+  await page.waitForFunction(() => document.querySelector('#step3-studio-badge')?.textContent?.includes('Style variant — approximate'), undefined, { timeout: 10000 });
+  assert.equal(await page.locator('#studio-model-badge').textContent(), 'Style variant — approximate, not your surveyed footprint');
+  checks.push('All 12 North-American style cards rebuild the 3D silhouette and public footprint lookup enforces approximate-model guardrails');
+
+  await page.locator('[data-goto="5"]').click();
   await page.locator('.design-studio').screenshot({ path: resolve(outputDir, 'remodel-browser.png') });
   assert.deepEqual(errors, []);
   await writeFile(resolve(outputDir, 'remodel-checks.txt'), checks.map((check, i) => `${i + 1}. ${check}`).join('\n') + '\n');

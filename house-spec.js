@@ -91,3 +91,17 @@ export function houseSpec(inputs = {}, options = {}, design = {}) {
   spec.label = `${Math.round(spec.lengthFt)} × ${Math.round(spec.widthFt)} ft · ${spec.stories} ${spec.stories === 1 ? 'story' : 'stories'} · ${spec.windows.length} windows shown`;
   return spec;
 }
+
+export {
+  HOME_STYLES,
+  HOME_STYLE_IDS,
+  DEFAULT_HOME_STYLE,
+  STYLE_VARIANT_BADGE,
+  CONCEPT_MODEL_BADGE,
+  normalizeHomeStyle,
+  resolveHomeStyle,
+  dimensionsFromFootprint,
+  suggestStyleFromFootprint,
+  modelGuardrailLabel,
+  houseSpecFromStyle
+} from './home-styles.js';

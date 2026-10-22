@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAppServer, SECURITY_HEADERS } from '../lib/web.mjs';
@@ -84,3 +84,20 @@ test('public build serves browser modules while keeping backend, research and pr
   assert.equal((await fetch(base, { method: 'HEAD' })).status, 200);
   assert.equal((await fetch(base, { method: 'POST' })).status, 405);
 });
+
+test('vercel.json security headers match lib/web.mjs byte-for-byte and /api/footprint uses no-store', async t => {
+  const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const configured = Object.fromEntries(vercel.headers[0].headers.map(({ key, value }) => [key, value]));
+  assert.deepEqual(configured, SECURITY_HEADERS);
+  const base = await withServer(t, {
+    dimensionsHandler: (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ openFallback: true });
+    }
+  });
+  const res = await fetch(`${base}/api/footprint`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await res.json(), { openFallback: true });
+});
+

@@ -12,7 +12,8 @@ import { STATIC_SITE } from './config.js';
 import { lookupCensus } from './census-jsonp.js';
 import { setupWizard } from './wizard.js';
 import { setupRemodel3D } from './remodel-3d.js';
-import { houseSpec, ROOF_COLORS, DEFAULT_DESIGN } from './house-spec.js';
+import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, ROOF_COLORS, DEFAULT_DESIGN } from './house-spec.js';
+import { fetchPublicFootprint } from './footprint-client.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -34,6 +35,11 @@ let lookupTimer = null;
 let addressComposing = false;
 let invalidField = null;
 let selectedColor = DEFAULT_PROJECT.color;
+let selectedHomeStyle = DEFAULT_PROJECT.homeStyle;
+let manualStyleOverride = false;
+let footprintData = null;
+let manualInputsBackup = null;
+let footprintController = null;
 let activeProjectId = null;
 let projectLoadSerial = 0;
 let assistant;
@@ -55,7 +61,13 @@ let remodelState = 'idle';
 remodel = setupRemodel3D({
   stage: byId('remodel-stage'),
   previewStage: byId('step3-3d-stage'),
-  getSpec: beforeOverride => houseSpec(readInputs(), projectOptions(), typeof beforeOverride === 'boolean' ? { ...remodelDesign, before: beforeOverride } : remodelDesign),
+  getSpec: beforeOverride => houseSpecFromStyle(
+    readInputs(),
+    selectedHomeStyle,
+    footprintData,
+    projectOptions(),
+    typeof beforeOverride === 'boolean' ? { ...remodelDesign, before: beforeOverride } : remodelDesign
+  ),
   onStatus: message => {
     byId('remodel-status').textContent = message;
     if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
@@ -79,7 +91,8 @@ function projectOptions() {
   return {
     siding: byId('scope-siding').checked, windows: byId('scope-windows').checked, doors: byId('scope-doors').checked,
     sidingProduct: byId('sidingProduct').value, windowProduct: byId('windowProduct').value, doorProduct: byId('doorProduct').value,
-    tier: form.querySelector('[name="tier"]:checked').value, coveragePercent: byId('coveragePercent').value, color: selectedColor
+    tier: form.querySelector('[name="tier"]:checked').value, coveragePercent: byId('coveragePercent').value, color: selectedColor,
+    homeStyle: selectedHomeStyle
   };
 }
 function setCatalogRates() {
@@ -123,8 +136,16 @@ function syncProjectControls({ microResponse = false } = {}) {
   byId('house-windows').setAttribute('stroke', p.windowProduct === 'wood' ? '#d3bc93' : '#f6f4e8');
   byId('color-name').textContent = COLORS[selectedColor].name;
   for (const button of document.querySelectorAll('[data-color]')) button.setAttribute('aria-pressed', String(button.dataset.color === selectedColor));
+  for (const card of document.querySelectorAll('[data-archetype]')) card.setAttribute('aria-pressed', String(card.dataset.archetype === selectedHomeStyle));
+  const badgeText = modelGuardrailLabel(footprintData);
+  if (byId('step3-studio-badge')) byId('step3-studio-badge').textContent = badgeText;
+  if (byId('studio-model-badge')) byId('studio-model-badge').textContent = badgeText;
+  if (byId('footprint-source-pill')) {
+    byId('footprint-source-pill').textContent = footprintData?.source?.provider || 'Manual dimensions';
+  }
+  if (byId('clear-footprint')) byId('clear-footprint').hidden = !footprintData;
   editor.setColor(COLORS[selectedColor].hex);
-  const currentSpec = houseSpec(readInputs(), p, remodelDesign);
+  const currentSpec = houseSpecFromStyle(readInputs(), selectedHomeStyle, footprintData, p, remodelDesign);
   if (byId('step3-3d-status') && !remodel.isOpen) byId('step3-3d-status').textContent = `${currentSpec.label}. Updates live as you type.`;
   byId('dock-pill-siding')?.classList.toggle('is-active', p.siding);
   byId('dock-pill-windows')?.classList.toggle('is-active', p.windows);
@@ -134,7 +155,7 @@ function syncProjectControls({ microResponse = false } = {}) {
     byId('dock-scope-summary').textContent = active.length ? `${active.join(', ')} included` : 'Choose at least one trade';
   }
   if (byId('dock-choice-readout')) {
-    byId('dock-choice-readout').textContent = `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
+    byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name}`;
   }
   syncRemodelControls();
   remodel.refresh({ microResponse });
@@ -195,7 +216,7 @@ function readInputs() {
 }
 function refreshReport() {
   byId('print-report-content').textContent = lastResult ? buildEstimateSummary(lastResult, {
-    address: addressEl.value.trim(), matchedAddress: matched?.matchedAddress, generatedAt, propertyData: propertyLookup?.context()
+    address: addressEl.value.trim(), matchedAddress: matched?.matchedAddress, generatedAt, propertyData: propertyLookup?.context(), footprintData
   }) : 'ALCO PRODUCTS / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.';
   byId('save-summary').disabled = !lastResult;
   byId('print-summary').disabled = !lastResult;
@@ -347,8 +368,130 @@ function scheduleAddressLookup() {
   addressStatus.textContent = 'Address ready. Loading your property preview automatically…';
   lookupTimer = setTimeout(() => lookupAddress({ automatic: true }), 700);
 }
+function resetFootprintState({ restoreManual = false } = {}) {
+  footprintController?.abort();
+  footprintController = null;
+  if (restoreManual && manualInputsBackup) {
+    for (const [key, value] of Object.entries(manualInputsBackup)) {
+      if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
+    }
+  }
+  footprintData = null;
+  manualInputsBackup = null;
+  if (byId('footprint-status')) {
+    byId('footprint-status').className = 'field-help';
+    byId('footprint-status').textContent = matched?.coordinates
+      ? 'Ready to look up public or authorized building dimensions for this matched address.'
+      : 'Using your manual dimensions below. Match a Step 1 address to query public building outlines.';
+  }
+}
+
+function applyStylePreset(styleId, { manual = true } = {}) {
+  const style = resolveHomeStyle(styleId);
+  selectedHomeStyle = style.id;
+  if (manual) manualStyleOverride = true;
+  const currentArea = footprintData?.areaSqFt || (Math.max(12, Number(byId('lengthFt').value) || 48) * Math.max(12, Number(byId('widthFt').value) || 34));
+  const widthFt = Math.max(16, Math.min(64, Math.round(Math.sqrt(currentArea / style.ratio) * 2) / 2));
+  const lengthFt = Math.max(18, Math.min(90, Math.round((currentArea / widthFt) * 2) / 2));
+  byId('lengthFt').value = String(Math.max(lengthFt, widthFt));
+  byId('widthFt').value = String(Math.min(lengthFt, widthFt));
+  byId('stories').value = String(footprintData?.stories || style.stories);
+  byId('storyHeightFt').value = String(style.storyHeightFt);
+  byId('gableRiseFt').value = String(style.gableRiseFt);
+  byId('masonryPercent').value = String(style.masonryPercent);
+  remodelDesign.roof = ROOF_COLORS[style.roof] ? style.roof : 'charcoal';
+  remodelDesign.porch = style.porch;
+  remodelDesign.dormers = style.dormers;
+  remodelDesign.shutters = style.shutters;
+  byId('add-porch').checked = style.porch;
+  byId('add-dormers').checked = style.dormers;
+  byId('add-shutters').checked = style.shutters;
+  syncProjectControls({ microResponse: true });
+  if (hasCalculated) calculate();
+  assistant?.changed('homeStyle');
+}
+
+byId('home-style-picker')?.addEventListener('click', event => {
+  const card = event.target.closest('[data-archetype]');
+  if (!card) return;
+  applyStylePreset(card.dataset.archetype, { manual: true });
+});
+
+byId('footprint-consent')?.addEventListener('click', () => {
+  const next = byId('footprint-consent').getAttribute('aria-pressed') !== 'true';
+  byId('footprint-consent').setAttribute('aria-pressed', String(next));
+});
+
+byId('fetch-footprint')?.addEventListener('click', async () => {
+  const statusEl = byId('footprint-status'), button = byId('fetch-footprint');
+  const consented = byId('footprint-consent')?.getAttribute('aria-pressed') === 'true';
+  if (!consented) {
+    statusEl.className = 'field-help error';
+    statusEl.textContent = 'Check confirmation above before requesting building dimensions for this address.';
+    byId('footprint-consent')?.focus();
+    return;
+  }
+  if (!matched?.coordinates) {
+    statusEl.className = 'field-help error';
+    statusEl.textContent = 'Match a contiguous U.S. address in Step 1 first, or enter your measurements manually below.';
+    return;
+  }
+  footprintController?.abort();
+  const controller = new AbortController();
+  footprintController = controller;
+  button.disabled = true;
+  statusEl.className = 'field-help';
+  statusEl.textContent = 'Checking authorized & public ODbL building footprints…';
+  try {
+    const result = await fetchPublicFootprint({
+      address: addressEl.value.trim(),
+      coordinates: matched.coordinates,
+      styleId: selectedHomeStyle,
+      consented: true,
+      signal: controller.signal
+    });
+    if (!manualInputsBackup) manualInputsBackup = readInputs();
+    footprintData = result;
+    if (!manualStyleOverride && result.suggestedStyle) {
+      selectedHomeStyle = resolveHomeStyle(result.suggestedStyle).id;
+    }
+    const style = resolveHomeStyle(selectedHomeStyle);
+    byId('lengthFt').value = String(Math.round(Math.max(18, Math.min(90, result.lengthFt)) * 2) / 2);
+    byId('widthFt').value = String(Math.round(Math.max(16, Math.min(64, result.widthFt)) * 2) / 2);
+    if (result.stories) byId('stories').value = String(Math.min(4, Math.max(1, Math.round(result.stories))));
+    byId('storyHeightFt').value = String(style.storyHeightFt);
+    byId('gableRiseFt').value = String(style.gableRiseFt);
+    remodelDesign.porch = style.porch;
+    remodelDesign.dormers = style.dormers;
+    remodelDesign.shutters = style.shutters;
+    remodelDesign.roof = ROOF_COLORS[style.roof] ? style.roof : 'charcoal';
+    byId('add-porch').checked = style.porch;
+    byId('add-dormers').checked = style.dormers;
+    byId('add-shutters').checked = style.shutters;
+    statusEl.className = 'field-help success';
+    statusEl.textContent = `${result.source?.provider || 'Public building outline'}: ~${Math.round(result.areaSqFt).toLocaleString()} sq ft ground outline (${Math.round(result.perimeterFt)} ft perimeter) · sized as ${byId('lengthFt').value} × ${byId('widthFt').value} ft (${style.name}). Style variant — approximate, not your surveyed footprint.`;
+    syncProjectControls({ microResponse: true });
+    if (hasCalculated) calculate();
+    refreshReport();
+  } catch (error) {
+    if (controller.signal.aborted) return;
+    statusEl.className = 'field-help error';
+    statusEl.textContent = error instanceof Error ? error.message : 'Footprint lookup failed. Enter dimensions manually.';
+  } finally {
+    if (footprintController === controller) footprintController = null;
+    button.disabled = false;
+  }
+});
+
+byId('clear-footprint')?.addEventListener('click', () => {
+  resetFootprintState({ restoreManual: true });
+  syncProjectControls({ microResponse: true });
+  if (hasCalculated) calculate();
+  refreshReport();
+});
+
 function addressChanged() {
-  cancelAddressLookup(); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
+  cancelAddressLookup(); resetFootprintState(); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
   addressEl.removeAttribute('aria-invalid'); addressStatus.className = 'field-help';
   addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. Your property view will load automatically.' : 'Your property view loads as you type a complete U.S. address. Location is approximate.';
   refreshReport(); scheduleAddressLookup();
@@ -367,6 +510,10 @@ byId('exterior-example').addEventListener('click', () => {
   propertyPreview.show(matched);
   addressStatus.className = 'field-help success';
   addressStatus.textContent = `Example: ${EXTERIOR_EXAMPLE.name}, Austin. This prototype model covers this address only. Enter your address to return to your property.`;
+  if (byId('footprint-status')) {
+    byId('footprint-status').className = 'field-help';
+    byId('footprint-status').textContent = 'Ready to look up public or authorized building dimensions for this matched address.';
+  }
   refreshReport();
 });
 async function lookupAddress({ automatic = false } = {}) {
@@ -413,6 +560,10 @@ async function lookupAddress({ automatic = false } = {}) {
     if (automatic) propertyLookup?.lookup({ automatic: true });
     addressStatus.textContent = `Approximate location matched: ${payload.matchedAddress}. This is not a building measurement or ownership check.`;
     addressStatus.className = 'field-help success';
+    if (!footprintData && byId('footprint-status')) {
+      byId('footprint-status').className = 'field-help';
+      byId('footprint-status').textContent = 'Ready to look up public or authorized building dimensions for this matched address.';
+    }
     refreshReport();
   } catch (error) {
     if (serial !== lookupSerial) return;
@@ -573,7 +724,7 @@ byId('save-project-form').addEventListener('submit', async event => {
   if (!name) { byId('saved-project-status').textContent = 'Give your project a name.'; return; }
   const button = event.submitter; button.disabled = true;
   try {
-    const project = { id: activeProjectId || crypto.randomUUID(), name, address: addressEl.value.trim(), updatedAt:new Date().toISOString(), inputs:readInputs(), options:projectOptions(), planning: assistant?.metadata(), propertyData: propertyLookup?.context() };
+    const project = { id: activeProjectId || crypto.randomUUID(), name, address: addressEl.value.trim(), updatedAt:new Date().toISOString(), inputs:readInputs(), options:projectOptions(), planning: assistant?.metadata(), propertyData: propertyLookup?.context(), footprintData };
     saveProject(window.localStorage, project); activeProjectId = project.id;
     let photoMessage = '';
     try { const photo = editor.snapshot(); if (photo) await savePhoto(project.id, photo); else await deletePhoto(project.id); }
@@ -589,7 +740,11 @@ async function restoreProject(project) {
   for (const kind of ['siding','windows','doors']) byId(`scope-${kind}`).checked = project.options[kind];
   for (const key of ['sidingProduct','windowProduct','doorProduct','coveragePercent']) byId(key).value = project.options[key];
   form.querySelector(`[name="tier"][value="${project.options.tier}"]`).checked = true;
-  selectedColor = project.options.color; addressEl.value = project.address; activeProjectId = project.id;
+  selectedColor = project.options.color;
+  selectedHomeStyle = resolveHomeStyle(project.options.homeStyle).id;
+  footprintData = project.footprintData || null;
+  manualInputsBackup = null;
+  addressEl.value = project.address; activeProjectId = project.id;
   propertyLookup?.restore(project.propertyData);
   addressStatus.textContent = 'Saved address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
   scheduleAddressLookup();
@@ -603,7 +758,7 @@ byId('new-project').addEventListener('click', () => {
   projectLoadSerial++; cancelAddressLookup(); activeProjectId = null;
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
-  form.reset(); selectedColor = DEFAULT_PROJECT.color; addressEl.value = ''; editor.reset();
+  form.reset(); selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset();
   addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
   remodelDesign = { ...DEFAULT_DESIGN, split: 100 }; remodel.setSplit(100); byId('add-porch').checked = byId('add-shutters').checked = true; byId('add-dormers').checked = false; syncRemodelControls();
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab('remodel'); projectDialog.close(); wizard.show(1); notify('New project started with clearly labeled example measurements.');
@@ -621,6 +776,7 @@ assistant = setupAssistant({
     for (const key of ['sidingProduct', 'windowProduct', 'doorProduct', 'coveragePercent']) byId(key).value = snapshot.options[key];
     form.querySelector(`[name="tier"][value="${snapshot.options.tier}"]`).checked = true;
     selectedColor = snapshot.options.color;
+    if (snapshot.options.homeStyle) selectedHomeStyle = resolveHomeStyle(snapshot.options.homeStyle).id;
     if (Object.hasOwn(snapshot, 'address')) {
       propertyLookup?.clear();
       cancelAddressLookup(); addressEl.value = snapshot.address;

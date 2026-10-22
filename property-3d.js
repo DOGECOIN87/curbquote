@@ -90,7 +90,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange }) {
   function frame(duration = 0) {
     if (!widget || !target) return;
     const { BoundingSphere, HeadingPitchRange, Math: CesiumMath } = Cesium;
-    const offset = new HeadingPitchRange(heading, CesiumMath.toRadians(top ? -89.5 : -35), top ? 230 : 190);
+    const offset = new HeadingPitchRange(heading, CesiumMath.toRadians(top ? -89.5 : -35), top ? 125 : 115);
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
     widget.scene.camera.flyToBoundingSphere(new BoundingSphere(target, 1), { offset, duration });
     widget.scene.requestRender();
@@ -121,7 +121,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange }) {
       const { HeadingPitchRange, Math: CesiumMath } = Cesium;
       // Subtle pitch bob (+3°) and range breathing (±3%) give a drone-like reveal, still locked on centre.
       const basePitch = top ? -89.5 : -35;
-      const baseRange = top ? 230 : 190;
+      const baseRange = top ? 125 : 115;
       const pitchBob = Math.sin(eased * Math.PI * 2) * 3;
       const rangeBreath = baseRange * (1 + Math.sin(eased * Math.PI * 2) * 0.03);
       const offset = new HeadingPitchRange(heading, CesiumMath.toRadians(basePitch + pitchBob), rangeBreath);
@@ -141,8 +141,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange }) {
     if (request !== serial) return null;
     const { lat, lon } = location.coordinates, { Cartesian3 } = Cesium, camera = widget.scene.camera;
     widget.useDefaultRenderLoop = true; marker.show = false; target = null; heading = 0; top = false;
-    // Start above nearly all U.S. ground, then settle on the sampled surface.
-    camera.setView({ destination: Cartesian3.fromDegrees(lon, lat, 4500) });
+    camera.setView({ destination: Cartesian3.fromDegrees(lon, lat, 1800) });
     const height = await groundHeight(lon, lat);
     if (request !== serial) return null;
     if (height !== null) {

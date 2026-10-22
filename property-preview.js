@@ -24,10 +24,27 @@ export function setupPropertyPreview({ onPhoto }) {
     }
   });
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution');
+  const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
   const viewMap = setupPropertyMap({
     stage, onFailure: unavailableMap,
     onStatus: message => { if (viewMap.isOpen) { if (status.textContent !== message) status.textContent = message; syncMap(); } },
-    onSelection: selected => { byId('map-clear-selection').hidden = !selected; byId('map-selection').hidden = !selected; }
+    onSelection: selected => { byId('map-clear-selection').hidden = !selected; byId('map-selection').hidden = !selected; },
+    onHousenumbers: list => {
+      if (!viewMap.isOpen || !housenumbersWrap) return;
+      housenumberListEl.replaceChildren();
+      if (!list.length) { housenumbersWrap.hidden = true; return; }
+      housenumbersWrap.hidden = false;
+      for (const entry of list) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'housenumber-pill';
+        btn.textContent = entry.housenumber;
+        btn.setAttribute('role', 'listitem');
+        btn.setAttribute('aria-label', `Center map on house number ${entry.housenumber}`);
+        btn.addEventListener('click', () => viewMap.focusHousenumber(entry));
+        housenumberListEl.append(btn);
+      }
+    }
   });
   view3d.available.then(ok => { has3d = ok; sync3d(); });
   function sync3d() {
@@ -50,6 +67,7 @@ export function setupPropertyPreview({ onPhoto }) {
     toggleMap.textContent = viewMap.isOpen ? 'Back to aerial view' : 'Explore map';
     toggleMap.setAttribute('aria-pressed', String(viewMap.isOpen));
     mapControls.hidden = mapCredit.hidden = !viewMap.isOpen;
+    if (!viewMap.isOpen && housenumbersWrap) housenumbersWrap.hidden = true;
     if (viewMap.isOpen) widthLabel.textContent = `${viewMap.mode === 'hybrid' ? 'Hybrid' : 'Map'} · display only`;
     for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mapMode === viewMap.mode));
     byId('map-hybrid').disabled = !match || !hasAerialCoverage(match.coordinates);
@@ -107,6 +125,8 @@ export function setupPropertyPreview({ onPhoto }) {
   }
   function clear() {
     cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d(); syncMap();
+    if (housenumbersWrap) housenumbersWrap.hidden = true;
+    if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
     byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'Aerial preview';
     placeholder('Your place starts here.', 'Type a complete U.S. address. Your property will appear automatically.');

@@ -6,7 +6,7 @@ export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange 
   const container = document.createElement('div'); container.className = 'aerial-3d exterior-3d'; container.id = 'exterior-model'; container.hidden = true;
   container.setAttribute('aria-label', 'Measured roof surface with simplified exterior walls'); stage.append(container);
   let serial = 0, open = false, widget = null, Cesium, stopWaiting, target;
-  let heading = -0.65, pitch = -0.55, range = 62, top = false;
+  let heading = -0.65, pitch = -0.55, range = 42, top = false;
   let orbitFrame = 0, orbiting = false;
   const pointers = new Map();
   function frame() {
@@ -14,7 +14,7 @@ export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange 
     widget.scene.camera.lookAt(target, new Cesium.HeadingPitchRange(heading, pitch, range));
     widget.scene.requestRender(); onViewChange?.();
   }
-  function recenter() { cancelOrbit(); heading = -0.65; pitch = -0.55; range = 62; top = false; frame(); }
+  function recenter() { cancelOrbit(); heading = -0.65; pitch = -0.55; range = 42; top = false; frame(); }
   function cancelOrbit() {
     if (orbitFrame) cancelAnimationFrame(orbitFrame);
     orbitFrame = 0;
@@ -92,7 +92,7 @@ export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange 
   }
   function constrain() {
     cancelOrbit();
-    range = Math.max(28, Math.min(130, range)); pitch = Math.max(-Math.PI/2 + .01, Math.min(-.12, pitch));
+    range = Math.max(22, Math.min(110, range)); pitch = Math.max(-Math.PI/2 + .01, Math.min(-.12, pitch));
     top = pitch < -1.5; frame();
   }
   async function show(location) {

@@ -2,7 +2,7 @@
 export const AERIAL_ENDPOINT = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage';
 export const VIEW_WIDTH = 960;
 export const VIEW_HEIGHT = 600;
-export const DEFAULT_VIEW_METERS = 180;
+export const DEFAULT_VIEW_METERS = 90;
 const RADIUS = 6378137;
 const degrees = 180 / Math.PI;
 

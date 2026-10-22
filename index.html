@@ -35,7 +35,7 @@
         <div class="hero-copy">
           <div class="hero-aura" aria-hidden="true"><span class="aura-left"></span><span class="aura-right"></span></div>
           <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
-          <p class="hero-lead">Type your address. We size your home from public data, price new siding, windows and doors, and let you restyle it in 3D.</p>
+          <p class="hero-lead">Type your address below the map. We size your home from public data, price new siding, windows and doors, and let you restyle it in 3D.</p>
         </div>
         <section class="property-preview" aria-labelledby="aerial-heading">
           <div class="aerial-header"><div><h2 id="aerial-heading">Your property, in view</h2></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
@@ -45,6 +45,12 @@
             <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 23l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address for an aerial or 3D property view, or try the Austin exterior example.</p></div>
             <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#89C63F" fill-opacity=".2" stroke="#89C63F" stroke-width="2"/><circle r="7" fill="#89C63F" stroke="#102303" stroke-width="3"/></g></svg>
             <div class="thirds-grid" aria-hidden="true"><span></span><span></span></div>
+          </div>
+          <div class="address-section">
+            <h2 id="address-heading" class="sr-only">Find your property</h2>
+            <label for="property-address">Your home address</label>
+            <div class="address-entry"><svg class="address-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button" aria-label="Find property"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+            <div class="field-help" id="address-status" role="status" aria-live="polite">Your estimate updates as soon as the address matches. Location is approximate.</div>
           </div>
           <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
             <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
@@ -76,12 +82,6 @@
           </details>
         </section>
         <div class="hero-entry">
-            <div class="address-section">
-              <h2 id="address-heading" class="sr-only">Find your property</h2>
-              <label for="property-address">Your home address</label>
-              <div class="address-entry"><svg class="address-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button" aria-label="Find property"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
-              <div class="field-help" id="address-status" role="status" aria-live="polite">Your estimate updates as soon as the address matches. Location is approximate.</div>
-            </div>
             <section id="instant-estimate" class="instant-estimate" aria-labelledby="instant-label">
               <div class="instant-figure">
                 <h2 id="instant-label">Instant estimate for a typical home</h2>

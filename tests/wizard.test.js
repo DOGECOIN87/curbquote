@@ -14,8 +14,10 @@ function fakeDocument(parts) {
     dataset: { goto: part.stepButton }, classList: { toggle() {} },
     setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; }
   }));
+  const progressReadout = { textContent: '' };
   return {
-    listeners, buttons,
+    listeners, buttons, progressReadout,
+    querySelector(selector) { return selector === '#step-progress-readout' ? progressReadout : null; },
     querySelectorAll(selector) {
       if (selector === '.wizard-steps [data-goto]') return buttons;
       if (selector === '[data-step]') return parts;
@@ -44,6 +46,7 @@ test('a step control opens its step and hides the others', () => {
   assert.equal(parts[0].hidden, true);
   assert.equal(parts[1].hidden, false);
   assert.equal(root.buttons[1]['aria-current'], 'step');
+  assert.equal(root.progressReadout.textContent, 'Step 2 of 2');
 });
 
 test('data-step-link controls inside a step and on the estimate screen move the wizard', () => {
@@ -80,6 +83,11 @@ test('inline Step 3 3D preview, split slider, Step 4 rate summary and caveats ca
   assert.match(html, /class="estimate-caveats-card"/);
   assert.match(html, /id="remodel-split-half"/);
   assert.match(html, /id="remodel-split"/);
+  assert.match(html, /class="stage-corner-badges"/);
+  assert.match(html, /data-share-segment="siding"/);
+  assert.match(html, /data-share-range="windows"/);
+  assert.match(html, /id="step-progress-readout"/);
+  assert.doesNotMatch(html, /style="/);
   assert.doesNotMatch(html, /\uFF0B/);
   assert.doesNotMatch(css, /text-transform:\s*uppercase/);
 });

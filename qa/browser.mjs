@@ -147,6 +147,16 @@ try {
   assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
   assert.match(await page.locator('#jump-to-3d').textContent(), /See your home in 3D/);
   assert.equal(await page.locator('#jump-to-3d').isVisible(), false, 'the phone jump is redundant beside the studio on desktop');
+  const resultShares = await page.locator('#results .cost-share-bar rect').evaluateAll(rects => rects.map(rect => Number(rect.getAttribute('width'))));
+  assert.ok(Math.abs(resultShares.reduce((sum, width) => sum + width, 0) - 100) < .01, 'Step 5 share segments should add to 100%');
+  assert.match(await page.locator('[data-share-value="siding"]').textContent(), /% share/);
+  await go('#scope-siding');
+  assert.match(await page.locator('#dock-share-title').textContent(), /How the range is shared/);
+  assert.equal(await page.locator('.dock-cost-share [data-share-range="siding"]').textContent(), '$14,820 – $42,653');
+  assert.match(await page.locator('.dock-cost-share [data-share-percent="windows"]').textContent(), /%/);
+  await page.locator('[data-goto="5"]').click();
+  assert.equal(await page.locator('#step-progress-readout').textContent(), 'Step 5 of 5');
+  checks.push('Step 2 and Step 5 display midpoint-based trade ranges and cost-share bars that total 100%');
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.locator('#jump-to-3d').isVisible(), true);
   await page.locator('#jump-to-3d').click();
@@ -275,13 +285,21 @@ try {
   await mkdir(outputDir, { recursive: true });
   const matrix = [[320,740],[360,800],[390,844],[560,800],[768,1024],[921,800],[1024,768],[1440,1000],[2560,1440],[844,390]];
   const overflows = [];
+  const undersizedTargets = [];
   for (const [width,height] of matrix) {
     await page.setViewportSize({ width, height });
     for (const step of [1, 2, 3, 4, 5]) {
       await page.locator(`[data-goto="${step}"]`).click();
       const result = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
-        clipped: [...document.querySelectorAll('label,.total-range,.item-price,.result-heading,.hero h1,.wizard-steps button,.wizard-nav button')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
+        clipped: [...document.querySelectorAll('label,.total-range,.item-price,.item-amount small,.result-heading,.hero h1,.wizard-steps button,.wizard-nav button,.cost-share-amount-legend li,.cost-share-amount-legend [data-share-range],.cost-share-amount-legend [data-share-percent],.cost-share-key-legend li,.stage-corner-badges span')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
       if (result.document > width + 1 || result.clipped.length) overflows.push({ step, ...result });
+      const smallTargets = await page.evaluate(() => [...document.querySelectorAll('button,input:not([type="hidden"]):not([type="file"]),select,textarea,summary,[role="button"]')]
+        .filter(el => el.getClientRects().length && !el.closest('[hidden],details:not([open])') && getComputedStyle(el).visibility === 'visible')
+        .map(el => /^(checkbox|radio)$/i.test(el.type) ? el.labels?.[0] || el : el)
+        .map(el => ({ element: el, rect: el.getBoundingClientRect(), label: el.getAttribute('aria-label') || el.textContent || el.id || el.type }))
+        .filter(({rect}) => rect.width > 0 && rect.height > 0 && (rect.width < 44 || rect.height < 44))
+        .map(({element,rect,label}) => ({tag:element.tagName, id:element.id, label:String(label || '').trim().replace(/\s+/g,' ').slice(0,64), width:Math.round(rect.width), height:Math.round(rect.height)})));
+      if (smallTargets.length) undersizedTargets.push({width,step,targets:smallTargets});
     }
     if (width === 390 || width === 1440) {
       await page.evaluate(() => window.scrollTo(0, 0));
@@ -289,6 +307,8 @@ try {
     }
   }
   assert.deepEqual(overflows, [], 'Default layout overflow');
+  assert.deepEqual(undersizedTargets, [], 'Visible buttons, form controls and checkbox/radio labels must be at least 44×44 CSS pixels');
+  checks.push('Visible buttons, form controls and labeled checkbox/radio targets meet 44×44 CSS pixels across all 10 viewports and five steps');
   await page.evaluate(() => {
     const values = {lengthFt:350,widthFt:350,stories:4,storyHeightFt:16,gables:12,gableRiseFt:20,masonryPercent:0,
       existingWindows:150,existingDoors:50,replaceWindows:150,replaceDoors:50,sidingLowPerSqFt:100,sidingHighPerSqFt:100,
@@ -300,7 +320,7 @@ try {
   for (const [width,height] of matrix) {
     await page.setViewportSize({width,height});
     const result = await page.evaluate(() => ({ width:innerWidth, document:document.documentElement.scrollWidth,
-      clipped:[...document.querySelectorAll('.total-range,.item-price,.result-heading,.scope-table dd')].filter(el=>el.getClientRects().length && el.scrollWidth>el.clientWidth+2).map(el=>({text:el.textContent,width:el.clientWidth,scroll:el.scrollWidth})) }));
+      clipped:[...document.querySelectorAll('.total-range,.item-price,.item-amount small,.result-heading,.scope-table dd,.cost-share-amount-legend li,.cost-share-amount-legend [data-share-range],.cost-share-amount-legend [data-share-percent],.cost-share-key-legend li,.stage-corner-badges span')].filter(el=>el.getClientRects().length && el.scrollWidth>el.clientWidth+2).map(el=>({text:el.textContent,width:el.clientWidth,scroll:el.scrollWidth})) }));
     if(result.document>width+1||result.clipped.length) overflows.push(result);
   }
   assert.deepEqual(overflows, [], 'Maximum legal input values overflow');

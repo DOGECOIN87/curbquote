@@ -13,13 +13,14 @@ function seeded(seed) {
  * (`stage`), rendering a real-time Before/After split comparison via WebGL scissor testing, and
  * smoothly easing camera orbits and split sweeps when reduced motion is not requested.
  */
-export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, onReady, onError }) {
+export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, onReady, onError, onSplitChange }) {
   const stages = [stage, previewStage].filter(Boolean);
   let activeStage = stage;
   let Three, renderer, scene, camera, sun, hemi, house, beforeHouse, afterHouse, spec, beforeSpec, resizer, observer, starting;
-  let skyBeforeTex, skyAfterTex;
+  let skyBeforeTex, skyAfterTex, contactShadowTexture;
   let open = false;
   let splitPercent = 100;
+  let splitPointerId = null;
   let animFrame = 0;
   const views = {
     // Framed using Rule of Thirds & Golden Ratio: eave along upper third, porch & dormers spanning the 50/50 split.
@@ -57,6 +58,21 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     return tex;
   }
 
+  function makeContactShadowTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+    gradient.addColorStop(0, 'rgba(16,35,3,.42)');
+    gradient.addColorStop(.48, 'rgba(16,35,3,.2)');
+    gradient.addColorStop(1, 'rgba(16,35,3,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    const texture = new Three.CanvasTexture(canvas);
+    texture.colorSpace = Three.SRGBColorSpace;
+    return texture;
+  }
+
   function pattern(kind) {
     if (textures.has(kind)) return textures.get(kind);
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
@@ -70,7 +86,17 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
         ctx.fillRect(rand() * 256, rand() * 256, 2, 2);
       }
     };
-    if (kind === 'lap' || kind === 'fiber') {
+    if (kind === 'glass') {
+      const sky = ctx.createLinearGradient(0, 0, 256, 256);
+      sky.addColorStop(0, '#547988'); sky.addColorStop(.3, '#b8d8dc'); sky.addColorStop(.52, '#e9eee2'); sky.addColorStop(.68, '#789eaa'); sky.addColorStop(1, '#385c69');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, 256, 256);
+      const reflection = ctx.createLinearGradient(24, 0, 118, 256);
+      reflection.addColorStop(0, 'rgba(255,255,255,.42)'); reflection.addColorStop(.45, 'rgba(255,255,255,.08)'); reflection.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = reflection; ctx.beginPath(); ctx.moveTo(24, 0); ctx.lineTo(118, 0); ctx.lineTo(44, 256); ctx.lineTo(0, 256); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(8, 8, 4, 240); ctx.fillRect(18, 8, 2, 240);
+      ctx.fillStyle = 'rgba(16,35,3,.12)'; ctx.fillRect(0, 208, 256, 48);
+      speckle(180, .025);
+    } else if (kind === 'lap' || kind === 'fiber') {
       const step = kind === 'lap' ? 24 : 32;
       for (let y = 0; y < 256; y += step) {
         const g = ctx.createLinearGradient(0, y, 0, y + step);
@@ -121,6 +147,13 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     if (kind) { const map = pattern(kind).clone(); map.repeat.set(repeatX, repeatY); map.needsUpdate = true; options.map = map; }
     const created = new Three.MeshStandardMaterial(options); materials.set(id, created); return created;
   }
+  function contactShadowMaterial() {
+    if (!materials.has('contact-shadow')) {
+      contactShadowTexture ??= makeContactShadowTexture();
+      materials.set('contact-shadow', new Three.MeshBasicMaterial({ map: contactShadowTexture, color: '#18210f', transparent: true, opacity: .78, depthWrite: false, toneMapped: false }));
+    }
+    return materials.get('contact-shadow');
+  }
   function box(parent, w, h, d, mat, x, y, z, { rx = 0, ry = 0, rz = 0, shadow = true } = {}) {
     const mesh = new Three.Mesh(new Three.BoxGeometry(w, h, d), mat);
     mesh.position.set(x, y, z); mesh.rotation.set(rx, ry, rz); mesh.castShadow = shadow; mesh.receiveShadow = true;
@@ -138,15 +171,29 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     const roofMat = material(`roof-${variantSpec.roofHex}`, variantSpec.roofHex, 'shingle', L / 5, 3, .95);
     const concrete = material('concrete', '#b9bab2', 'concrete', 3, 1, .95);
     const brick = material('brick', '#9a5a48', 'brick', L / 5, .8, .9);
-    const glass = material('glass', '#93bccd', null, 1, 1, .08);
-    glass.metalness = .35;
+    const glass = material('glass', '#d5e9ec', 'glass', 1, 1, .2);
+    glass.metalness = .12;
 
-    // Lot: lawn, walk to the door, driveway to the right.
+    // Lot: a soft contact-shadow apron grounds the foundation and front walk in the lawn.
+    const apron = new Three.Mesh(new Three.CircleGeometry(1, 64), contactShadowMaterial());
+    apron.rotation.x = -Math.PI / 2; apron.scale.set(L * .78, W * .84 + 6, 1);
+    apron.position.set(0, .022, variantSpec.porch ? 2 : 0); apron.renderOrder = 1; group.add(apron);
     const lawn = new Three.Mesh(new Three.CircleGeometry(Math.max(L, W) * 2.4 + 90, 48),
       material(`lawn-${variantSpec.before ? 'b' : 'a'}`, variantSpec.before ? '#77854f' : '#5c8743', 'grass', 22, 22, 1));
     lawn.rotation.x = -Math.PI / 2; lawn.receiveShadow = true; group.add(lawn);
-    box(group, 4.5, .12, W * .9 + 14, concrete, 0, .06, W / 2 + (W * .9 + 14) / 2 - .5, { shadow: false });
+    const walkLength = W * .9 + 14, walkCenter = W / 2 + walkLength / 2 - .5;
+    const walkJoint = material('walk-joint', '#85877f', null, 1, 1, 1);
+    box(group, 4.5, .12, walkLength, concrete, 0, .06, walkCenter, { shadow: false });
+    for (const side of [-1, 1]) box(group, .08, .018, walkLength - .4, walkJoint, side * 2.19, .128, walkCenter, { shadow: false });
+    for (let jointZ = 5; jointZ < W / 2 + walkLength - 1; jointZ += 7) box(group, 4.35, .018, .07, walkJoint, 0, .128, jointZ, { shadow: false });
     box(group, 11, .12, W + 26, material('drive', '#a9a9a2', 'concrete', 2, 6, .95), L / 2 + 8, .05, 6, { shadow: false });
+    const mulch = material('mulch', '#493b2d', 'grass', 4, 1, 1);
+    const bedWidth = Math.max(5, (L - 14) / 2);
+    for (const side of [-1, 1]) {
+      const bedX = side * (bedWidth / 2 + 3.5);
+      box(group, bedWidth, .08, 3.4, mulch, bedX, .04, W / 2 + 1.8, { shadow: false });
+      box(group, bedWidth, .07, .12, concrete, bedX, .075, W / 2 + 3.48, { shadow: false });
+    }
 
     // Body: foundation, siding box (per-face repeats), brick/stone share as a ground-floor skirt.
     box(group, L + .5, base + .3, W + .5, concrete, 0, (base + .3) / 2 - .15, 0);
@@ -255,8 +302,13 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     for (let i = 0; i < shrubCount; i++) {
       const x = -L / 2 + 3 + (i * (L - 6)) / Math.max(1, shrubCount - 1) + (rand() - .5) * 1.5;
       if (Math.abs(x) < 3.4) continue;
-      const bush = new Three.Mesh(new Three.SphereGeometry(1.15 + rand() * .6, 10, 8), material(`bush${i % 3}`, greens[i % 3], null, 1, 1, 1));
-      bush.position.set(x, .95, W / 2 + 1.7 + rand()); bush.scale.y = .72; bush.castShadow = true; group.add(bush);
+      const bushZ = W / 2 + 1.7 + rand();
+      const bush = new Three.Mesh(new Three.SphereGeometry(1.15 + rand() * .6, 12, 10), material(`bush${i % 3}`, greens[i % 3], null, 1, 1, 1));
+      bush.position.set(x, .86, bushZ); bush.scale.y = .72; bush.castShadow = true; group.add(bush);
+      for (const [dx, dy, dz, radius] of [[-.56, .16, .06, .69], [.52, .24, -.12, .74], [0, .44, .2, .67]]) {
+        const leaf = new Three.Mesh(new Three.SphereGeometry(radius, 10, 8), material(`bush${(i + 1) % 3}`, greens[(i + 1) % 3], null, 1, 1, 1));
+        leaf.position.set(x + dx, .68 + dy, bushZ + dz); leaf.scale.y = .8; leaf.castShadow = true; group.add(leaf);
+      }
     }
     for (const [tx, tz, s] of [[-L / 2 - 10, W / 2 + 11, 1], [L / 2 + 13, -W / 2 - 7, .8]]) {
       const trunk = new Three.Mesh(new Three.CylinderGeometry(.4 * s, .55 * s, 7 * s, 8), material('trunk', '#6b4e35', null, 1, 1, .95));
@@ -288,7 +340,12 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
 
   function renderScene() {
     if (!renderer || !scene || !camera || !afterHouse) return;
-    const effectiveSplit = spec?.before ? 0 : splitPercent;
+    const effectiveSplit = splitPercent;
+    const splitActive = effectiveSplit > 0 && effectiveSplit < 100;
+    for (const currentStage of stages) {
+      if (splitActive) currentStage.dataset.splitActive = 'true';
+      else delete currentStage.dataset.splitActive;
+    }
     if (effectiveSplit < 100) ensureBeforeHouse();
     const width = activeStage?.clientWidth || 0, height = activeStage?.clientHeight || 0;
     if (effectiveSplit <= 0 || effectiveSplit >= 100 || !width || !height) {
@@ -384,6 +441,18 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     animFrame = requestAnimationFrame(tick);
   }
 
+  function microResponse() {
+    if (!open || !renderer) return;
+    const startAzimuth = azimuth, startElevation = elevation;
+    animateValues(260, t => {
+      const pulse = Math.sin(Math.PI * t);
+      azimuth = startAzimuth + .014 * pulse;
+      elevation = startElevation + .006 * pulse;
+      frameCamera();
+      renderScene();
+    });
+  }
+
   function setView(name) {
     const view = views[name] || views.corner;
     const targetAz = view.azimuth;
@@ -394,7 +463,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       const btnView = btn.dataset.remodelView || btn.dataset.step3View;
       btn.setAttribute('aria-pressed', String(btnView === name));
     }
-    animateValues(400, t => {
+    animateValues(420, t => {
       azimuth = startAz + (targetAz - startAz) * t;
       elevation = startEl + (targetEl - startEl) * t;
       radius = startRad + (targetRad - startRad) * t;
@@ -436,14 +505,64 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       clampView();
     });
     canvas.addEventListener('wheel', event => { event.preventDefault(); radius *= Math.exp(Math.max(-100, Math.min(100, event.deltaY)) * .0022); clampView(); }, { passive: false });
+    const splitIsActive = () => splitPercent > 0 && splitPercent < 100;
+    const splitSeamX = rect => rect.left + rect.width * (100 - splitPercent) / 100;
+    const updateSplitHover = clientX => {
+      if (splitPointerId !== null) return;
+      const rect = canvas.getBoundingClientRect();
+      const near = splitIsActive() && rect.width > 0 && Math.abs(clientX - splitSeamX(rect)) <= 18;
+      canvas.classList.toggle('is-split-hit', near);
+    };
+    const updateSplitFromPointer = event => {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width) return;
+      const position = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      const next = Math.round((1 - position) * 100);
+      if (next === splitPercent) return;
+      splitPercent = next;
+      renderScene();
+      onSplitChange?.(splitPercent, { commit: false });
+    };
+    const endPointer = event => {
+      pointers.delete(event.pointerId);
+      if (splitPointerId === event.pointerId) {
+        splitPointerId = null;
+        canvas.classList.remove('is-split-dragging', 'is-split-hit');
+        if (activeStage) delete activeStage.dataset.splitDragging;
+        onSplitChange?.(splitPercent, { commit: true });
+      }
+      if (!pointers.size && splitPointerId === null) {
+        canvas.classList.remove('is-orbiting');
+        if (activeStage) delete activeStage.dataset.interacting;
+      }
+      updateSplitHover(event.clientX);
+    };
     canvas.addEventListener('pointerdown', event => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       cancelTransition();
+      const rect = canvas.getBoundingClientRect();
+      const canGrabSplit = !pointers.size && splitPointerId === null && splitIsActive() && rect.width > 0 && Math.abs(event.clientX - splitSeamX(rect)) <= 18;
+      if (canGrabSplit) {
+        splitPointerId = event.pointerId;
+        canvas.classList.remove('is-split-hit', 'is-orbiting');
+        canvas.classList.add('is-split-dragging');
+        if (activeStage) { activeStage.dataset.splitDragging = 'true'; activeStage.dataset.interacting = 'true'; }
+        canvas.setPointerCapture(event.pointerId);
+        canvas.focus({ preventScroll: true });
+        updateSplitFromPointer(event);
+        return;
+      }
       pointers.set(event.pointerId, [event.clientX, event.clientY]);
-      canvas.setPointerCapture(event.pointerId); canvas.focus({ preventScroll: true });
+      canvas.classList.add('is-orbiting');
+      if (activeStage) activeStage.dataset.interacting = 'true';
+      canvas.setPointerCapture(event.pointerId);
+      canvas.focus({ preventScroll: true });
     });
     canvas.addEventListener('pointermove', event => {
-      const old = pointers.get(event.pointerId); if (!old) return;
+      if (splitPointerId === event.pointerId) { updateSplitFromPointer(event); return; }
+      const old = pointers.get(event.pointerId);
+      if (!old) { updateSplitHover(event.clientX); return; }
+      canvas.classList.remove('is-split-hit');
       if (pointers.size === 1) { azimuth -= (event.clientX - old[0]) * .008; elevation += (event.clientY - old[1]) * .005; }
       else {
         const other = [...pointers].find(([id]) => id !== event.pointerId)?.[1];
@@ -454,7 +573,10 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       }
       pointers.set(event.pointerId, [event.clientX, event.clientY]); clampView();
     });
-    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, event => pointers.delete(event.pointerId));
+    canvas.addEventListener('pointerleave', () => {
+      if (splitPointerId === null) canvas.classList.remove('is-split-hit');
+    });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, endPointer);
   }
 
   async function start() {
@@ -501,7 +623,12 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     onReady?.();
     return true;
   }
-  function closeView() { cancelTransition(); open = false; renderer?.setAnimationLoop(null); }
+  function closeView() {
+    cancelTransition(); open = false; renderer?.setAnimationLoop(null);
+    pointers.clear(); splitPointerId = null;
+    renderer?.domElement.classList.remove('is-orbiting', 'is-split-hit', 'is-split-dragging');
+    for (const currentStage of stages) { delete currentStage.dataset.interacting; delete currentStage.dataset.splitDragging; }
+  }
   // Runs only while a stage is actually on screen, so the runtime never downloads for
   // visitors who only use the earlier steps, and rendering pauses whenever it scrolls away.
   if ('IntersectionObserver' in globalThis) {
@@ -525,7 +652,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       const target = Math.max(0, Math.min(100, Number(percent) || 0));
       const startVal = splitPercent;
       if (animate && Math.abs(target - startVal) > 4) {
-        animateValues(340, t => {
+        animateValues(380, t => {
           splitPercent = Math.round(startVal + (target - startVal) * t);
           renderScene();
         });
@@ -536,9 +663,10 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       }
     },
     get split() { return splitPercent; },
-    refresh() {
+    refresh({ microResponse: respond = false } = {}) {
       if (renderer && scene) {
         buildHouse(getSpec());
+        if (respond) microResponse();
         onStatus?.(`3D preview ready — ${spec.label}. Drag to look around, scroll or pinch to zoom.`);
       }
     },

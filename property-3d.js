@@ -25,24 +25,34 @@ export function setupProperty3D(options) {
       catch (error) { if (request !== serial) return null; throw error; }
     },
     close() { serial++; google.close(); exterior.close(); },
-    setTop: value => current.setTop(value), rotate: () => current.rotate(), recenter: () => current.recenter(),
-    get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }
+    setTop: value => current.setTop(value), rotate: () => current.rotate(), recenter: () => current.recenter(), orbit: () => current.orbit(),
+    get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }, get isOrbiting() { return Boolean(current.isOrbiting); }
   };
 }
-function setupGoogle3D({ stage, onFailure }) {
+function setupGoogle3D({ stage, onFailure, onOrbitChange }) {
   const container = document.createElement('div');
   container.className = 'aerial-3d'; container.hidden = true;
   container.setAttribute('aria-label', 'Google 3D view around the approximate address location');
   stage.append(container);
   let key = null, ionToken = null, Cesium = null, widget = null, marker = null, ready = null, serial = 0, open = false;
   let target = null, heading = 0, top = false;
+  let orbitFrame = 0, orbiting = false;
   const available = (STATIC_SITE ? Promise.resolve(STATIC_MAP3D) : fetch('api/map3d', { headers: { Accept: 'application/json' }, cache: 'no-store' }).then(response => response.ok ? response.json() : {}))
     .then(config => {
       if (config?.configured) { key = typeof config.key === 'string' ? config.key : null; ionToken = key ? null : typeof config.ionToken === 'string' ? config.ionToken : null; }
       return Boolean(key || ionToken) && webgl2Available();
     })
     .catch(() => false);
+  function cancelOrbit() {
+    if (orbitFrame) cancelAnimationFrame(orbitFrame);
+    orbitFrame = 0;
+    if (orbiting) {
+      orbiting = false;
+      onOrbitChange?.(false);
+    }
+  }
   function destroy() {
+    cancelOrbit();
     try { widget?.destroy(); } catch { /* already torn down */ }
     widget = marker = ready = null; container.replaceChildren();
   }
@@ -62,6 +72,10 @@ function setupGoogle3D({ stage, onFailure }) {
       marker = widget.scene.primitives.add(new Cesium.PointPrimitiveCollection()).add({
         pixelSize: 14, color: Cesium.Color.fromCssColorString('#89C63F'), outlineColor: Cesium.Color.fromCssColorString('#102303'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
       });
+      // Any manual interaction should stop the locked orbit.
+      widget.canvas.addEventListener('pointerdown', cancelOrbit);
+      widget.canvas.addEventListener('wheel', cancelOrbit, { passive: true });
+      widget.scene.requestRender();
     })();
     return ready;
   }
@@ -80,6 +94,43 @@ function setupGoogle3D({ stage, onFailure }) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
     widget.scene.camera.flyToBoundingSphere(new BoundingSphere(target, 1), { offset, duration });
     widget.scene.requestRender();
+  }
+  /** Cinematic locked 360° orbit — most visually appealing. Ease-in-out with subtle altitude/pitch breathing. */
+  function orbit() {
+    if (!widget || !target) return;
+    if (orbiting) { cancelOrbit(); return; }
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      heading = (heading + Math.PI / 2) % (2 * Math.PI);
+      cancelOrbit();
+      frame(0.8);
+      return;
+    }
+    orbiting = true;
+    onOrbitChange?.(true);
+    widget.useDefaultRenderLoop = true;
+    const startHeading = heading;
+    const duration = 20000; // 20s — cinematic, not dizzy
+    const startTime = performance.now();
+    const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const tick = now => {
+      if (!orbiting || !open || !widget) { cancelOrbit(); return; }
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(t);
+      heading = (startHeading + eased * Math.PI * 2) % (2 * Math.PI);
+      const { HeadingPitchRange, Math: CesiumMath } = Cesium;
+      // Subtle pitch bob (+3°) and range breathing (±3%) give a drone-like reveal, still locked on centre.
+      const basePitch = top ? -89.5 : -35;
+      const baseRange = top ? 230 : 190;
+      const pitchBob = Math.sin(eased * Math.PI * 2) * 3;
+      const rangeBreath = baseRange * (1 + Math.sin(eased * Math.PI * 2) * 0.03);
+      const offset = new HeadingPitchRange(heading, CesiumMath.toRadians(basePitch + pitchBob), rangeBreath);
+      try { widget.scene.camera.lookAt(target, offset); } catch { /* camera not ready */ }
+      widget.scene.requestRender();
+      if (t < 1) orbitFrame = requestAnimationFrame(tick);
+      else { orbitFrame = 0; orbiting = false; onOrbitChange?.(false); }
+    };
+    orbitFrame = requestAnimationFrame(tick);
   }
   /** Resolves 'framed' (on the address point), 'overview' (no surface height) or null if superseded. */
   async function show(location) {
@@ -102,14 +153,16 @@ function setupGoogle3D({ stage, onFailure }) {
     return height === null ? 'overview' : 'framed';
   }
   function close() {
+    cancelOrbit();
     serial++; open = false; container.hidden = true;
     if (widget) widget.useDefaultRenderLoop = false;
   }
   return {
     available, show, close,
-    setTop(value) { top = value; frame(0.8); },
-    rotate() { heading = (heading + Math.PI / 2) % (2 * Math.PI); frame(0.8); },
-    recenter() { heading = 0; frame(0.8); },
-    get isOpen() { return open; }, get isTop() { return top; }
+    setTop(value) { cancelOrbit(); top = value; frame(0.8); },
+    rotate() { cancelOrbit(); heading = (heading + Math.PI / 2) % (2 * Math.PI); frame(0.8); },
+    recenter() { cancelOrbit(); heading = 0; frame(0.8); },
+    orbit,
+    get isOpen() { return open; }, get isTop() { return top; }, get isOrbiting() { return orbiting; }
   };
 }

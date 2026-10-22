@@ -10,9 +10,19 @@ export function setupPropertyPreview({ onPhoto }) {
   const overlay = byId('aerial-placeholder'), marker = byId('aerial-marker'), status = byId('aerial-status');
   let serial = 0, pendingImage, timeout, match = null, view = null, center = null;
   let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null;
-  const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top');
+  const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top'), orbitButton = byId('aerial-3d-orbit');
   const north = document.querySelector('.aerial-north'), usgsCredit = document.querySelector('.aerial-meta a');
-  const view3d = setupProperty3D({ stage, onFailure: () => { if (saved) unavailable3d(); }, onViewChange: () => sync3d() });
+  const view3d = setupProperty3D({ stage,
+    onFailure: () => { if (saved) unavailable3d(); },
+    onViewChange: () => sync3d(),
+    onOrbitChange: orbiting => {
+      if (orbiting) status.textContent = 'Orbiting 360° — camera locked on the building. Drag, scroll or press Orbit again to stop.';
+      else if (view3d.isOpen) status.textContent = view3d.hasLocal(match)
+        ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
+        : 'Google 3D view. The dot is the approximate address point. Drag to orbit, scroll or pinch to zoom, or use Top view. For recognizing the building only; it supplies no measurements.';
+      sync3d();
+    }
+  });
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution');
   const viewMap = setupPropertyMap({
     stage, onFailure: unavailableMap,
@@ -28,6 +38,12 @@ export function setupPropertyPreview({ onPhoto }) {
     north.hidden = usgsCredit.hidden = view3d.isOpen;
     byId('exterior-credit').hidden = !(view3d.isOpen && view3d.isExterior);
     topButton.setAttribute('aria-pressed', String(view3d.isOpen && view3d.isTop));
+    if (orbitButton) {
+      const orbiting = Boolean(view3d.isOrbiting);
+      orbitButton.setAttribute('aria-pressed', String(orbiting));
+      orbitButton.textContent = orbiting ? 'Stop orbit' : 'Orbit 360°';
+      orbitButton.hidden = !view3d.isOpen;
+    }
   }
   function syncMap() {
     toggleMap.hidden = !viewMap.available || !match;
@@ -176,8 +192,9 @@ export function setupPropertyPreview({ onPhoto }) {
   byId('map-recenter').addEventListener('click', () => viewMap.recenter());
   byId('map-clear-selection').addEventListener('click', () => viewMap.clearSelection());
   topButton.addEventListener('click', () => { view3d.setTop(!view3d.isTop); sync3d(); });
-  byId('aerial-3d-rotate').addEventListener('click', () => view3d.rotate());
-  byId('aerial-3d-recenter').addEventListener('click', () => view3d.recenter());
+  byId('aerial-3d-rotate').addEventListener('click', () => { view3d.rotate(); sync3d(); });
+  byId('aerial-3d-recenter').addEventListener('click', () => { view3d.recenter(); sync3d(); });
+  orbitButton?.addEventListener('click', () => view3d.orbit());
   stage.addEventListener('keydown', event => {
     const delta = { ArrowLeft: [-.3, 0], ArrowRight: [.3, 0], ArrowUp: [0, -.3], ArrowDown: [0, .3] }[event.key];
     if (!delta || !loaded || view3d.isOpen || viewMap.isOpen) return; event.preventDefault(); pan(...delta);

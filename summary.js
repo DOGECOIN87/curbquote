@@ -1,11 +1,16 @@
 /** One complete report shared by downloads and print, including the exact price snapshot. */
 import { propertySourceLines } from './property-data.js';
-export function buildEstimateSummary(result, { address = '', matchedAddress = '', generatedAt = new Date().toISOString(), propertyData } = {}) {
+import { resolveHomeStyle } from './home-styles.js';
+export function buildEstimateSummary(result, { address = '', matchedAddress = '', generatedAt = new Date().toISOString(), propertyData, footprintData } = {}) {
   const { inputs: i, geometry: g, assumptions: a, pricing: p } = result;
   const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   const range = pair => pair.map(n => dollars.format(n)).join(' – ');
   // Keep externally supplied address text on one line in exported reports.
   const singleLine = value => String(value).replace(/[\r\n\u2028\u2029]/g, ' ');
+  const styleName = result.project?.homeStyle ? resolveHomeStyle(result.project.homeStyle).name : '';
+  const footprintLines = footprintData?.areaSqFt ? [
+    `Footprint source: ${singleLine(footprintData.source?.provider || 'Public building outline')} (${Math.round(footprintData.areaSqFt)} sq ft ground outline — style variant, approximate, not a survey)`
+  ] : [];
   return [
     'ALCO PRODUCTS / CURBQUOTE PRELIMINARY ESTIMATE',
     `Generated: ${generatedAt}`,
@@ -14,11 +19,12 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Address entered: ${singleLine(address) || '(not provided)'}`,
     `Census address-range match: ${singleLine(matchedAddress) || 'Not matched'}`,
     ...propertySourceLines(propertyData),
+    ...footprintLines,
     ...(result.project ? [
       `Selected projects: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).join(', ')}`,
       `Product tier: ${result.productNames.tier}`,
       `Products: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).map(key => result.productNames[key]).join('; ')}`,
-      `Siding coverage: ${result.project.siding ? result.project.coveragePercent + '%' : 'not selected'}; color concept: ${result.productNames.color}`
+      `Siding coverage: ${result.project.siding ? result.project.coveragePercent + '%' : 'not selected'}; color concept: ${result.productNames.color}${styleName ? `; style: ${styleName}` : ''}`
     ] : []),
     '',
     `Budget range: ${range(result.total)}`,

@@ -117,6 +117,37 @@
               <p><span>Estimate so far</span><strong data-live-range>—</strong></p>
               <button type="button" class="outline-button" data-open-studio>Preview in 3D <span aria-hidden="true">↗</span></button>
             </div>
+            <div class="style-picker-block">
+              <h3 id="home-style-heading" class="sub-heading">North-American home style</h3>
+              <p class="choice-hint" id="home-style-hint">Pick the closest architectural silhouette to shape roof form, porch style and proportions in 3D. Architectural details are visual only and do not add to the price.</p>
+              <div id="home-style-picker" class="style-picker-grid" role="group" aria-labelledby="home-style-heading">
+                <button type="button" class="style-card" data-archetype="colonial-2story" aria-pressed="true"><strong>Colonial 2-story</strong><span>Side gable · portico · shutters</span></button>
+                <button type="button" class="style-card" data-archetype="ranch-1story" aria-pressed="false"><strong>Ranch / rambler</strong><span>1 story · wide low hip roof</span></button>
+                <button type="button" class="style-card" data-archetype="craftsman-bungalow" aria-pressed="false"><strong>Craftsman bungalow</strong><span>Exposed rafters · stone piers</span></button>
+                <button type="button" class="style-card" data-archetype="cape-cod" aria-pressed="false"><strong>Cape Cod 1.5-story</strong><span>Steep pitch · gable dormers</span></button>
+                <button type="button" class="style-card" data-archetype="tudor-gable" aria-pressed="false"><strong>Tudor gable</strong><span>Steep cross-gable · half-timber</span></button>
+                <button type="button" class="style-card" data-archetype="farmhouse-porch" aria-pressed="false"><strong>Farmhouse wraparound</strong><span>Wraparound porch · tall gable</span></button>
+                <button type="button" class="style-card" data-archetype="split-level" aria-pressed="false"><strong>Split-level</strong><span>Staggered 1- &amp; 2-story wings</span></button>
+                <button type="button" class="style-card" data-archetype="midcentury-flat" aria-pressed="false"><strong>Mid-century modern</strong><span>Flat parapet · deep overhangs</span></button>
+                <button type="button" class="style-card" data-archetype="victorian-gingerbread" aria-pressed="false"><strong>Victorian Queen Anne</strong><span>Cross-gable · spindle porch</span></button>
+                <button type="button" class="style-card" data-archetype="foursquare" aria-pressed="false"><strong>American Foursquare</strong><span>Cubic 2-story · hipped dormer</span></button>
+                <button type="button" class="style-card" data-archetype="creole-cottage" aria-pressed="false"><strong>Creole cottage</strong><span>Full gallery porch · deep eaves</span></button>
+                <button type="button" class="style-card" data-archetype="contemporary-gable" aria-pressed="false"><strong>Contemporary gable</strong><span>Clean modern gable · dark trim</span></button>
+              </div>
+            </div>
+            <div id="footprint-panel" class="footprint-panel" aria-labelledby="footprint-heading">
+              <div class="footprint-panel-head">
+                <h3 id="footprint-heading" class="sub-heading">Public &amp; licensed building footprint</h3>
+                <span id="footprint-source-pill" class="footprint-pill">Manual dimensions</span>
+              </div>
+              <p class="micro-note">After matching a contiguous U.S. address in Step 1, look up open ODbL outlines (OpenStreetMap / Microsoft Building Footprints) or configured licensed property data to approximate ground area and perimeter.</p>
+              <button type="button" id="footprint-consent" class="footprint-consent-btn" aria-pressed="false"><span class="consent-box" aria-hidden="true"></span><span>I confirm permission to request public or authorized building dimensions for the Step 1 address.</span></button>
+              <div class="footprint-actions">
+                <button type="button" id="fetch-footprint" class="secondary-button">Load public building dimensions</button>
+                <button type="button" id="clear-footprint" class="outline-button" hidden>Reset to manual dimensions</button>
+              </div>
+              <p id="footprint-status" class="field-help" role="status" aria-live="polite">Using your manual dimensions below. Match a Step 1 address to query public building outlines.</p>
+            </div>
             <figure class="measure-diagram">
               <svg viewBox="0 0 320 156" role="img" aria-labelledby="measure-diagram-title">
                 <title id="measure-diagram-title">A house footprint: length runs across the front, width runs front to back</title>
@@ -141,6 +172,12 @@
               <p id="masonry-help" class="micro-note">Brick / stone share means the percentage of solid wall area after windows and doors are removed. Gables use the shorter footprint dimension as their base.</p>
               <p class="micro-note">We assume 15 sq ft per window and 21 sq ft per door. Count all exterior openings, even ones you're not replacing.</p>
             </div></details>
+            <details id="manual-footprint-guide" class="more-options">
+              <summary>Measure free from satellite view (no API key needed) <span aria-hidden="true">⌄</span></summary>
+              <div class="more-options-body">
+                <p class="micro-note">Trace in Google Maps Satellite, right-click a roof corner, choose <strong>Measure distance</strong>, then click each corner around your home and close the loop to read total area (sq ft) and perimeter (ft). Enter the front and side wall runs in Length and Width above.</p>
+              </div>
+            </details>
             <div class="wizard-nav"><button type="button" class="outline-button" data-back>Back</button><button type="button" class="primary-button" data-next>Next: your choices <span aria-hidden="true">→</span></button></div>
           </section>
           <section class="form-section pricing-section wizard-step" data-step="4" aria-labelledby="pricing-heading" hidden>
@@ -221,7 +258,7 @@
           <aside id="step3-3d-card" class="step3-3d-card live-studio-dock" data-step="3 4" aria-labelledby="step3-3d-title" hidden>
             <div class="step3-3d-head">
               <h3 id="step3-3d-title">Live 3D concept house</h3>
-              <span class="studio-badge">Concept model</span>
+              <span id="step3-studio-badge" class="studio-badge">Concept model</span>
             </div>
             <p class="step3-3d-pair">Sized from your Step 3 measurements and styled with your Step 4 choices — not your property's actual footprint from Step 1.</p>
             <div id="step3-3d-stage" class="remodel-stage step3-3d-stage" aria-describedby="step3-3d-status">
@@ -296,7 +333,7 @@
             </div>
           </div>
           <section class="design-studio" aria-labelledby="studio-heading">
-            <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span class="studio-badge">Concept model</span></div>
+            <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span id="studio-model-badge" class="studio-badge">Concept model</span></div>
             <p class="studio-intro">Concept house built from your Step 3 measurements and Step 4 choices — not an image or footprint of your real property on Step 1. Restyle it and compare Before and After.</p>
             <div class="studio-tabs studio-tabs-3" role="tablist" aria-label="Design preview">
               <button type="button" id="remodel-tab" role="tab" aria-selected="true" aria-controls="remodel-panel">3D remodel</button>

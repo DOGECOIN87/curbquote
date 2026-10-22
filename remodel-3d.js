@@ -163,10 +163,17 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
   function buildVariant(variantSpec) {
     const group = new Three.Group();
     const { lengthFt: L, widthFt: W, wallHeightFt: H, gableRiseFt: rise, storyHeightFt: storyH } = variantSpec;
+    const roofForm = variantSpec.roofForm || 'gable';
+    const porchStyle = variantSpec.porchStyle || 'portico';
+    const accent = variantSpec.accent || '';
+    const trimColor = variantSpec.trimHex || '#f6f4e8';
+    const timberColor = variantSpec.timberHex || '#4a3728';
+    const overhang = variantSpec.overhangFt || 1.35;
     const base = 1, wallTop = base + H, ridge = wallTop + rise;
     const sidingX = material(`siding-${variantSpec.sidingHex}-${variantSpec.texture}-f`, variantSpec.sidingHex, variantSpec.texture, L / 4, H / 4);
     const sidingZ = material(`siding-${variantSpec.sidingHex}-${variantSpec.texture}-s`, variantSpec.sidingHex, variantSpec.texture, W / 4, H / 4);
-    const trim = material('trim', '#f6f4e8', null, 1, 1, .6);
+    const trim = material(`trim-${trimColor}`, trimColor, null, 1, 1, .6);
+    const timber = material(`timber-${timberColor}`, timberColor, null, 1, 1, .75);
     const frame = material(`frame-${variantSpec.frameHex}`, variantSpec.frameHex, null, 1, 1, .55);
     const roofMat = material(`roof-${variantSpec.roofHex}`, variantSpec.roofHex, 'shingle', L / 5, 3, .95);
     const concrete = material('concrete', '#b9bab2', 'concrete', 3, 1, .95);
@@ -174,10 +181,24 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     const glass = material('glass', '#d5e9ec', 'glass', 1, 1, .2);
     glass.metalness = .12;
 
+    const makeGableMesh = (spanW, gableH) => {
+      const shape = new Three.Shape();
+      shape.moveTo(-spanW / 2, 0); shape.lineTo(spanW / 2, 0); shape.lineTo(0, gableH); shape.closePath();
+      const geo = new Three.ShapeGeometry(shape);
+      const pos = geo.attributes.position, uvs = [];
+      for (let i = 0; i < pos.count; i++) uvs.push((pos.getX(i) + spanW / 2) / 4, pos.getY(i) / 4);
+      geo.setAttribute('uv', new Three.Float32BufferAttribute(uvs, 2));
+      const gableMat = material(`gable-${variantSpec.sidingHex}-${variantSpec.texture}`, variantSpec.sidingHex, variantSpec.texture, 1, 1);
+      gableMat.side = Three.DoubleSide;
+      const mesh = new Three.Mesh(geo, gableMat);
+      mesh.castShadow = mesh.receiveShadow = true;
+      return mesh;
+    };
+
     // Lot: a soft contact-shadow apron grounds the foundation and front walk in the lawn.
     const apron = new Three.Mesh(new Three.CircleGeometry(1, 64), contactShadowMaterial());
-    apron.rotation.x = -Math.PI / 2; apron.scale.set(L * .78, W * .84 + 6, 1);
-    apron.position.set(0, .022, variantSpec.porch ? 2 : 0); apron.renderOrder = 1; group.add(apron);
+    apron.rotation.x = -Math.PI / 2; apron.scale.set(L * .78 + (porchStyle === 'wraparound' ? 4 : 0), W * .84 + 6, 1);
+    apron.position.set(porchStyle === 'wraparound' ? -2 : 0, .022, variantSpec.porch ? 2 : 0); apron.renderOrder = 1; group.add(apron);
     const lawn = new Three.Mesh(new Three.CircleGeometry(Math.max(L, W) * 2.4 + 90, 48),
       material(`lawn-${variantSpec.before ? 'b' : 'a'}`, variantSpec.before ? '#77854f' : '#5c8743', 'grass', 22, 22, 1));
     lawn.rotation.x = -Math.PI / 2; lawn.receiveShadow = true; group.add(lawn);
@@ -195,56 +216,131 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       box(group, bedWidth, .07, .12, concrete, bedX, .075, W / 2 + 3.48, { shadow: false });
     }
 
-    // Body: foundation, siding box (per-face repeats), brick/stone share as a ground-floor skirt.
+    // Body: staggered split-level wings or unified main rectangular volume + masonry skirt.
     box(group, L + .5, base + .3, W + .5, concrete, 0, (base + .3) / 2 - .15, 0);
-    const walls = new Three.Mesh(new Three.BoxGeometry(L, H, W), [sidingZ, sidingZ, sidingX, sidingX, sidingX, sidingX]);
-    walls.position.y = base + H / 2; walls.castShadow = walls.receiveShadow = true; group.add(walls);
+    const leftWingH = roofForm === 'split' ? Math.max(8, H * .64) : H;
+    if (roofForm === 'split') {
+      const halfL = L / 2;
+      const wingL = new Three.Mesh(new Three.BoxGeometry(halfL, leftWingH, W), [sidingZ, sidingZ, sidingX, sidingX, sidingX, sidingX]);
+      wingL.position.set(-halfL / 2, base + leftWingH / 2, 0); wingL.castShadow = wingL.receiveShadow = true; group.add(wingL);
+      const wingR = new Three.Mesh(new Three.BoxGeometry(halfL + .3, H, W), [sidingZ, sidingZ, sidingX, sidingX, sidingX, sidingX]);
+      wingR.position.set(halfL / 2 - .15, base + H / 2, 0); wingR.castShadow = wingR.receiveShadow = true; group.add(wingR);
+      for (const sz of [-1, 1]) {
+        box(group, .6, leftWingH, .6, trim, -L / 2, base + leftWingH / 2, sz * W / 2);
+        box(group, .6, H, .6, trim, L / 2, base + H / 2, sz * W / 2);
+        box(group, .55, H, .55, trim, 0, base + H / 2, sz * W / 2);
+      }
+    } else {
+      const walls = new Three.Mesh(new Three.BoxGeometry(L, H, W), [sidingZ, sidingZ, sidingX, sidingX, sidingX, sidingX]);
+      walls.position.y = base + H / 2; walls.castShadow = walls.receiveShadow = true; group.add(walls);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(group, .65, H, .65, trim, sx * L / 2, base + H / 2, sz * W / 2);
+    }
     if (variantSpec.masonryPercent >= 10) {
-      const skirtH = Math.min(4.5, 1.5 + variantSpec.masonryPercent / 22);
+      const skirtH = Math.min(4.8, 1.5 + variantSpec.masonryPercent / 20);
       box(group, L + .24, skirtH, .24, brick, 0, base + skirtH / 2, W / 2 + .06);
       box(group, .24, skirtH, W + .24, brick, -L / 2 - .06, base + skirtH / 2, 0);
       box(group, .24, skirtH, W + .24, brick, L / 2 + .06, base + skirtH / 2, 0);
     }
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(group, .65, H, .65, trim, sx * L / 2, base + H / 2, sz * W / 2);
 
-    // Gables and roof.
-    const gableShape = new Three.Shape();
-    gableShape.moveTo(-W / 2, 0); gableShape.lineTo(W / 2, 0); gableShape.lineTo(0, rise); gableShape.closePath();
-    const gableGeo = new Three.ShapeGeometry(gableShape);
-    const pos = gableGeo.attributes.position, uvs = [];
-    for (let i = 0; i < pos.count; i++) uvs.push((pos.getX(i) + W / 2) / 4, pos.getY(i) / 4);
-    gableGeo.setAttribute('uv', new Three.Float32BufferAttribute(uvs, 2));
-    const gableMat = material(`gable-${variantSpec.sidingHex}-${variantSpec.texture}`, variantSpec.sidingHex, variantSpec.texture, 1, 1);
-    gableMat.side = Three.DoubleSide;
-    for (const side of [-1, 1]) {
-      const mesh = new Three.Mesh(gableGeo, gableMat);
-      mesh.rotation.y = side * Math.PI / 2; mesh.position.set(side * (L / 2 + .02), wallTop, 0);
-      mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+    // Roof & gables tailored to North-American architectural forms.
+    const halfSpan = W / 2 + overhang, slopeLen = Math.hypot(halfSpan, rise), pitch = Math.atan2(rise, halfSpan);
+    if (roofForm === 'flat') {
+      box(group, L + overhang * 2, .95, W + overhang * 2, roofMat, 0, wallTop + .48, 0);
+      box(group, L + overhang * 2 + .28, .44, W + overhang * 2 + .28, trim, 0, wallTop + .98, 0);
+      box(group, L + .4, .36, W + .4, trim, 0, wallTop - .18, 0);
+      const flue = new Three.Mesh(new Three.CylinderGeometry(.55, .6, 3.4, 12), trim);
+      flue.position.set(L * .24, wallTop + 2.4, -W * .2); flue.castShadow = true; group.add(flue);
+    } else if (roofForm === 'split') {
+      const halfL = L / 2, riseLow = Math.max(2.6, rise * .82), slopeLow = Math.hypot(halfSpan, riseLow), pitchLow = Math.atan2(riseLow, halfSpan);
+      const gLeft = makeGableMesh(W, riseLow); gLeft.rotation.y = -Math.PI / 2; gLeft.position.set(-L / 2 - .02, base + leftWingH, 0); group.add(gLeft);
+      const gRight = makeGableMesh(W, rise); gRight.rotation.y = Math.PI / 2; gRight.position.set(L / 2 + .02, wallTop, 0); group.add(gRight);
+      for (const side of [-1, 1]) {
+        box(group, halfL + overhang, .4, slopeLow, roofMat, -halfL / 2 - overhang / 2 + .2, base + leftWingH + riseLow / 2 - overhang * Math.sin(pitchLow) / 2, side * halfSpan / 2, { rx: side * pitchLow });
+        box(group, halfL + overhang + .3, .42, slopeLen, roofMat, halfL / 2 + overhang / 2 - .1, wallTop + rise / 2 - overhang * Math.sin(pitch) / 2, side * halfSpan / 2, { rx: side * pitch });
+        box(group, halfL + overhang, .48, .34, trim, -halfL / 2 - overhang / 2 + .2, base + leftWingH - .14, side * (W / 2 + overhang));
+        box(group, halfL + overhang + .3, .5, .35, trim, halfL / 2 + overhang / 2 - .1, wallTop - .15, side * (W / 2 + overhang));
+      }
+      box(group, halfL + overhang + .2, .32, .66, roofMat, -halfL / 2 - overhang / 2 + .2, base + leftWingH + riseLow + .08, 0);
+      box(group, halfL + overhang + .4, .35, .7, roofMat, halfL / 2 + overhang / 2 - .1, ridge + .1, 0);
+      box(group, 2.3, rise + 2.8, 2.3, brick, L * .28, wallTop + (rise + 2.8) / 2 - 1, -W * .2);
+    } else if (roofForm === 'hip' || roofForm === 'hip-low') {
+      const hipRun = Math.min(L / 2, W / 2) + overhang;
+      const ridgeSpan = Math.max(2, L - W);
+      const endSlope = Math.hypot(hipRun, rise), endPitch = Math.atan2(rise, hipRun);
+      for (const side of [-1, 1]) {
+        box(group, L + overhang * 2 - hipRun * .42, .42, slopeLen, roofMat, 0, wallTop + rise / 2 - overhang * Math.sin(pitch) / 2, side * halfSpan / 2, { rx: side * pitch });
+        box(group, L + overhang * 2 + .14, .48, .36, trim, 0, wallTop - .14, side * (W / 2 + overhang));
+        box(group, endSlope, .4, W + overhang * 1.35, roofMat, side * (L / 2 + overhang - hipRun / 2), wallTop + rise / 2 - overhang * Math.sin(endPitch) / 2, 0, { rz: -side * endPitch });
+        box(group, .36, .48, W + overhang * 2 + .14, trim, side * (L / 2 + overhang), wallTop - .14, 0);
+      }
+      box(group, ridgeSpan + .6, .36, .75, roofMat, 0, ridge + .08, 0);
+      box(group, 2.2, rise + 3, 2.2, brick, L * .22, wallTop + (rise + 3) / 2 - 1, -W * .2);
+    } else {
+      for (const side of [-1, 1]) {
+        const mesh = makeGableMesh(W, rise);
+        mesh.rotation.y = side * Math.PI / 2; mesh.position.set(side * (L / 2 + .02), wallTop, 0);
+        group.add(mesh);
+      }
+      for (const side of [-1, 1]) {
+        box(group, L + overhang * 2, .42, slopeLen, roofMat, 0, wallTop + rise / 2 - overhang * Math.sin(pitch) / 2, side * halfSpan / 2, { rx: side * pitch });
+        box(group, L + overhang * 2 + .1, .52, .35, trim, 0, wallTop - .15, side * (W / 2 + overhang));
+      }
+      box(group, L + overhang * 2 + .2, .35, .7, roofMat, 0, ridge + .1, 0);
+      box(group, 2.3, rise + 3.2, 2.3, brick, L * .26, wallTop + (rise + 3.2) / 2 - 1, -W * .22);
+      if (accent === 'rafters') {
+        for (let rx = -L / 2 + 1.5; rx <= L / 2 - 1.5; rx += 2.6) {
+          for (const side of [-1, 1]) box(group, .26, .34, 1.3, timber, rx, wallTop - .34, side * (W / 2 + overhang * .62), { shadow: false });
+        }
+      }
+      if (roofForm === 'cross-gable') {
+        const gw = Math.min(L * .38, 17), gRise = rise * .92, gX = -L * .2, gZ = W / 2 + 1.25;
+        box(group, gw, H, 2.5, sidingX, gX, base + H / 2, W / 2 + 1.15);
+        const frontGable = makeGableMesh(gw, gRise);
+        frontGable.position.set(gX, wallTop, gZ + 1.2); group.add(frontGable);
+        const gHalf = gw / 2 + .85, gSlope = Math.hypot(gHalf, gRise), gPitch = Math.atan2(gRise, gHalf);
+        for (const side of [-1, 1]) {
+          box(group, gSlope, .38, W * .46, roofMat, gX + side * gHalf / 2, wallTop + gRise / 2, W * .35, { rz: -side * gPitch });
+        }
+        box(group, .62, .34, W * .47, roofMat, gX, wallTop + gRise + .06, W * .35);
+        if (accent === 'half-timber') {
+          box(group, gw + .16, .42, .22, timber, gX, wallTop + .1, gZ + 1.28);
+          for (const tx of [-gw * .26, 0, gw * .26]) {
+            const studH = Math.max(1.4, gRise * (1 - Math.abs(tx) / (gw / 2)) - .3);
+            box(group, .3, studH, .18, timber, gX + tx, wallTop + studH / 2 + .2, gZ + 1.28, { shadow: false });
+          }
+          for (const side of [-1, 1]) {
+            box(group, .26, gRise * .56, .18, timber, gX + side * gw * .16, wallTop + gRise * .3, gZ + 1.28, { rz: side * .45, shadow: false });
+          }
+        } else if (accent === 'gingerbread') {
+          box(group, .34, 2.2, .34, trim, gX, wallTop + gRise + .9, gZ + 1.24);
+          box(group, gw * .52, .3, .22, trim, gX, wallTop + gRise * .56, gZ + 1.26, { shadow: false });
+        }
+      }
     }
-    const overhang = 1.35, halfSpan = W / 2 + overhang, slopeLen = Math.hypot(halfSpan, rise), pitch = Math.atan2(rise, halfSpan);
-    for (const side of [-1, 1]) {
-      box(group, L + overhang * 2, .42, slopeLen, roofMat, 0, wallTop + rise / 2 - overhang * Math.sin(pitch) / 2, side * halfSpan / 2, { rx: side * pitch });
-      box(group, L + overhang * 2 + .1, .52, .35, trim, 0, wallTop - .15, side * (W / 2 + overhang));
-    }
-    box(group, L + overhang * 2 + .2, .35, .7, roofMat, 0, ridge + .1, 0);
-    box(group, 2.3, rise + 3.2, 2.3, brick, L * .26, wallTop + (rise + 3.2) / 2 - 1, -W * .22);
 
     // Front entry: steps, panel door, surround and warm lantern.
     const doorMat = material(`door-${variantSpec.doorHex}`, variantSpec.doorHex, 'deck', 1, 2, .48);
     box(group, 6.2, .5, 3.6, concrete, 0, .25, W / 2 + 1.7);
     box(group, 5.2, .5, 2.2, concrete, 0, .75, W / 2 + 1);
     box(group, 4.4, 7.6, .32, trim, 0, base + 3.8, W / 2 + .06);
+    if (accent === 'pediment' && !variantSpec.porch) {
+      box(group, 5.1, .45, .48, trim, 0, base + 7.75, W / 2 + .14);
+    }
     box(group, 3.4, 7, .36, doorMat, 0, base + 3.5, W / 2 + .12);
     for (const py of [2.1, 4.9]) for (const px of [-.75, .75]) box(group, 1.05, 1.9, .08, doorMat, px, base + py, W / 2 + .31);
     box(group, 2.5, .95, .08, glass, 0, base + 6.1, W / 2 + .31, { shadow: false });
     box(group, .16, .42, .18, new Three.MeshStandardMaterial({ color: '#d4af37', metalness: .85, roughness: .2 }), 1.25, base + 3.3, W / 2 + .34);
     box(group, .45, .7, .45, new Three.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffbf50', emissiveIntensity: .9 }), -2.9, base + 5.6, W / 2 + .35, { shadow: false });
 
-    // Windows: placed by `windowLayout()` so the count follows Step 3.
-    const shutterHex = ['#5d6f7a', '#394246'].includes(variantSpec.sidingHex) ? '#f6f4e8' : '#2e4a3e';
+    // Windows: placed by `windowLayout()` so the count follows Step 3; split-level respects left-wing ceiling height.
+    const shutterHex = ['#5d6f7a', '#394246', '#42494d'].includes(variantSpec.sidingHex) ? '#f6f4e8' : '#2e4a3e';
     const shutterMat = material(`shutter-${shutterHex}`, shutterHex, 'deck', 1, 2, .7);
-    const winW = 3.1, winH = 4.4;
     for (const win of variantSpec.windows) {
+      const span = win.face === 'front' || win.face === 'back' ? L : W;
+      const offset = (win.along - .5) * (span - 6);
+      if (roofForm === 'split' && win.floor > 0 && ((win.face === 'front' || win.face === 'back') && offset < 1.5 || win.face === 'left')) continue;
+      const wideFront = accent === 'picture-window' && win.face === 'front' && win.floor === 0 && offset > 4;
+      const winW = wideFront ? 5.2 : 3.1, winH = 4.4;
       const g = new Three.Group();
       box(g, winW + .46, winH + .46, .22, trim, 0, 0, 0);
       box(g, winW + .76, .28, .44, trim, 0, -winH / 2 - .22, .1);
@@ -255,45 +351,81 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       if (variantSpec.shutters && win.face === 'front') {
         for (const side of [-1, 1]) box(g, 1.05, winH + .2, .18, shutterMat, side * (winW / 2 + .78), 0, .08);
       }
+      const crossZ = roofForm === 'cross-gable' && win.face === 'front' && Math.abs(offset + L * .2) < Math.min(L * .19, 8.5) ? 2.42 : .05;
       const y = base + win.floor * storyH + storyH * .54;
-      const span = win.face === 'front' || win.face === 'back' ? L : W;
-      const offset = (win.along - .5) * (span - 6);
-      if (win.face === 'front') g.position.set(offset, y, W / 2 + .05);
+      if (win.face === 'front') g.position.set(offset, y, W / 2 + crossZ);
       else if (win.face === 'back') { g.position.set(offset, y, -W / 2 - .05); g.rotation.y = Math.PI; }
       else if (win.face === 'left') { g.position.set(-L / 2 - .05, y, offset); g.rotation.y = -Math.PI / 2; }
       else { g.position.set(L / 2 + .05, y, offset); g.rotation.y = Math.PI / 2; }
       group.add(g);
     }
 
-    // Additions: front porch and roof dormers.
+    // Additions: style-specific front / full / wraparound / cantilever porch and roof dormers.
     if (variantSpec.porch) {
-      const pw = Math.min(L * .64, 30), pd = 7.5, py = base + storyH - .15;
-      box(group, pw, .55, pd, material('deck', '#8b6f4e', 'deck', 5, 2, .85), 0, .42, W / 2 + pd / 2);
-      box(group, pw + .9, .36, pd + .9, roofMat, 0, py + .6, W / 2 + pd / 2 + .2, { rx: .17 });
-      box(group, pw + .6, .38, .35, trim, 0, py, W / 2 + pd);
-      const posts = [-pw / 2 + .8, -4.2, 4.2, pw / 2 - .8].filter((x, i, a) => a.findIndex(v => Math.abs(v - x) < 1.6) === i);
-      for (const x of posts) {
-        box(group, .58, py - .5, .58, trim, x, (py + .5) / 2, W / 2 + pd - .55);
-        box(group, .78, .6, .78, trim, x, .9, W / 2 + pd - .55);
-      }
-      for (const side of [-1, 1]) {
-        const span = pw / 2 - 4.8;
-        if (span <= 2) continue;
-        const cx = side * (4.2 + span / 2 + .3);
-        box(group, span, .2, .2, trim, cx, 3.05, W / 2 + pd - .55);
-        box(group, span, .18, .18, trim, cx, 1.05, W / 2 + pd - .55);
-        for (let bx = -span / 2 + .5; bx <= span / 2 - .5; bx += .95) box(group, .12, 1.9, .12, trim, cx + bx, 2.05, W / 2 + pd - .55);
+      const deckMat = material('deck', '#8b6f4e', 'deck', 5, 2, .85);
+      const py = base + Math.min(storyH, leftWingH) - .15;
+      if (porchStyle === 'cantilever') {
+        const cw = Math.min(L * .38, 16), cd = 6.2;
+        box(group, cw, .48, cd, trim, 0, py + .1, W / 2 + cd / 2);
+        box(group, cw + .4, .22, cd + .4, roofMat, 0, py + .42, W / 2 + cd / 2);
+        for (const sx of [-1, 1]) box(group, .34, py - .45, .34, trim, sx * (cw / 2 - .8), (py + .45) / 2, W / 2 + cd - .7);
+      } else {
+        const fullSpan = porchStyle === 'full' || porchStyle === 'wraparound';
+        const pw = fullSpan ? Math.min(L * .94, L - 1.5) : Math.min(L * .64, 30);
+        const pd = 7.5;
+        box(group, pw, .55, pd, deckMat, 0, .42, W / 2 + pd / 2);
+        box(group, pw + .9, .36, pd + .9, roofMat, 0, py + .6, W / 2 + pd / 2 + .2, { rx: .17 });
+        box(group, pw + .6, .38, .35, trim, 0, py, W / 2 + pd);
+        if (accent === 'gingerbread') {
+          for (let fx = -pw / 2 + 1; fx <= pw / 2 - 1; fx += 1.35) box(group, .16, .68, .16, trim, fx, py - .52, W / 2 + pd - .55, { shadow: false });
+        }
+        const postXs = fullSpan
+          ? [-pw / 2 + .8, -pw / 4, -4.2, 4.2, pw / 4, pw / 2 - .8].filter((x, i, a) => a.findIndex(v => Math.abs(v - x) < 2) === i)
+          : [-pw / 2 + .8, -4.2, 4.2, pw / 2 - .8].filter((x, i, a) => a.findIndex(v => Math.abs(v - x) < 1.6) === i);
+        for (const x of postXs) {
+          if (accent === 'rafters') {
+            box(group, 1.32, 2.3, 1.32, brick, x, 1.65, W / 2 + pd - .55);
+            box(group, .72, Math.max(2, py - 2.9), .72, trim, x, 2.8 + Math.max(2, py - 2.9) / 2, W / 2 + pd - .55);
+          } else {
+            box(group, .58, py - .5, .58, trim, x, (py + .5) / 2, W / 2 + pd - .55);
+            box(group, .78, .6, .78, trim, x, .9, W / 2 + pd - .55);
+          }
+        }
+        for (const side of [-1, 1]) {
+          const span = pw / 2 - 4.8;
+          if (span <= 2) continue;
+          const cx = side * (4.2 + span / 2 + .3);
+          box(group, span, .2, .2, trim, cx, 3.05, W / 2 + pd - .55);
+          box(group, span, .18, .18, trim, cx, 1.05, W / 2 + pd - .55);
+          for (let bx = -span / 2 + .5; bx <= span / 2 - .5; bx += .95) box(group, .12, 1.9, .12, trim, cx + bx, 2.05, W / 2 + pd - .55);
+        }
+        if (porchStyle === 'wraparound') {
+          const sideLen = W * .78 + pd, sideCenterZ = W / 2 + pd - sideLen / 2;
+          box(group, pd, .55, sideLen, deckMat, -L / 2 - pd / 2 + .3, .42, sideCenterZ);
+          box(group, pd + .9, .36, sideLen + .6, roofMat, -L / 2 - pd / 2 + .2, py + .58, sideCenterZ, { rz: .17 });
+          box(group, .35, .38, sideLen + .4, trim, -L / 2 - pd + .3, py, sideCenterZ);
+          for (let sz = W / 2 + pd - .6; sz >= W / 2 + pd - sideLen + 1; sz -= 7.2) {
+            box(group, .56, py - .5, .56, trim, -L / 2 - pd + .85, (py + .5) / 2, sz);
+          }
+          box(group, .2, .2, sideLen - 1.4, trim, -L / 2 - pd + .85, 3.05, sideCenterZ);
+          box(group, .18, .18, sideLen - 1.4, trim, -L / 2 - pd + .85, 1.05, sideCenterZ);
+        }
       }
     }
-    if (variantSpec.dormers) for (const sx of [-1, 1]) {
-      const g = new Three.Group(); const z = W * .31, y = wallTop + rise * .36;
-      g.position.set(sx * L * .24, y, z); group.add(g);
-      box(g, 4.4, 4.6, 4, sidingZ, 0, 0, 0);
-      box(g, 3, 3.4, .18, frame, 0, .2, 2.02); box(g, 2.4, 2.8, .14, glass, 0, .2, 2.12, { shadow: false });
-      box(g, 3.4, .26, 4.9, roofMat, -1.22, 2.95, 0, { rz: .62 }); box(g, 3.4, .26, 4.9, roofMat, 1.22, 2.95, 0, { rz: -.62 });
-      const triangle = new Three.Shape(); triangle.moveTo(-2.2, 0); triangle.lineTo(2.2, 0); triangle.lineTo(0, 1.55); triangle.closePath();
-      const face = new Three.Mesh(new Three.ShapeGeometry(triangle), gableMat);
-      face.position.set(0, 2.3, 2.01); face.castShadow = true; g.add(face);
+    if (variantSpec.dormers && roofForm !== 'flat') {
+      const dormerXs = roofForm === 'cross-gable' ? [L * .24] : [-L * .24, L * .24];
+      const dormerMat = material(`gable-${variantSpec.sidingHex}-${variantSpec.texture}`, variantSpec.sidingHex, variantSpec.texture, 1, 1);
+      dormerMat.side = Three.DoubleSide;
+      for (const dx of dormerXs) {
+        const g = new Three.Group(); const z = W * .31, y = wallTop + rise * .36;
+        g.position.set(dx, y, z); group.add(g);
+        box(g, 4.4, 4.6, 4, sidingZ, 0, 0, 0);
+        box(g, 3, 3.4, .18, frame, 0, .2, 2.02); box(g, 2.4, 2.8, .14, glass, 0, .2, 2.12, { shadow: false });
+        box(g, 3.4, .26, 4.9, roofMat, -1.22, 2.95, 0, { rz: .62 }); box(g, 3.4, .26, 4.9, roofMat, 1.22, 2.95, 0, { rz: -.62 });
+        const triangle = new Three.Shape(); triangle.moveTo(-2.2, 0); triangle.lineTo(2.2, 0); triangle.lineTo(0, 1.55); triangle.closePath();
+        const face = new Three.Mesh(new Three.ShapeGeometry(triangle), dormerMat);
+        face.position.set(0, 2.3, 2.01); face.castShadow = true; g.add(face);
+      }
     }
 
     // Planting: foundation shrubs and two simple shade trees.

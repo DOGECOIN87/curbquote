@@ -21,6 +21,8 @@ else is optional and adds a feature.
 | Cesium ion | 3D view, testing only | Account + token | Free Community plan, 1,000 Google 3D sessions a month, non-commercial | `CESIUM_ION_TOKEN` |
 | Google Map Tiles API | 3D view for launch | Google Cloud project, billing and key | First 1,000 sessions a month free, then $6.00 per 1,000 | `GOOGLE_MAP_TILES_KEY` |
 | Vercel AI Gateway | AI project assistant | Vercel account; key or OIDC | Pay per use, $5 free credit a month | `AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL` |
+| Open ODbL building footprints | Step 3 approximate building dimensions | None (OSM Overpass / ODbL GeoJSON) | Free open data | `MICROSOFT_FOOTPRINTS_URL` (optional) |
+| Licensed building footprints | Step 3 commercial building outlines & roof pitch | Provider contract + consent | Varies | `EARTHDEFINE_KEY`, `EAGLEVIEW_KEY`, `ATTOM_KEY`, `DATA_USE_APPROVED` |
 | Licensed property data | Pre-filled stories and year built | Provider contract | Varies | `PROPERTY_*`, `DATA_USE_APPROVED` |
 
 Prices were checked in October 2026 ([docs/12](12-3d-and-ai-map-alternatives.md)); confirm them

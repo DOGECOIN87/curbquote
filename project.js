@@ -9,7 +9,8 @@ export const PRODUCTS = Object.freeze({
 });
 export const TIERS = Object.freeze({ standard: { name: 'Standard', multiplier: 1 }, enhanced: { name: 'Enhanced', multiplier: 1.25 }, premium: { name: 'Premium', multiplier: 1.6 } });
 export const COLORS = Object.freeze({ sage: { name: 'Sage', hex: '#829581' }, cream: { name: 'Warm ivory', hex: '#e9dfc8' }, slate: { name: 'Coastal slate', hex: '#637c8a' }, charcoal: { name: 'Charcoal', hex: '#42494d' }, terracotta: { name: 'Terracotta', hex: '#b4765c' }, white: { name: 'Soft white', hex: '#e7e8e2' } });
-export const DEFAULT_PROJECT = Object.freeze({ siding: true, windows: true, doors: true, sidingProduct: 'vinyl', windowProduct: 'vinyl', doorProduct: 'steel', tier: 'standard', coveragePercent: 100, color: 'sage' });
+export const PROJECT_HOME_STYLES = Object.freeze(['colonial-2story', 'ranch-1story', 'craftsman-bungalow', 'cape-cod', 'tudor-gable', 'farmhouse-porch', 'split-level', 'midcentury-flat', 'victorian-gingerbread', 'foursquare', 'creole-cottage', 'contemporary-gable']);
+export const DEFAULT_PROJECT = Object.freeze({ siding: true, windows: true, doors: true, sidingProduct: 'vinyl', windowProduct: 'vinyl', doorProduct: 'steel', tier: 'standard', coveragePercent: 100, color: 'sage', homeStyle: 'colonial-2story' });
 
 export function validateProject(candidate = {}) {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) throw new InputError('Choose your project options.', 'scope-siding');
@@ -21,6 +22,7 @@ export function validateProject(candidate = {}) {
   }
   if (!Object.hasOwn(TIERS, p.tier)) throw new InputError('Choose an available quality tier.', 'tier');
   if (!Object.hasOwn(COLORS, p.color)) throw new InputError('Choose an available siding color.', 'color');
+  if (!PROJECT_HOME_STYLES.includes(p.homeStyle)) throw new InputError('Choose an available home style.', 'homeStyle');
   if ((typeof p.coveragePercent !== 'number' && typeof p.coveragePercent !== 'string') || String(p.coveragePercent).trim() === '') throw new InputError('Enter a siding coverage percentage.', 'coveragePercent');
   p.coveragePercent = Number(p.coveragePercent);
   if (!Number.isFinite(p.coveragePercent) || p.coveragePercent < 1 || p.coveragePercent > 100) throw new InputError('Siding coverage must be between 1 and 100%.', 'coveragePercent');

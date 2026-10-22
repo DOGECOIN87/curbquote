@@ -2,6 +2,7 @@ import { isAddressMatch } from './address.js';
 import { hasAerialCoverage } from './property-view.js';
 import { propertyMapStyle, buildingHighlight, emptySelection } from './map-style.js';
 import { webgl2Available } from './property-3d.js';
+import { setupMapMeasure, measureOutline, illustrativeOutline, FEET_PER_METER } from './measure-overlay.js';
 
 const VENDOR = new URL('./vendor/maplibre/', import.meta.url).href;
 const LOAD_TIMEOUT = 20000;
@@ -18,7 +19,7 @@ function loadRenderer() {
 }
 
 /** A lazy, display-only map. Closing removes tiles, highlights, workers and the WebGL context. */
-export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers, onFailure }) {
+export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers, onFailure, onOrbitChange, onMeasure, onBearing, getDimensions, getPadding = () => null }) {
   const container = document.createElement('div'); container.id = 'property-map'; container.className = 'aerial-map'; container.hidden = true;
   container.setAttribute('aria-label', 'Interactive map around the approximate address'); stage.append(container);
   let map = null, open = false, serial = 0, location = null, mode = 'hybrid', stopWaiting, dataReady = false, aerialReady = false;
@@ -27,6 +28,48 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
   const motion = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 900;
   const saveMode = v => { try { localStorage.setItem(MODE_KEY, v); } catch {} };
   const available = webgl2Available();
+  // The orbit waits for the first measuring pass (it needs a still map), then circles the building.
+  let orbitFrame = 0, orbitWanted = false, settled = false, measurer = null;
+  /** Measures the mapped building under a screen point, or an illustrative outline at the address. */
+  function measureAt(point = null) {
+    if (!map || !measurer || !location) return null;
+    const { lon, lat } = location.coordinates, at = point || map.project([lon, lat]);
+    const layer = mode === '3d' ? 'building-3d' : 'building-fill';
+    let raw = null;
+    try { raw = map.getLayer(layer) ? map.queryRenderedFeatures([[at.x - 10, at.y - 10], [at.x + 10, at.y + 10]], { layers: [layer] }).find(f => buildingHighlight(f)) : null; } catch {}
+    const geometry = raw?.geometry, ring = geometry?.type === 'Polygon' ? geometry.coordinates[0] : geometry?.type === 'MultiPolygon' ? geometry.coordinates[0][0] : null;
+    const fallback = getDimensions?.() || {}, mapped = ring ? measureOutline(ring) : null;
+    const shape = mapped || measureOutline(illustrativeOutline([lon, lat], fallback.lengthFt || 48, fallback.widthFt || 34));
+    // Only a plausible mapped height is used; the rest falls back to the stories on this page.
+    const mappedHeight = Number(raw?.properties?.render_height);
+    const heightFt = mapped && mappedHeight > 3 && mappedHeight < 40 ? mappedHeight * FEET_PER_METER : fallback.heightFt;
+    const shown = measurer.play(shape, { heightFt });
+    onMeasure?.(shown && { ...shown, approximate: Boolean(mapped) });
+    return shown;
+  }
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function stopOrbit() {
+    if (!orbitFrame && !orbitWanted) return;
+    cancelAnimationFrame(orbitFrame); orbitFrame = 0; orbitWanted = false; onOrbitChange?.(false);
+  }
+  /** Circles the 3D buildings view around its centre. Any drag, wheel, key or mode change stops it. */
+  function orbit(on = !(orbitFrame || orbitWanted)) {
+    if (!on || !map || mode !== '3d' || reduced()) { stopOrbit(); return false; }
+    if (orbitFrame || orbitWanted) return true;
+    if (!settled) { orbitWanted = true; onOrbitChange?.(true); return true; }
+    startOrbit(); return true;
+  }
+  function startOrbit() {
+    let last = performance.now(); orbitWanted = false; onOrbitChange?.(true);
+    const tick = now => {
+      if (!map || mode !== '3d') { orbitFrame = 0; onOrbitChange?.(false); return; }
+      // A hidden step keeps its place in the turn without rendering.
+      if (container.offsetParent) map.setBearing(map.getBearing() + Math.min(.05, (now - last) / 1000) * 7);
+      last = now; orbitFrame = requestAnimationFrame(tick);
+    };
+    orbitFrame = requestAnimationFrame(tick);
+  }
+  for (const type of ['pointerdown', 'wheel', 'keydown']) container.addEventListener(type, stopOrbit, { passive: true });
   function refreshHousenumbers() {
     if (!map || !open || !onHousenumbers) return;
     try {
@@ -50,13 +93,13 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     } catch {}
   }
   function close() {
-    serial++; open = false; dataReady = aerialReady = false; stopWaiting?.(); stopWaiting = null;
-    const previous = map; map = null;
+    stopOrbit(); settled = false; serial++; open = false; dataReady = aerialReady = false; stopWaiting?.(); stopWaiting = null;
+    const previous = map; map = null; measurer = null; onMeasure?.(null);
     try { previous?.remove(); } catch { /* context may already be lost */ }
     container.replaceChildren(); container.hidden = true; container.removeAttribute('aria-busy'); onSelection?.(false);
   }
   function message() {
-    if (mode === '3d') return 'Open 3D buildings ready. Heights come from OpenStreetMap where mapped and are approximate. Drag to pan, right-drag or two-finger drag to tilt and rotate. Display only; no measurements.';
+    if (mode === '3d') return 'Open 3D buildings ready. Heights come from OpenStreetMap where mapped and are approximate. Drag to pan, right-drag or two-finger drag to tilt and rotate; dragging also stops the orbit. Display only; no measurements.';
     const prefix = mode === 'hybrid' ? aerialReady ? 'Hybrid view ready.' : 'Map ready; aerial imagery is loading.' : 'Map view ready.';
     return `${prefix} Tap a mapped building to highlight it. Drag, use arrow keys, or use two fingers on a phone. The dot is an approximate address point.`;
   }
@@ -66,6 +109,7 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     const imagery = next !== 'map' && covered;
     if (next === mode && map?.getLayer('aerial') && map.getLayoutProperty('aerial', 'visibility') === (imagery ? 'visible' : 'none') && map.getLayoutProperty('building-3d', 'visibility') === (next === '3d' ? 'visible' : 'none')) return mode;
     const wasPitched = mode === '3d';
+    if (next !== '3d') stopOrbit();
     mode = next;
     if (mode !== '3d') saveMode(mode);
     if (map?.getLayer('aerial')) map.setLayoutProperty('aerial', 'visibility', imagery ? 'visible' : 'none');
@@ -111,12 +155,16 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
       cooperativeGestures: true, prefetchZoomDelta: 0,
       transformRequest: url => ({ url, credentials: 'omit', referrerPolicy: 'no-referrer' })
     });
-    instance.addControl(new api.NavigationControl({ showCompass: false }), 'top-right');
+    instance.on('rotate', () => onBearing?.(instance.getBearing()));
+    // Floating panels cover part of the map, so the address is centred in the open area instead.
+    const pad = () => { const padding = getPadding(); if (padding) instance.setPadding(padding); };
+    pad(); instance.on('resize', pad);
     const selectAt = point => {
       if (request !== serial || !open) return;
       if (!instance.getLayer('building-fill')) return;
       const feature = instance.queryRenderedFeatures(point, { layers: [mode === '3d' ? 'building-3d' : 'building-fill'] }).map(buildingHighlight).find(Boolean);
       instance.getSource('selected').setData(feature || emptySelection()); onSelection?.(Boolean(feature));
+      if (feature) measureAt(Array.isArray(point) ? { x: point[0], y: point[1] } : point);
     };
     instance.getCanvas().setAttribute('aria-label', 'Property map. Arrow keys pan, plus and minus zoom, Enter highlights a building at the center, and Escape clears the highlight.');
     instance.getCanvas().addEventListener('keydown', event => {
@@ -142,7 +190,14 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
         }
         if (request !== serial || !open || event.sourceId !== 'openmaptiles' || !event.coord || !instance.isSourceLoaded('openmaptiles') || ready) return;
         ready = dataReady = true; container.removeAttribute('aria-busy');
-        const initial = mode; mode = null; setMode(initial); refreshHousenumbers(); finish(null, true);
+        const initial = mode; mode = null; setMode(initial); refreshHousenumbers();
+        try { measurer = setupMapMeasure(instance, api); } catch { measurer = null; }
+        instance.once('idle', () => {
+          if (request !== serial || !open) return;
+          settled = true; measureAt();
+          if (orbitWanted && mode === '3d' && !reduced()) startOrbit();
+        });
+        finish(null, true);
       });
       instance.on('error', event => {
         if (request !== serial || !open) return;
@@ -155,7 +210,10 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     });
   }
   return {
-    available, show, close, setMode, clearSelection, focusHousenumber, refreshHousenumbers,
+    available, show, close, setMode, clearSelection, focusHousenumber, refreshHousenumbers, orbit, measure: () => measureAt(),
+    zoomBy: delta => { stopOrbit(); map?.easeTo({ zoom: Math.max(14, Math.min(20, map.getZoom() + delta)), duration: motion() / 3 }); },
+    north: () => { stopOrbit(); map?.easeTo({ bearing: 0, duration: motion() }); },
+    get isOrbiting() { return Boolean(orbitFrame) || orbitWanted; },
     recenter: () => { if (map && location) { const { lon, lat } = location.coordinates; map.jumpTo(mode === '3d' ? { center: [lon, lat], zoom: 18.4, bearing: -24, pitch: 58 } : { center: [lon, lat], zoom: 19, bearing: 0, pitch: 0 }); } },
     get isOpen() { return open; }, get mode() { return mode; }, get message() { return message(); }
   };

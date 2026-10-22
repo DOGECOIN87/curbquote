@@ -9,8 +9,13 @@ import { setupPropertyMap } from './property-map.js';
  * reviewed local exterior → Google 3D (key or Cesium ion) → key-free open 3D buildings
  * (OpenStreetMap heights) → USGS aerial photo → street map → the homeowner's own photo.
  * The stage's data-view (empty, busy, error, matched) lets the Step 1 canvas show its welcome state.
+ * After a match the 3D view leads and circles the building (not with reduced motion); choosing the
+ * aerial photo is remembered on this device, so later matches open the photo instead.
  */
-export function setupPropertyPreview({ onPhoto }) {
+const VIEW_KEY = 'curbquote.property.view';
+const prefers3d = () => { try { return localStorage.getItem(VIEW_KEY) !== 'photo'; } catch { return true; } };
+const rememberView = value => { try { localStorage.setItem(VIEW_KEY, value); } catch {} };
+export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   const byId = id => document.getElementById(id);
   const stage = byId('aerial-stage'), images = byId('aerial-images'), tools = byId('aerial-controls');
   const overlay = byId('aerial-placeholder'), marker = byId('aerial-marker'), status = byId('aerial-status');
@@ -29,10 +34,28 @@ export function setupPropertyPreview({ onPhoto }) {
       sync3d();
     }
   });
-  const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution');
+  const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
+  /** Space taken by the floating panels at the top and bottom of the view, in screen pixels. */
+  function overlayPadding() {
+    const box = stage.getBoundingClientRect();
+    if (!box.height) return null;
+    const panels = [...document.querySelectorAll('.instant-estimate, .view-dock, .change-dock')].filter(el => el.offsetParent && el.getBoundingClientRect().top > box.top + box.height / 2);
+    const bottom = panels.length ? box.bottom - Math.min(...panels.map(el => el.getBoundingClientRect().top)) : 0;
+    const top = parseFloat(getComputedStyle(stage).getPropertyValue('--map-top')) || 0;
+    return { top: Math.min(top, box.height / 4), bottom: Math.min(bottom, box.height / 2), left: 0, right: 0 };
+  }
+  /** Moves the photo's centre south so the address sits in the open area above the bottom panels. */
+  function framed(coords) {
+    const padding = overlayPadding(), box = stage.getBoundingClientRect();
+    if (!padding) return { ...coords };
+    const imagePx = (padding.bottom - padding.top) / 2 / Math.max(box.width / 960, box.height / 600);
+    return { lat: coords.lat - imagePx * width / 960 / 110540, lon: coords.lon };
+  }
   const viewMap = setupPropertyMap({
-    stage, onFailure: unavailableMap,
+    stage, onFailure: unavailableMap, getPadding: overlayPadding, onOrbitChange: () => syncMap(), getDimensions,
+    onMeasure: result => showMeasure(result && { ...result, note: result.approximate ? 'Approximate, from the mapped building outline' : 'Illustrative dimensions' }),
+    onBearing: bearing => byId('map-north').style.setProperty('--bearing', `${-bearing}deg`),
     onStatus: message => { if (viewMap.isOpen) { if (status.textContent !== message) status.textContent = message; syncMap(); } },
     onSelection: selected => { byId('map-clear-selection').hidden = !selected; byId('map-selection').hidden = !selected; },
     onHousenumbers: list => {
@@ -76,6 +99,9 @@ export function setupPropertyPreview({ onPhoto }) {
     toggle3d.textContent = view3d.isOpen || open3dShown() ? 'Aerial photo' : match && view3d.hasLocal(match) ? 'Exterior model' : 'View in 3D';
     toggleMap.setAttribute('aria-pressed', String(viewMap.isOpen));
     mapControls.hidden = mapCredit.hidden = !viewMap.isOpen;
+    toggleMap.hidden ||= open3dShown(); byId('map-zoom').hidden = !viewMap.isOpen;
+    mapOrbit.hidden = !open3dShown(); mapOrbit.textContent = viewMap.isOrbiting ? 'Stop orbit' : 'Orbit 360°';
+    mapOrbit.setAttribute('aria-pressed', String(viewMap.isOrbiting));
     if (!viewMap.isOpen && housenumbersWrap) housenumbersWrap.hidden = true;
     if (viewMap.isOpen) widthLabel.textContent = `${viewMap.mode === '3d' ? 'Open 3D buildings' : viewMap.mode === 'hybrid' ? 'Hybrid' : 'Map'} · display only`;
     for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.setAttribute('aria-pressed', String(button.dataset.mapMode === viewMap.mode));
@@ -84,6 +110,7 @@ export function setupPropertyPreview({ onPhoto }) {
   /** Puts the aerial controls and text back exactly as they were, resuming an interrupted image load. */
   function restore2d() {
     const previous = saved; saved = null; sync3d(); syncMap();
+    if (loaded) drawAerialMeasure();
     if (!previous) return;
     tools.hidden = previous.tools; widthLabel.textContent = previous.width; status.textContent = previous.status;
     if (previous.reload) load();
@@ -99,10 +126,10 @@ export function setupPropertyPreview({ onPhoto }) {
     viewMap.close(); restore2d();
     status.textContent = fallback ? 'The 3D view is unavailable right now. The aerial view still works.' : 'The interactive map is unavailable right now. The aerial view and your estimate still work.';
   }
-  async function openMap({ initialMode = null, fallback = false } = {}) {
+  async function openMap({ initialMode = null, fallback = false, reload = false, orbit = false } = {}) {
     if (view3d.isOpen) { view3d.close(); restore2d(); }
     const location = match, solid = initialMode === '3d';
-    saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: Boolean(pendingImage) || Boolean(saved?.reload) };
+    saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: reload || Boolean(pendingImage) || Boolean(saved?.reload) };
     if (pendingImage) cancel();
     tools.hidden = true; widthLabel.textContent = solid ? 'Open 3D buildings · display only' : 'Map · display only';
     status.textContent = solid ? 'Loading open 3D buildings from OpenStreetMap…' : 'Loading the interactive map…';
@@ -110,17 +137,19 @@ export function setupPropertyPreview({ onPhoto }) {
     try {
       const ready = await pending;
       if (!ready || !viewMap.isOpen || match !== location) return;
-      status.textContent = fallback ? `Google 3D is unavailable, so this is the key-free 3D view. ${viewMap.message}` : viewMap.message; syncMap(); sync3d();
+      status.textContent = fallback ? `Google 3D is unavailable, so this is the key-free 3D view. ${viewMap.message}` : viewMap.message;
+      if (orbit) viewMap.orbit(true);
+      syncMap(); sync3d();
     } catch { if (match === location && saved) unavailableMap(fallback || solid); }
   }
   /** Opens 3D over the current view. `reload` loads the aerial photo if 3D is closed or fails. */
-  async function open3d({ reload = Boolean(pendingImage) } = {}) {
+  async function open3d({ reload = Boolean(pendingImage), orbit = false } = {}) {
     if (viewMap.isOpen) { viewMap.close(); restore2d(); }
     const location = match;
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload };
     if (pendingImage) cancel();
     const local = view3d.hasLocal(location);
-    tools.hidden = true; widthLabel.textContent = local ? 'Exterior model · 2017 survey' : 'Google 3D · display only';
+    showMeasure(null); tools.hidden = true; widthLabel.textContent = local ? 'Exterior model · 2017 survey' : 'Google 3D · display only';
     status.textContent = local ? 'Loading the measured exterior model…' : 'Loading the Google 3D view…';
     const pending = view3d.show(location); sync3d(); syncMap();
     let result;
@@ -128,6 +157,7 @@ export function setupPropertyPreview({ onPhoto }) {
     catch { if (match === location && saved) unavailable3d(); return; }
     if (!result || !view3d.isOpen) return;
     tools3d.hidden = result !== 'framed'; sync3d();
+    if (orbit && (local || result === 'framed') && !view3d.isOrbiting && !matchMedia('(prefers-reduced-motion: reduce)').matches) view3d.orbit();
     status.textContent = local
       ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
       : result === 'framed'
@@ -139,6 +169,37 @@ export function setupPropertyPreview({ onPhoto }) {
     if (pendingImage) { pendingImage.onload = pendingImage.onerror = null; pendingImage.removeAttribute('src'); pendingImage = null; }
     stage.removeAttribute('aria-busy');
   }
+  const measureChip = byId('measure-chip'), measureNote = byId('measure-note'), measureGroup = byId('aerial-measure');
+  function showMeasure(result) {
+    measureChip.hidden = !result;
+    if (result) measureNote.textContent = result.note;
+  }
+  function clearAerialMeasure() { measureGroup.replaceChildren(); }
+  /** The top-down photo has no outline to trace, so the home's size is drawn as an illustrative footprint. */
+  function drawAerialMeasure() {
+    clearAerialMeasure();
+    if (!loaded || !view || !match) return;
+    const dims = getDimensions() || {}, lengthFt = dims.lengthFt || 48, widthFt = dims.widthFt || 34;
+    const perFoot = 960 / (width * 3.28084), p = pointInView(view, match.coordinates);
+    const w = lengthFt * perFoot, h = widthFt * perFoot, x0 = p.x - w / 2, y0 = p.y - h / 2, gap = 14, svg = 'http://www.w3.org/2000/svg';
+    const path = (d, className) => { const el = document.createElementNS(svg, 'path'); el.setAttribute('d', d); el.setAttribute('class', className); el.setAttribute('pathLength', '1'); el.setAttribute('vector-effect', 'non-scaling-stroke'); measureGroup.append(el); };
+    path(`M${x0} ${y0}H${x0 + w}V${y0 + h}H${x0}Z`, 'measure-trace measure-glow');
+    path(`M${x0} ${y0}H${x0 + w}V${y0 + h}H${x0}Z`, 'measure-trace');
+    path(`M${x0} ${y0 + h + gap}H${x0 + w}M${x0} ${y0 + h + gap - 6}v12M${x0 + w} ${y0 + h + gap - 6}v12`, 'measure-dim');
+    path(`M${x0 + w + gap} ${y0}V${y0 + h}M${x0 + w + gap - 6} ${y0}h12M${x0 + w + gap - 6} ${y0 + h}h12`, 'measure-dim');
+    for (const [cx, cy] of [[x0, y0], [x0 + w, y0], [x0 + w, y0 + h], [x0, y0 + h]]) {
+      const dot = document.createElementNS(svg, 'circle'); dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('r', '4'); dot.setAttribute('class', 'measure-corner'); measureGroup.append(dot);
+    }
+    for (const [feet, lx, ly] of [[lengthFt, x0 + w / 2, y0 + h + gap], [widthFt, x0 + w + gap, y0 + h / 2]]) {
+      const text = `≈ ${Math.round(feet)} ft`, tag = document.createElementNS(svg, 'g'), box = document.createElementNS(svg, 'rect'), words = document.createElementNS(svg, 'text');
+      const boxW = text.length * 7.2 + 16;
+      tag.setAttribute('class', 'measure-tag'); tag.setAttribute('transform', `translate(${lx} ${ly})`);
+      Object.entries({ x: -boxW / 2, y: -12, width: boxW, height: 24, rx: 7 }).forEach(([k, v]) => box.setAttribute(k, v));
+      words.setAttribute('text-anchor', 'middle'); words.setAttribute('dy', '4.5'); words.textContent = text;
+      tag.append(box, words); measureGroup.append(tag);
+    }
+    showMeasure({ note: dims.fromPublicData ? 'Size from public data; placement is illustrative' : 'Illustrative dimensions' });
+  }
   function placeholder(title, text) {
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
@@ -147,7 +208,7 @@ export function setupPropertyPreview({ onPhoto }) {
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
-    stage.dataset.view = 'empty'; byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'Aerial preview';
+    stage.dataset.view = 'empty'; clearAerialMeasure(); showMeasure(null); byId('aerial-address').textContent = 'Start with your address'; byId('aerial-width').textContent = 'Aerial preview';
     placeholder('Your place starts here.', 'Type a complete U.S. address. Your property will appear automatically.');
     status.textContent = 'An aerial view helps you recognize the building. It does not supply renovation measurements.';
   }
@@ -171,7 +232,7 @@ export function setupPropertyPreview({ onPhoto }) {
     let next;
     try { next = aerialView(center, width); }
     catch { status.textContent = 'That view is outside the available aerial coverage. Recenter on the address.'; return; }
-    loaded = false; images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true;
+    loaded = false; images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; clearAerialMeasure();
     stage.setAttribute('aria-busy', 'true'); byId('aerial-retry').hidden = true;
     placeholder('Bringing your place into view…', 'Loading aerial imagery. Some locations take a little longer.');
     status.textContent = 'Loading USGS / USDA aerial imagery…';
@@ -189,7 +250,7 @@ export function setupPropertyPreview({ onPhoto }) {
       if (!img.naturalWidth || !img.naturalHeight) { error(); return; }
       clearTimeout(timeout); pendingImage = null; img.onload = img.onerror = null;
       view = next; loaded = true; images.replaceChildren(img); overlay.hidden = true; tools.hidden = false;
-      stage.removeAttribute('aria-busy'); syncMarker();
+      stage.removeAttribute('aria-busy'); syncMarker(); drawAerialMeasure();
       byId('aerial-width').textContent = `View width · ${Math.round(width)} m`;
       byId('aerial-zoom-in').disabled = width <= 60; byId('aerial-zoom-out').disabled = width >= 1200;
       status.textContent = has3d || view3d.hasLocal(match)
@@ -202,13 +263,15 @@ export function setupPropertyPreview({ onPhoto }) {
     if (!isAddressMatch(location)) { failed(); return; }
     clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
     const covered = hasAerialCoverage(location.coordinates);
-    if (covered) center = { ...location.coordinates };
+    if (covered) center = framed(location.coordinates);
     else {
       placeholder('No aerial coverage here yet.', 'This preview covers the contiguous U.S. You can use your own exterior photo for this property.');
       status.textContent = 'Address matched. Aerial imagery for Alaska, Hawaii and U.S. territories is not connected.';
     }
-    // The 3D view leads when it is available; the aerial photo loads only if 3D is closed or fails.
-    if (view3d.hasLocal(location) || has3d) open3d({ reload: covered });
+    // The 3D view leads and circles the building; the aerial photo loads only if 3D is closed or fails,
+    // or when this visitor chose the photo before.
+    if (view3d.hasLocal(location) || has3d) open3d({ reload: covered, orbit: true });
+    else if (viewMap.available && prefers3d()) openMap({ initialMode: '3d', reload: covered, orbit: true });
     else if (covered) load();
   }
   function pan(x, y) {
@@ -222,15 +285,20 @@ export function setupPropertyPreview({ onPhoto }) {
   });
   byId('aerial-zoom-in').addEventListener('click', () => { width = Math.max(60, width / 1.6); load(); });
   byId('aerial-zoom-out').addEventListener('click', () => { width = Math.min(1200, width * 1.6); load(); });
-  byId('aerial-recenter').addEventListener('click', () => { center = { ...match.coordinates }; width = DEFAULT_VIEW_METERS; load(); });
+  byId('aerial-recenter').addEventListener('click', () => { width = DEFAULT_VIEW_METERS; center = framed(match.coordinates); load(); });
   byId('aerial-retry').addEventListener('click', load);
   byId('aerial-photo').addEventListener('click', onPhoto);
   toggle3d.addEventListener('click', () => {
-    if (view3d.isOpen) { view3d.close(); restore2d(); }
-    else if (open3dShown()) { viewMap.close(); restore2d(); }
-    else if (match && (has3d || view3d.hasLocal(match))) open3d();
-    else if (match) openMap({ initialMode: '3d' });
+    if (view3d.isOpen) { rememberView('photo'); view3d.close(); restore2d(); }
+    else if (open3dShown()) { rememberView('photo'); viewMap.close(); restore2d(); }
+    else if (match && (has3d || view3d.hasLocal(match))) { rememberView('3d'); open3d({ orbit: true }); }
+    else if (match) { rememberView('3d'); openMap({ initialMode: '3d', orbit: true }); }
   });
+  mapOrbit.addEventListener('click', () => { viewMap.orbit(); syncMap(); });
+  byId('map-zoom-in').addEventListener('click', () => viewMap.zoomBy(1));
+  byId('map-zoom-out').addEventListener('click', () => viewMap.zoomBy(-1));
+  byId('map-north').addEventListener('click', () => viewMap.north());
+  byId('measure-replay').addEventListener('click', () => { if (viewMap.isOpen) viewMap.measure(); else drawAerialMeasure(); });
   toggleMap.addEventListener('click', () => { if (viewMap.isOpen) { viewMap.close(); restore2d(); } else if (match) openMap(); });
   for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.addEventListener('click', () => { viewMap.setMode(button.dataset.mapMode); syncMap(); sync3d(); });
   byId('map-recenter').addEventListener('click', () => viewMap.recenter());
@@ -252,9 +320,14 @@ export function setupPropertyPreview({ onPhoto }) {
   stage.addEventListener('pointerup', event => {
     const start = pointer; pointer = null;
     if (!start || start.id !== event.pointerId || !loaded) return;
+    // The photo covers the stage (cropped, never stretched), so screen points map through that crop.
     const bounds = stage.getBoundingClientRect(), dx = event.clientX - start.x, dy = event.clientY - start.y;
-    if (Math.hypot(dx, dy) < 6) pan((event.clientX - bounds.left) / bounds.width - .5, (event.clientY - bounds.top) / bounds.height - .5);
-    else if (event.pointerType === 'mouse') pan(-dx / bounds.width, -dy / bounds.height);
+    const scale = Math.max(bounds.width / 960, bounds.height / 600), shownW = 960 * scale, shownH = 600 * scale;
+    const left = bounds.left + (bounds.width - shownW) / 2, top = bounds.top + (bounds.height - shownH) / 2;
+    if (Math.hypot(dx, dy) < 6) pan((event.clientX - left) / shownW - .5, (event.clientY - top) / shownH - .5);
+    else if (event.pointerType === 'mouse') pan(-dx / shownW, -dy / shownH);
   });
-  clear(); return { clear, searching, failed, show };
+  /** New dimensions (for example from the public building outline) redraw the photo's measuring pass. */
+  const remeasure = () => { if (loaded && !viewMap.isOpen && !view3d.isOpen) drawAerialMeasure(); };
+  clear(); return { clear, searching, failed, show, remeasure };
 }

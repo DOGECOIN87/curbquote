@@ -22,12 +22,21 @@ const LIGHTS = Object.freeze({
  * (`stage`), rendering a real-time Before/After split comparison via WebGL scissor testing, and
  * smoothly easing camera moves and split sweeps when reduced motion is not requested.
  */
-export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, onReady, onError, onSplitChange, onOrbitChange }) {
-  const stages = [stage, previewStage].filter(Boolean);
+/**
+ * `welcomeStage` (optional) shows the same house on Step 1 as a floating model: no sky, street or
+ * distant ground. `proposalStage` shows the full scene on Step 1 while a design is previewed. A stage
+ * marked data-turntable turns slowly until paused, and any stage can set its framing with
+ * --frame-shift (moves the house down the view; negative moves it up) and --frame-zoom (smaller).
+ */
+export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null, proposalStage = null, getSpec, onStatus, onReady, onError, onSplitChange, onOrbitChange }) {
+  const stages = [stage, previewStage, welcomeStage, proposalStage].filter(Boolean);
   let activeStage = stage;
-  let Three, renderer, scene, camera, sun, hemi, house, beforeHouse, afterHouse, spec, beforeSpec, resizer, observer, starting, pmrem;
+  let Three, renderer, scene, camera, sun, hemi, house, beforeHouse, afterHouse, spec, beforeSpec, resizer, observer, starting, pmrem, welcomeLawn;
   let skyBefore, skyAfter, sceneName = '', lights = LIGHTS.day;
-  let open = false, splitPercent = 100, splitPointerId = null, animFrame = 0, orbitFrame = 0;
+  let open = false, splitPercent = 100, splitPointerId = null, animFrame = 0, orbitFrame = 0, mountedMode = null, turntablePaused = false;
+  const isWelcome = () => Boolean(welcomeStage) && activeStage === welcomeStage;
+  const isTurntable = () => activeStage?.dataset.turntable === 'true';
+  const frameVar = name => parseFloat(getComputedStyle(activeStage).getPropertyValue(name)) || 0;
   const views = {
     corner: { azimuth: .62, elevation: .3 },
     front: { azimuth: 0, elevation: .14 },
@@ -512,23 +521,24 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
   function site(g, ctx) {
     const { spec, L, W, m, drive } = ctx, before = spec.before;
     const S = 30, walkZ1 = W / 2 + S, curbZ = walkZ1 + 9.5, lot = Math.max(L, W) * 3.5 + 140;
-    const lawn = add(g, new Three.CircleGeometry(1400, 64), material(`lawn-${before ? 'b' : 'a'}`, before ? '#7d8656' : '#66884c', 'grass', { tile: 16, rough: 1, side: Three.FrontSide }), false);
+    const far = mesh => { mesh.userData.far = true; return mesh; };
+    const lawn = far(add(g, new Three.CircleGeometry(1400, 64), material(`lawn-${before ? 'b' : 'a'}`, before ? '#7d8656' : '#66884c', 'grass', { tile: 16, rough: 1, side: Three.FrontSide }), false));
     lawn.rotation.x = -Math.PI / 2;
     const uv = lawn.geometry.attributes.uv, p = lawn.geometry.attributes.position;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, p.getX(i), p.getY(i));
     const asphalt = material('asphalt', '#55585a', 'asphalt', { tile: 10, rough: .95 });
-    box(g, lot * 2, .1, 30, asphalt, 0, .05, curbZ + 15.3, { shadow: false });
-    box(g, lot * 2, .5, .6, m.concrete, 0, .25, curbZ + .3, { shadow: false });
-    box(g, lot * 2, .14, 5, m.concrete, 0, .07, walkZ1 + 2.5, { shadow: false });
-    for (let x = -lot; x < lot; x += 5) box(g, .06, .02, 5, m.joint, x, .15, walkZ1 + 2.5, { shadow: false });
+    far(box(g, lot * 2, .1, 30, asphalt, 0, .05, curbZ + 15.3, { shadow: false }));
+    far(box(g, lot * 2, .5, .6, m.concrete, 0, .25, curbZ + .3, { shadow: false }));
+    far(box(g, lot * 2, .14, 5, m.concrete, 0, .07, walkZ1 + 2.5, { shadow: false }));
+    for (let x = -lot; x < lot; x += 5) far(box(g, .06, .02, 5, m.joint, x, .15, walkZ1 + 2.5, { shadow: false }));
     // Front walk from the steps to the sidewalk.
     const walkLen = S - 1.2;
     box(g, 4.4, .14, walkLen, m.concrete, 0, .08, W / 2 + 1.2 + walkLen / 2, { shadow: false });
     for (let z = W / 2 + 5; z < walkZ1; z += 4.4) box(g, 4.3, .02, .06, m.joint, 0, .16, z, { shadow: false });
     // Driveway: to the garage door when there is one, otherwise beside the house.
     const dx = drive ? (drive.x0 + drive.x1) / 2 : L / 2 + 9, dw = drive ? 18 : 11, dz0 = drive ? drive.z1 : -W / 2 + 4;
-    box(g, dw, .12, curbZ - dz0 + 1, material('drive', '#b2b0a8', 'concrete', { tile: 8, rough: .92 }), dx, .06, (dz0 + curbZ) / 2 + .5, { shadow: false });
-    for (let z = dz0 + 10; z < curbZ; z += 10) box(g, dw - .1, .02, .07, m.joint, dx, .13, z, { shadow: false });
+    far(box(g, dw, .12, curbZ - dz0 + 1, material('drive', '#b2b0a8', 'concrete', { tile: 8, rough: .92 }), dx, .06, (dz0 + curbZ) / 2 + .5, { shadow: false }));
+    for (let z = dz0 + 10; z < curbZ; z += 10) far(box(g, dw - .1, .02, .07, m.joint, dx, .13, z, { shadow: false }));
     // Foundation beds and shrubs (fuller in After).
     const mulch = material('mulch', '#4a3a2b', 'grass', { tile: 4, rough: 1 }), greens = ['#3e6633', '#4b7a3a', '#33602c'];
     const bedW = Math.max(4, L / 2 - 4);
@@ -553,7 +563,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       mx.makeScale(s, s * (1.1 + rr() * .6), s).setPosition(Math.cos(a) * d, s * .8, Math.sin(a) * d);
       ring.setMatrixAt(i, mx);
     }
-    g.add(ring);
+    g.add(far(ring));
     if (spec.fence) {
       const fz = walkZ1 - 1.4, span = Math.max(L, W) + 40, gaps = [[-2.8, 2.8], [dx - dw / 2 - .6, dx + dw / 2 + .6]];
       const xs = [];
@@ -745,9 +755,11 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     scene.environment = envMaps.get(name); scene.environmentIntensity = lights.env;
   }
   function applyAtmosphere(isBefore) {
-    skyAfter.visible = !isBefore; skyBefore.visible = isBefore;
+    const welcome = isWelcome();
+    skyAfter.visible = !isBefore && !welcome; skyBefore.visible = isBefore && !welcome;
     const fogColor = isBefore ? muted(lights).horizon : lights.horizon;
-    if (scene.fog) scene.fog.color.set(fogColor); else scene.fog = new Three.Fog(fogColor, 260, 1100);
+    if (welcome) scene.fog = null;
+    else if (scene.fog) scene.fog.color.set(fogColor); else scene.fog = new Three.Fog(fogColor, 260, 1100);
     sun.intensity = lights.sunI * (isBefore ? .82 : 1);
     hemi.intensity = lights.hemiI * (isBefore ? .9 : 1);
   }
@@ -776,6 +788,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       if (beforeHouse) beforeHouse.visible = showBefore;
       afterHouse.visible = !showBefore;
       applyAtmosphere(showBefore);
+      if (isWelcome()) renderer.setClearColor(0x000000, 0);
       renderer.render(scene, camera);
       return;
     }
@@ -821,9 +834,22 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 10, far: 420 });
     sun.target.position.set(target.x, 0, target.z); sun.position.set(target.x + lights.sunPos[0], lights.sunPos[1], target.z + lights.sunPos[2]);
     sun.shadow.camera.updateProjectionMatrix();
+    const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z);
+    welcomeLawn?.position.set(sphere.center.x, .03, sphere.center.z + 6); welcomeLawn?.scale.setScalar(span * .5 + 44);
+    applyStageMode();
     for (const s of stages) s.dataset.spec = spec.label;
     frameCamera();
     renderScene();
+  }
+
+  /** The welcome model hides the street and distant ground, and stays out of the tab order. */
+  function applyStageMode() {
+    if (!renderer || !house) return;
+    const welcome = isWelcome();
+    house.traverse(node => { if (node.userData.far) node.visible = !welcome; });
+    if (welcomeLawn) welcomeLawn.visible = welcome;
+    renderer.domElement.tabIndex = welcome ? -1 : 0;
+    if (welcome) renderer.domElement.setAttribute('aria-hidden', 'true'); else renderer.domElement.removeAttribute('aria-hidden');
   }
 
   function frameCamera() {
@@ -900,7 +926,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     cancelTransition(); onOrbitChange?.(true);
     let last = performance.now();
     const tick = now => {
-      azimuth += Math.min(.05, (now - last) / 1000) * .32; last = now;
+      azimuth += Math.min(.05, (now - last) / 1000) * (isTurntable() ? .2 : .32); last = now;
       frameCamera(); renderScene();
       orbitFrame = open ? requestAnimationFrame(tick) : 0;
       if (!orbitFrame) onOrbitChange?.(false);
@@ -914,7 +940,10 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     const w = activeStage.clientWidth, h = activeStage.clientHeight;
     if (!w || !h) return;
     const aspectChanged = Math.abs(camera.aspect - w / h) > .01;
-    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    const shift = frameVar('--frame-shift');
+    if (shift) camera.setViewOffset(w, h, 0, -Math.round(h * shift), w, h); else camera.clearViewOffset();
+    camera.updateProjectionMatrix();
     if (aspectChanged && spec) {
       const ratio = radius / fitRadius;
       const vfov = camera.fov * Math.PI / 180, hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
@@ -928,9 +957,16 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     activeStage = targetStage;
     if (!renderer) return;
     if (renderer.domElement.parentElement !== activeStage) activeStage.append(renderer.domElement);
+    // Moving between the studio, the welcome model and the proposal resets the camera to that stage's framing;
+    // moving between Steps 3 and 5 keeps the view the person left.
+    const mode = isWelcome() ? 'welcome' : isTurntable() ? 'turntable' : 'studio', switched = mode !== mountedMode;
+    if (switched) { mountedMode = mode; cancelTransition(); stopOrbit(); azimuth = views.corner.azimuth; elevation = views.corner.elevation; }
+    applyStageMode();
     resize();
+    if (switched) radius = fitRadius * (frameVar('--frame-zoom') || 1);
     frameCamera();
     renderScene();
+    if (isTurntable() && !turntablePaused && !orbitFrame && !prefersReducedMotion()) orbit();
   }
   function controls(canvas) {
     canvas.tabIndex = 0;
@@ -948,7 +984,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
       if (event.key === '-') radius *= 1.14;
       clampView();
     });
-    canvas.addEventListener('wheel', event => { event.preventDefault(); stopOrbit(); radius *= Math.exp(Math.max(-100, Math.min(100, event.deltaY)) * .0022); clampView(); }, { passive: false });
+    canvas.addEventListener('wheel', event => { if (isWelcome() || (isTurntable() && !event.ctrlKey)) return; event.preventDefault(); stopOrbit(); radius *= Math.exp(Math.max(-100, Math.min(100, event.deltaY)) * .0022); clampView(); }, { passive: false });
     const splitIsActive = () => splitPercent > 0 && splitPercent < 100;
     const splitSeamX = rect => rect.left + rect.width * (100 - splitPercent) / 100;
     const updateSplitHover = clientX => {
@@ -983,6 +1019,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     };
     canvas.addEventListener('pointerdown', event => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
+      if (isTurntable() && orbitFrame) turntablePaused = true;
       cancelTransition(); stopOrbit();
       const rect = canvas.getBoundingClientRect();
       const canGrabSplit = !pointers.size && splitPointerId === null && splitIsActive() && rect.width > 0 && Math.abs(event.clientX - splitSeamX(rect)) <= 18;
@@ -1025,7 +1062,7 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
 
   async function start() {
     Three ??= await import(`${THREE_BASE}three.module.js`);
-    renderer = new Three.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer = new Three.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = Three.PCFShadowMap;
     // Neutral tone mapping keeps the homeowner's chosen colors true instead of shifting their hue.
@@ -1037,6 +1074,15 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
     sun = new Three.DirectionalLight('#fff3df', 2.6);
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0004; sun.shadow.normalBias = .04;
     scene.add(sun, sun.target);
+    if (welcomeStage) {
+      // A lawn that fades out at the edge, so the welcome model floats on the page.
+      const fade = document.createElement('canvas'); fade.width = fade.height = 128;
+      const ctx = fade.getContext('2d'), gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gradient.addColorStop(0, '#fff'); gradient.addColorStop(.55, '#fff'); gradient.addColorStop(1, '#000');
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 128, 128);
+      welcomeLawn = new Three.Mesh(new Three.CircleGeometry(1, 64), new Three.MeshStandardMaterial({ color: '#6f9a52', roughness: 1, alphaMap: new Three.CanvasTexture(fade), transparent: true, depthWrite: false }));
+      welcomeLawn.rotation.x = -Math.PI / 2; welcomeLawn.receiveShadow = true; welcomeLawn.visible = false; scene.add(welcomeLawn);
+    }
     controls(renderer.domElement);
     resizer = new ResizeObserver(resize);
     for (const s of stages) resizer.observe(s);
@@ -1088,10 +1134,19 @@ export function setupRemodel3D({ stage, previewStage = null, getSpec, onStatus, 
         openView(preferred);
       } else closeView();
     }, { threshold: .15 });
-    for (const s of stages) observer.observe(s);
+    for (const s of stages) if (s !== welcomeStage) observer.observe(s);
+    // The welcome model waits for an idle moment so it never competes with the first paint, and is
+    // skipped when the visitor has asked to save data.
+    if (welcomeStage && !navigator.connection?.saveData) (globalThis.requestIdleCallback ?? (run => setTimeout(run, 400)))(() => observer.observe(welcomeStage), { timeout: 2500 });
   }
   return {
     open: openView, close: closeView, setView, orbit,
+    /** Pauses or resumes a turntable stage's turn; returns whether it is turning. */
+    toggleTurntable() {
+      if (orbitFrame) { turntablePaused = true; stopOrbit(); return false; }
+      turntablePaused = false;
+      return isTurntable() ? orbit() : false;
+    },
     attach(targetStage) { mountCanvas(targetStage); },
     setSplit(percent, { animate = false } = {}) {
       const target = Math.max(0, Math.min(100, Number(percent) || 0));

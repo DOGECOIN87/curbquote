@@ -10,7 +10,7 @@ const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }), di
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true, args: ['--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1050 }, reducedMotion: 'reduce' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1050 }, reducedMotion: 'reduce' }); await page.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
 const errors = [], checks = [], requests = [];
 let modelBehavior = 'normal', release, started, announce;
 page.on('pageerror', error => errors.push(error.message));

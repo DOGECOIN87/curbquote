@@ -32,6 +32,8 @@ await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true, args: ['--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', acceptDownloads: true });
+// These checks exercise the aerial photo; the 3D-first default is covered with map fixtures in map-browser.mjs.
+await page.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
 const checks = [];
 const errors = [];
 // The estimator shows one step at a time; open the step (and any collapsed section) that holds an element before using it.
@@ -553,7 +555,7 @@ try {
   await page.locator('#verify-address').click(); await page.waitForFunction(() => document.querySelector('#property-status').textContent.includes('could not be read'));
   assert.equal(await resultsShown(), true); await page.unroute('**/api/property');
   checks.push('Expiring source records are cleared from the DOM; malformed provider responses leave manual estimating usable');
-  const quick = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const quick = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }); await quick.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
   const footprintBodies = [];
   quick.on('pageerror', error => errors.push(error.message));
   await quick.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
@@ -584,7 +586,34 @@ try {
   assert.equal(await quick.locator('#lengthFt').inputValue(), '60');
   await quick.close();
   checks.push('Express path: a typical-home range shows on arrival, the matched address sizes the home from open data with no extra click and no street address sent, one click reaches the full estimate, and typed sizes are never overwritten');
-  const page3d = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  // "What would you like to change?" drives the same controls as Steps 2–4 and opens the Original / Proposed preview.
+  const chat = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }); await chat.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
+  chat.on('pageerror', error => errors.push(error.message));
+  await chat.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await chat.route('**/api/footprint', route => route.fulfill({ status: 503, json: { error: 'Synthetic outage.', code: 'FOOTPRINT_UNAVAILABLE' } }));
+  await chat.goto(base);
+  assert.equal(await chat.locator('#change-request').isVisible(), false, 'the change bar waits for a home');
+  await chat.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233'); await chat.locator('#property-address').press('Enter');
+  await chat.waitForFunction(() => document.querySelector('.hero').dataset.dock === 'top' && document.activeElement?.id === 'change-request', undefined, { timeout: 15000 });
+  await chat.waitForFunction(() => document.querySelectorAll('#aerial-measure .measure-tag').length === 2, undefined, { timeout: 15000 });
+  assert.match(await chat.locator('#measure-note').textContent(), /Illustrative/);
+  await chat.locator('#change-request').fill('Navy siding and new windows, under $30k'); await chat.locator('#change-request').press('Enter');
+  assert.deepEqual(await chat.locator('#scope-siding, #scope-windows, #scope-doors').evaluateAll(els => els.map(el => el.checked)), [true, true, false]);
+  assert.equal(await chat.locator('#color-picker [data-color="navy"]').getAttribute('aria-pressed'), 'true');
+  assert.match(await chat.locator('#change-status').textContent(), /^Updated: Siding and windows · Deep navy siding · budget about \$30,000\. New range \$/);
+  assert.equal(await chat.locator('.hero').getAttribute('data-mode'), 'proposal');
+  assert.match(await chat.locator('#proposal-caption').textContent(), /Deep navy siding/);
+  assert.match(await chat.locator('#proposal-estimate-label').textContent(), /^Estimate project · \$/);
+  await chat.locator('#proposal-original').click(); assert.equal(await chat.locator('#proposal-original').getAttribute('aria-pressed'), 'true');
+  await chat.locator('#proposal-materials').click(); await chat.locator('#material-chips [data-change="Black trim"]').click();
+  assert.match(await chat.locator('#change-status').textContent(), /black trim/);
+  assert.equal(await chat.locator('[data-trim="black"]').getAttribute('aria-pressed'), 'true');
+  await chat.locator('#change-request').fill('replace the gutters'); await chat.locator('#change-request').press('Enter');
+  assert.match(await chat.locator('#change-status').textContent(), /^Here I can change/);
+  await chat.locator('#proposal-exit').click(); assert.equal(await chat.locator('.hero').getAttribute('data-mode'), null);
+  await chat.close();
+  checks.push('"What would you like to change?" applies plain requests to the estimate controls, opens an Original / Proposed preview and says what it cannot do; the photo shows an illustrative measuring pass');
+  const page3d = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }); await page3d.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
   const googleRequests = [], syntheticKey = 'SYNTHETIC-TEST-KEY-NOT-REAL-0000';
   page3d.on('pageerror', error => errors.push(error.message));
   page3d.on('console', message => { if (message.type() === 'error' && ![403, 503].some(status => message.text().includes(`status of ${status}`))) errors.push(message.text()); });

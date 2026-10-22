@@ -14,6 +14,7 @@ import { setupWizard } from './wizard.js';
 import { setupRemodel3D } from './remodel-3d.js';
 import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, styleSilhouette, ROOF_COLORS, ROOF_MATERIALS, TRIM_COLORS, MASONRY_FINISHES, SCENES, DEFAULT_DESIGN } from './house-spec.js';
 import { fetchPublicFootprint } from './footprint-client.js';
+import { parseChangeRequest, describeChange } from './intent.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -49,14 +50,21 @@ let propertyLookup;
 let remodel;
 const wizard = setupWizard({
   onChange: step => {
+    // Step 1 is a full-screen map; the stylesheet keys its layout off data-active-step (data-step marks the step panels).
+    document.body.dataset.activeStep = String(step);
     if (!remodel) return;
     if ((step === 3 || step === 4) && byId('step3-3d-stage')) remodel.attach(byId('step3-3d-stage'));
     else if (step === 5) remodel.attach(byId('remodel-stage'));
   }
 });
-const propertyPreview = setupPropertyPreview({ onPhoto: () => {
-  wizard.show(5); showStudioTab('photo'); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus();
-} });
+const propertyPreview = setupPropertyPreview({
+  onPhoto: () => { wizard.show(5); showStudioTab('photo'); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus(); },
+  // The measuring pass shows the size this page is using; height is stories × story height plus the roof rise.
+  getDimensions: () => {
+    const value = id => Number(byId(id).value) || 0;
+    return { lengthFt: value('lengthFt'), widthFt: value('widthFt'), heightFt: value('stories') * (value('storyHeightFt') || 9) + value('gableRiseFt'), fromPublicData: Boolean(footprintData) };
+  }
+});
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 let remodelDesign = { ...DEFAULT_DESIGN, split: 100 };
 const ADDITIONS = [['add-porch', 'porch'], ['add-dormers', 'dormers'], ['add-shutters', 'shutters'], ['add-garage', 'garage'], ['add-fence', 'fence']];
@@ -76,6 +84,8 @@ let remodelState = 'idle';
 remodel = setupRemodel3D({
   stage: byId('remodel-stage'),
   previewStage: byId('step3-3d-stage'),
+  welcomeStage: byId('welcome-stage'),
+  proposalStage: byId('proposal-stage'),
   getSpec: beforeOverride => houseSpecFromStyle(
     readInputs(),
     selectedHomeStyle,
@@ -88,7 +98,12 @@ remodel = setupRemodel3D({
     if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
   },
   onSplitChange: (split, state) => reflectCanvasSplit(split, state),
-  onOrbitChange: on => byId('remodel-orbit')?.setAttribute('aria-pressed', String(on)),
+  onOrbitChange: on => {
+    byId('remodel-orbit')?.setAttribute('aria-pressed', String(on));
+    // The Step 1 turntable's pause control appears once the house starts turning (never with reduced motion).
+    const toggle = byId('turntable-toggle');
+    if (toggle) { if (on) toggle.hidden = false; toggle.textContent = on ? 'Pause rotation' : 'Rotate house'; }
+  },
   // The download button stays disabled until a rendered scene exists, instead of failing silently.
   onReady: () => { remodelState = 'ready'; byId('remodel-download').disabled = false; },
   onError: () => {
@@ -496,6 +511,7 @@ function applyFootprint(result, { automatic = false } = {}) {
   byId('footprint-status').className = 'field-help success';
   byId('footprint-status').textContent = `${automatic ? 'Sized automatically from ' : ''}${result.source?.provider || 'Public building outline'}: ~${Math.round(result.areaSqFt).toLocaleString()} sq ft ground outline (${Math.round(result.perimeterFt)} ft perimeter) · sized as ${byId('lengthFt').value} × ${byId('widthFt').value} ft (${style.name}). Style variant — approximate, not your surveyed footprint.`;
   syncProjectControls({ microResponse: true });
+  propertyPreview.remeasure();
   if (hasCalculated) calculate();
   refreshReport();
 }
@@ -736,6 +752,7 @@ for (const [attr, key, catalog] of DESIGN_PICKERS) {
 for (const [id, key] of ADDITIONS) byId(id).addEventListener('change', () => {
   remodelDesign[key] = byId(id).checked; syncRemodelControls(); remodel.refresh({ microResponse: true });
 });
+byId('turntable-toggle')?.addEventListener('click', () => remodel.toggleTurntable());
 byId('remodel-orbit')?.addEventListener('click', () => { byId('remodel-orbit').setAttribute('aria-pressed', String(remodel.orbit())); });
 syncRemodelControls();
 function renderSavedProjects() {
@@ -826,6 +843,115 @@ byId('new-project').addEventListener('click', () => {
 });
 window.addEventListener('storage', event => { if (event.key === 'curbquote.projects.v1') renderSavedProjects(); });
 syncProjectControls(); renderSavedProjects(); hasCalculated = true; calculate();
+
+// Step 1 is a full-screen map. The address bar sits in the middle until a home is found, then moves
+// to the top left as a search box and "What would you like to change?" takes the middle.
+const hero = document.querySelector('.hero'), stageEl = byId('aerial-stage');
+let dockAndContinue = false;
+function dockAddress() {
+  if (stageEl.dataset.view !== 'matched') return;
+  hero.dataset.dock = 'top';
+  // Pressing Enter or the arrow moves straight on to the change bar; a match found while typing keeps the caret.
+  if (dockAndContinue) { dockAndContinue = false; byId('change-request').focus({ preventScroll: true }); }
+}
+new MutationObserver(() => { if (stageEl.dataset.view === 'matched') dockAddress(); }).observe(stageEl, { attributes: true, attributeFilter: ['data-view'] });
+addressEl.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) dockAndContinue = true; });
+lookupButton.addEventListener('click', () => { dockAndContinue = true; });
+addressEl.addEventListener('input', () => { dockAndContinue = false; if (hero.dataset.mode === 'proposal') exitProposal(); if (!addressEl.value.trim()) hero.dataset.dock = 'center'; });
+
+/** Applies an understood request to the same controls Steps 2–4 use, so the estimate stays the single source of prices. */
+function applyChange(change) {
+  const touch = input => input.dispatchEvent(new Event('input', { bubbles: true }));
+  if (change.trades) for (const key of ['siding', 'windows', 'doors']) {
+    const box = byId(`scope-${key}`);
+    if (box.checked !== change.trades[key]) { box.checked = change.trades[key]; touch(box); }
+  }
+  if (change.tier) { const radio = form.querySelector(`[name="tier"][value="${change.tier}"]`); if (radio && !radio.checked) { radio.checked = true; touch(radio); } }
+  if (change.sidingProduct && byId('sidingProduct').value !== change.sidingProduct) { byId('sidingProduct').value = change.sidingProduct; touch(byId('sidingProduct')); }
+  if (change.color) document.querySelector(`#color-picker [data-color="${change.color}"]`)?.click();
+  if (change.homeStyle) applyStylePreset(change.homeStyle, { manual: true });
+  // Studio finishes and additions change the 3D concept only.
+  const design = change.design || {};
+  for (const [key, attr] of [['roof', 'roof'], ['roofMaterial', 'roof-material'], ['trim', 'trim'], ['masonry', 'masonry'], ['scene', 'scene']]) {
+    if (design[key]) document.querySelector(`[data-${attr}="${design[key]}"]`)?.click();
+  }
+  for (const key of ['porch', 'garage', 'fence', 'shutters', 'dormers']) {
+    const box = byId(`add-${key}`);
+    if (key in design && box.checked !== design[key]) { box.checked = design[key]; box.dispatchEvent(new Event('change', { bubbles: true })); }
+  }
+}
+const changesLook = change => Boolean(change.color || change.homeStyle || change.sidingProduct || Object.keys(change.design || {}).length);
+
+// A request that changes the look opens the proposal: the concept house fills the map, an
+// Original / Proposed switch compares it with the Before version, and the bar refines it.
+function paintProposal() {
+  const style = resolveHomeStyle(selectedHomeStyle);
+  byId('proposal-caption').textContent = `${style.name} · ${COLORS[selectedColor].name} siding · ${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()} roof`;
+  byId('proposal-estimate-label').textContent = lastResult ? `Estimate project · ${byId('total-range').textContent}` : 'Estimate project';
+}
+function setProposalView(original) {
+  byId('proposal-original').setAttribute('aria-pressed', String(original));
+  byId('proposal-proposed').setAttribute('aria-pressed', String(!original));
+  remodel.setSplit(original ? 0 : 100, { animate: true });
+}
+function enterProposal() {
+  hero.dataset.mode = 'proposal';
+  changeInput.placeholder = 'Refine this design…'; changeInput.setAttribute('aria-label', 'Refine this design');
+  setProposalView(false); paintProposal();
+}
+function exitProposal() {
+  delete hero.dataset.mode;
+  changeInput.placeholder = 'What would you like to change?'; changeInput.setAttribute('aria-label', 'What would you like to change?');
+  remodel.setSplit(100);
+}
+byId('proposal-original').addEventListener('click', () => setProposalView(true));
+byId('proposal-proposed').addEventListener('click', () => setProposalView(false));
+byId('proposal-exit').addEventListener('click', exitProposal);
+byId('save-concept').addEventListener('click', () => byId('save-project').click());
+function budgetNote(budget) {
+  const total = lastResult?.total;
+  if (!budget || !total) return '';
+  const money = `$${budget.toLocaleString('en-US')}`;
+  return budget >= total[1] ? ` That fits a budget of ${money}.` : budget < total[0] ? ` That is above a budget of ${money}; fewer trades or the Standard tier lower it.` : ` A budget of ${money} falls inside this range.`;
+}
+const changeStatus = byId('change-status'), changeInput = byId('change-request'), changeMore = byId('change-more');
+// One suggestion group is open at a time: general (+), materials or features.
+const CHIP_GROUPS = [['change-chips', changeMore], ['material-chips', byId('proposal-materials')], ['feature-chips', byId('proposal-features')]];
+function showChips(id = null) {
+  for (const [group, button] of CHIP_GROUPS) {
+    const open = group === id; byId(group).hidden = !open; button.setAttribute('aria-expanded', String(open));
+  }
+  changeMore.setAttribute('aria-label', id === 'change-chips' ? 'Hide suggestions' : 'Show suggestions');
+}
+for (const [group, button] of CHIP_GROUPS) {
+  button.addEventListener('click', () => showChips(byId(group).hidden ? group : null));
+  byId(group).addEventListener('click', event => {
+    const chip = event.target.closest('[data-change]');
+    if (!chip) return;
+    changeInput.value = chip.dataset.change; byId('change-form').requestSubmit();
+  });
+}
+byId('change-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const text = changeInput.value.trim();
+  if (!text) { changeInput.focus(); return; }
+  const change = parseChangeRequest(text);
+  if (!change.recognized) {
+    changeStatus.textContent = 'Here I can change siding, windows, doors, colour, home style and finish level. For anything else, use “Need help deciding?” below the map.';
+    return;
+  }
+  applyChange(change); showChips(); changeInput.value = '';
+  const range = lastResult ? `${byId('total-range').textContent}` : '';
+  changeStatus.textContent = `Updated: ${describeChange(change)}.${range ? ` New range ${range}.` : ''}${budgetNote(change.budget)}`;
+  if (changesLook(change) && hero.dataset.mode !== 'proposal') enterProposal(); else if (hero.dataset.mode === 'proposal') paintProposal();
+});
+
+const fullscreenToggle = byId('fullscreen-toggle');
+if (document.fullscreenEnabled) {
+  fullscreenToggle.hidden = false;
+  fullscreenToggle.addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {}));
+  document.addEventListener('fullscreenchange', () => fullscreenToggle.setAttribute('aria-pressed', String(Boolean(document.fullscreenElement))));
+}
 assistant = setupAssistant({
   read: () => ({ inputs: readInputs(), options: projectOptions(), propertyData: propertyLookup?.context() }),
   getAddress: () => addressEl.value.trim(),

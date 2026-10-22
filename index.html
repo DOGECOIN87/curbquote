@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="main.js"></script>
 </head>
-<body>
+<body data-active-step="1">
   <a href="#estimate-form" class="skip-link">Skip to estimator</a>
   <div class="page-shell">
     <header class="site-header">
@@ -25,17 +25,18 @@
         <li><button type="button" data-goto="4" aria-label="Step 4: Choices"><span class="step-dot" aria-hidden="true">4</span><span class="step-name">Choices</span></button></li>
         <li><button type="button" data-goto="5" aria-label="Step 5: Estimate"><span class="step-dot" aria-hidden="true">5</span><span class="step-name">Estimate</span></button></li>
       </ol><span id="step-progress-readout" class="sr-only" role="status" aria-live="polite">Step 1 of 5</span></nav>
-      <div class="header-actions"><a class="header-phone" href="tel:3015931691">(301) 593-1691</a><button type="button" id="open-projects" class="outline-button">Saved <span class="hide-narrow">projects</span> <span id="project-count">0</span></button></div>
+      <div class="header-actions"><button type="button" id="fullscreen-toggle" class="icon-button" aria-label="Full screen" aria-pressed="false" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button><a class="header-phone" href="tel:3015931691">(301) 593-1691</a><button type="button" id="open-projects" class="outline-button">Saved <span class="hide-narrow">projects</span> <span id="project-count">0</span></button></div>
     </header>
     <main>
       <div class="draft-bar"><span id="draft-status" role="status"></span><button type="button" id="restore-draft" class="outline-button" hidden>Restore draft</button><button type="button" id="discard-draft" class="outline-button" hidden>Discard draft</button></div>
       <p id="form-error" class="error-message" role="alert" hidden></p>
       <div class="wizard-step" data-step="1">
-      <section class="hero" aria-labelledby="hero-title">
+      <section class="hero" aria-labelledby="hero-title" data-dock="center">
         <div class="hero-copy">
           <div class="hero-aura" aria-hidden="true"><span class="aura-left"></span><span class="aura-right"></span></div>
+          <div id="welcome-stage" class="welcome-stage" data-turntable="true"></div>
           <h1 id="hero-title">Big plans.<br><span class="hero-highlight">Clearer numbers.</span></h1>
-          <p class="hero-lead">Type your address below. We find your home, size it from public data and price new siding, windows and doors.</p>
+          <p class="hero-lead">Find your home, then tell us what you’d like to change. Siding, windows and doors, priced from public data.</p>
         </div>
         <section class="property-preview" aria-labelledby="aerial-heading">
           <div class="address-section view-dock">
@@ -44,32 +45,6 @@
             <div class="address-entry"><svg class="address-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button" aria-label="Find property"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
             <div class="field-help" id="address-status" role="status" aria-live="polite">Your estimate updates as soon as the address matches. Location is approximate.</div>
           </div>
-          <div class="view-panel">
-            <div class="aerial-header"><div class="aerial-title"><h2 id="aerial-heading">Your property, in view</h2><p id="aerial-address" class="aerial-address">Start with your address</p></div><span class="aerial-north" aria-label="North is up">N ↑</span></div>
-            <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
-              <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
-              <div class="aerial-tool-group"><button type="button" data-pan="-.3,0" aria-label="Move view west">←</button><button type="button" data-pan="0,-.3" aria-label="Move view north">↑</button><button type="button" data-pan="0,.3" aria-label="Move view south">↓</button><button type="button" data-pan=".3,0" aria-label="Move view east">→</button></div>
-            </div>
-            <div id="map-mode-controls" class="map-mode-controls" aria-label="Map display controls" hidden><div class="map-mode-picker"><button type="button" id="map-hybrid" data-map-mode="hybrid" aria-pressed="true">Hybrid</button><button type="button" data-map-mode="map" aria-pressed="false">Map</button><button type="button" data-map-mode="3d" aria-pressed="false">3D buildings</button></div><button type="button" id="map-recenter">Recenter</button><button type="button" id="map-clear-selection" hidden>Clear highlight</button></div>
-            <p id="map-selection" class="map-selection" hidden>Map outline highlighted for visual reference. This does not confirm the building’s identity or supply measurements.</p>
-            <div id="map-housenumbers" class="map-housenumbers" hidden aria-live="polite"><strong>Nearby house numbers</strong><p class="micro-note">Tap a number to centre the map. Use a highlighted building outline as your visual confirmation before you enter measurements in Step 3 — this does not auto-fill the estimate.</p><div id="map-housenumber-list" class="housenumber-list" role="list"></div></div>
-            <div id="map-attribution" class="map-attribution" hidden><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></div>
-            <div id="aerial-3d-controls" class="aerial-controls" aria-label="3D view controls" hidden><div class="aerial-tool-group"><button type="button" id="aerial-3d-top" aria-pressed="false">Top view</button><button type="button" id="aerial-3d-rotate" aria-label="Rotate the 3D view a quarter turn">⟳</button><button type="button" id="aerial-3d-orbit" aria-pressed="false" aria-label="Orbit 360 degrees around the building">Orbit 360°</button><button type="button" id="aerial-3d-recenter">Recenter</button></div></div>
-            <p id="aerial-status" class="aerial-status" role="status" aria-live="polite">An aerial view helps you recognize the building. It does not supply renovation measurements.</p>
-          </div>
-          <div id="aerial-stage" class="aerial-stage" data-view="empty" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
-            <div id="aerial-images" class="aerial-images"></div>
-            <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 23l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address for an aerial or 3D property view, or try the Austin exterior example.</p></div>
-            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" aria-hidden="true" hidden><g id="aerial-marker-point"><circle r="24" fill="#89C63F" fill-opacity=".2" stroke="#89C63F" stroke-width="2"/><circle r="7" fill="#89C63F" stroke="#102303" stroke-width="3"/></g></svg>
-            <div class="thirds-grid" aria-hidden="true"><span></span><span></span></div>
-          </div>
-          <div class="view-foot">
-            <div class="aerial-actions"><button type="button" id="aerial-map-toggle" aria-pressed="false" hidden>Explore map</button><button type="button" id="aerial-3d-toggle" hidden>View in 3D</button><button type="button" id="aerial-retry" hidden>Retry imagery ↻</button><button type="button" id="aerial-photo">Use my exterior photo ↗</button></div>
-            <div class="aerial-meta"><span id="aerial-width">Aerial preview</span><a href="https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer" target="_blank" rel="noopener noreferrer">Imagery: USGS / USDA ↗</a><a id="exterior-credit" href="assets/exteriors/neill-cochran/manifest.json" target="_blank" rel="noopener noreferrer" hidden>Data: USGS / City of Austin ↗</a><span>Image age and coverage vary.</span></div>
-          </div>
-          <p id="aerial-instructions" class="sr-only">Use the arrow buttons or arrow keys to pan the aerial photo. Click or tap the image to center a building. The dot stays at the approximate address location. In a 3D view, drag to orbit and scroll or pinch to zoom. The exterior example also supports arrow keys, plus, minus, and Home when its canvas is focused.</p>
-        </section>
-        <div class="hero-entry">
           <section id="instant-estimate" class="instant-estimate" aria-labelledby="instant-label">
             <div class="instant-figure">
               <h2 id="instant-label">Instant estimate for a typical home</h2>
@@ -78,7 +53,67 @@
             </div>
             <div class="instant-actions"><button type="button" class="primary-button" data-step-link="5">See my estimate <span aria-hidden="true">→</span></button><button type="button" class="outline-button" data-step-link="2">Customize</button></div>
           </section>
-        </div>
+          <div id="change-dock" class="change-dock">
+            <p id="proposal-ready" class="proposal-ready" role="status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg><span>Exterior preview ready</span></p>
+            <div id="change-chips" class="change-chips" hidden>
+              <button type="button" data-change="Replace the siding">Replace siding</button><button type="button" data-change="New windows only">New windows</button><button type="button" data-change="Just a new front door">New front door</button><button type="button" data-change="Show it in deep navy">Show it in navy</button><button type="button" data-change="Make it a modern farmhouse">Modern farmhouse</button><button type="button" data-change="Premium finishes">Premium finishes</button>
+            </div>
+            <form id="change-form" class="change-entry" novalidate>
+              <button type="button" id="change-more" class="change-plus" aria-expanded="false" aria-controls="change-chips" aria-label="Show suggestions"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+              <input type="text" id="change-request" autocomplete="off" maxlength="200" placeholder="What would you like to change?" aria-label="What would you like to change?" aria-describedby="change-status" enterkeyhint="send" spellcheck="true">
+              <button type="submit" class="change-send" aria-label="Apply this change"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+            </form>
+            <div class="proposal-actions">
+              <button type="button" id="proposal-materials" aria-expanded="false" aria-controls="material-chips"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>Change materials</button><button type="button" id="proposal-features" aria-expanded="false" aria-controls="feature-chips"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c6 0 12-5 13-14-9 1-14 7-14 13"/><path d="M5 19l7-7"/></svg>Add features</button><button type="button" id="proposal-estimate" data-step-link="5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h8"/></svg><span id="proposal-estimate-label">Estimate project</span></button>
+            </div>
+            <div id="material-chips" class="change-chips" hidden>
+              <button type="button" data-change="Standing-seam metal roof">Metal roof</button><button type="button" data-change="Cedar shake roof">Cedar shake roof</button><button type="button" data-change="Fiber cement siding">Fiber cement siding</button><button type="button" data-change="Engineered wood siding">Engineered wood</button><button type="button" data-change="Black trim">Black trim</button><button type="button" data-change="Stone accents">Stone accents</button><button type="button" data-change="Painted brick">Painted brick</button>
+            </div>
+            <div id="feature-chips" class="change-chips" hidden>
+              <button type="button" data-change="Add a covered porch">Covered porch</button><button type="button" data-change="Add a garage">Garage</button><button type="button" data-change="Add a picket fence">Picket fence</button><button type="button" data-change="Add shutters">Shutters</button><button type="button" data-change="Add dormers">Dormers</button><button type="button" data-change="Show it at golden hour">Golden hour</button>
+            </div>
+            <p id="change-status" class="change-status" role="status" aria-live="polite"></p>
+            <button type="button" id="save-concept" class="save-concept"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Save concept</button>
+          </div>
+          <div class="proposal-switch-wrap">
+            <div class="proposal-switch" role="group" aria-label="Compare the design"><button type="button" id="proposal-original" aria-pressed="false">Original</button><button type="button" id="proposal-proposed" aria-pressed="true">Proposed</button></div>
+            <p id="proposal-caption" class="proposal-caption"></p>
+          </div>
+          <div class="view-top-left">
+            <div id="preview-chip" class="preview-chip"><div><strong>Exterior preview</strong><span>Concept visualization</span></div><button type="button" id="proposal-exit">Show my home</button></div>
+            <div id="measure-chip" class="measure-chip" hidden><div><strong>Exterior measurements</strong><span id="measure-note">Illustrative dimensions</span></div><button type="button" id="measure-replay">Measure again</button></div>
+            <p id="aerial-status" class="aerial-status" role="status" aria-live="polite">An aerial view helps you recognize the building. It does not supply renovation measurements.</p>
+            <p id="map-selection" class="map-selection" hidden>Map outline highlighted for visual reference. This does not confirm the building’s identity or supply measurements.</p>
+            <div id="map-housenumbers" class="map-housenumbers" hidden aria-live="polite"><strong>Nearby house numbers</strong><p class="micro-note">Tap a number to centre the map. Use a highlighted building outline as your visual confirmation before you enter measurements in Step 3 — this does not auto-fill the estimate.</p><div id="map-housenumber-list" class="housenumber-list" role="list"></div></div>
+          </div>
+          <div class="view-top-right">
+            <div id="map-mode-controls" class="map-mode-controls" aria-label="Map display controls" hidden><div class="map-mode-picker"><button type="button" id="map-hybrid" data-map-mode="hybrid" aria-pressed="true">Hybrid</button><button type="button" data-map-mode="map" aria-pressed="false">Map</button><button type="button" data-map-mode="3d" aria-pressed="false">3D buildings</button></div><button type="button" id="map-orbit" aria-pressed="false" hidden>Orbit 360°</button><button type="button" id="map-recenter">Recenter</button><button type="button" id="map-clear-selection" hidden>Clear highlight</button></div>
+            <div id="aerial-3d-controls" class="aerial-controls" aria-label="3D view controls" hidden><div class="aerial-tool-group"><button type="button" id="aerial-3d-top" aria-pressed="false">Top view</button><button type="button" id="aerial-3d-rotate" aria-label="Rotate the 3D view a quarter turn">⟳</button><button type="button" id="aerial-3d-orbit" aria-pressed="false" aria-label="Orbit 360 degrees around the building">Orbit 360°</button><button type="button" id="aerial-3d-recenter">Recenter</button></div></div>
+          </div>
+          <div class="aerial-header sr-only"><h2 id="aerial-heading">Your property, in view</h2><p id="aerial-address" class="aerial-address">Start with your address</p><span class="aerial-north" aria-label="North is up">N ↑</span></div>
+          <div id="aerial-stage" class="aerial-stage" data-view="empty" role="group" tabindex="0" aria-label="Aerial property view" aria-describedby="aerial-status aerial-instructions">
+            <div id="aerial-images" class="aerial-images"></div>
+            <div id="aerial-placeholder" class="aerial-placeholder"><svg class="aerial-place-icon" width="44" height="44" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="24" cy="24" r="17"/><path d="M24 1v12m0 22v12M1 24h12m22 0h12M17 23l7-7 7 7v9H17z"/></svg><strong id="aerial-placeholder-title">Your place starts here.</strong><p id="aerial-placeholder-text">Type a complete U.S. address for an aerial or 3D property view, or try the Austin exterior example.</p></div>
+            <svg id="aerial-marker" class="aerial-marker" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true" hidden><g id="aerial-measure" class="aerial-measure"></g><g id="aerial-marker-point"><circle r="24" fill="#89C63F" fill-opacity=".2" stroke="#89C63F" stroke-width="2"/><circle r="7" fill="#89C63F" stroke="#102303" stroke-width="3"/></g></svg>
+            <div class="thirds-grid" aria-hidden="true"><span></span><span></span></div>
+          </div>
+          <div id="proposal-stage" class="proposal-stage" data-turntable="true"></div>
+          <div class="view-foot">
+            <div class="aerial-actions"><button type="button" id="aerial-map-toggle" aria-pressed="false" hidden>Explore map</button><button type="button" id="aerial-retry" hidden>Retry imagery ↻</button><button type="button" id="aerial-photo">Use my exterior photo ↗</button></div>
+            <div class="aerial-meta"><span id="aerial-width">Aerial preview</span><a href="https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer" target="_blank" rel="noopener noreferrer">Imagery: USGS / USDA ↗</a><a id="exterior-credit" href="assets/exteriors/neill-cochran/manifest.json" target="_blank" rel="noopener noreferrer" hidden>Data: USGS / City of Austin ↗</a><span>Image age and coverage vary.</span></div>
+            <div id="map-attribution" class="map-attribution" hidden><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></div>
+          </div>
+          <div class="view-tools">
+            <button type="button" id="turntable-toggle" class="turntable-toggle" hidden>Pause rotation</button>
+            <div id="map-zoom" class="map-zoom" aria-label="Map zoom and compass" hidden><button type="button" id="map-north" class="map-north" aria-label="Face north"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="currentColor" stroke="none"/><path d="M12 21l-4-9h8z" opacity=".35" fill="currentColor" stroke="none"/></svg></button><button type="button" id="map-zoom-in" aria-label="Zoom in">+</button><button type="button" id="map-zoom-out" aria-label="Zoom out">−</button></div>
+            <div id="aerial-controls" class="aerial-controls" aria-label="Aerial view controls" hidden>
+                <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
+                <div class="aerial-tool-group"><button type="button" data-pan="-.3,0" aria-label="Move view west">←</button><button type="button" data-pan="0,-.3" aria-label="Move view north">↑</button><button type="button" data-pan="0,.3" aria-label="Move view south">↓</button><button type="button" data-pan=".3,0" aria-label="Move view east">→</button></div>
+              </div>
+            <button type="button" id="aerial-3d-toggle" hidden>View in 3D</button>
+          </div>
+          <p id="aerial-instructions" class="sr-only">Use the arrow buttons or arrow keys to pan the aerial photo. Click or tap the image to center a building. The dot stays at the approximate address location. In a 3D view, drag to orbit and scroll or pinch to zoom. The exterior example also supports arrow keys, plus, minus, and Home when its canvas is focused.</p>
+        </section>
         <div class="hero-below">
           <div class="hero-meta"><span class="hero-benefit"><span class="meta-tick" aria-hidden="true">✓</span>No sign-up</span><span class="hero-benefit"><span class="meta-tick" aria-hidden="true">✓</span>Saved on this device</span></div>
           <ul class="hero-sources" aria-label="Data behind your estimate"><li>U.S. Census</li><li>USGS imagery</li><li>OpenStreetMap</li><li>Google 3D</li><li>Your measurements</li></ul>

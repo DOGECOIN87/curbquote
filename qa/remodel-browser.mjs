@@ -29,7 +29,7 @@ const server = createAppServer({
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, headless: true, args: ['--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', acceptDownloads: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce', acceptDownloads: true }); await page.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
 const errors = [], checks = [], requests = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -51,10 +51,13 @@ const distinctColors = () => page.evaluate(() => {
 });
 try {
   await page.goto(base);
-  // The Three.js runtime stays undownloaded on Steps 1 and 2 until a 3D stage is on screen.
-  assert.equal(requests.filter(url => url.includes('/vendor/three/')).length, 0);
+  // Step 1 shows the house as a floating welcome model once the page is idle; Steps 3 and 5 reuse that one canvas.
+  await page.waitForFunction(() => document.querySelector('#welcome-stage canvas'), undefined, { timeout: 45000 });
+  assert.ok(requests.some(url => url.includes('/vendor/three/three.module.js')));
+  assert.equal(await page.locator('#welcome-stage canvas').getAttribute('tabindex'), '-1', 'the decorative welcome model stays out of the tab order');
+  assert.equal(await page.locator('#turntable-toggle').isVisible(), false, 'with reduced motion the welcome model does not turn');
+  checks.push('Step 1 shows the welcome house as a floating model, out of the tab order and still with reduced motion');
   await page.locator('[data-goto="2"]').click();
-  assert.equal(requests.filter(url => url.includes('/vendor/three/')).length, 0);
   await page.locator('[data-goto="3"]').click();
   await page.waitForFunction(() => document.querySelector('#step3-3d-stage')?.dataset.ready === 'true', undefined, { timeout: 45000 });
   assert.ok(requests.some(url => url.includes('/vendor/three/three.module.js')));

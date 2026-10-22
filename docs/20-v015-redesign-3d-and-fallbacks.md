@@ -6,30 +6,47 @@ the property view degrade through a chain of free fallbacks until the Google Map
 Estimate maths, pricing, disclosures and the "concept model, not a measurement" guardrails are
 unchanged. No eyebrow labels were added.
 
-## Step 1 canvas: one screen, map above the address bar
+## Step 1: the property map
 
-Step 1 is a single screen on desktop, at 1366 × 768, 1440 × 900 and 1920 × 1080 alike:
+Step 1 is a full-screen map in the style of the reference mock-ups: the property view fills the window
+and every control floats over it in dark glass. The page frame steps aside on Step 1
+(`body[data-active-step="1"]`) and returns on Steps 2–5.
 
-- **The property view is the canvas.** The map, 3D view or exterior model fills the space under the
-  header. Before an address the canvas is transparent and shows the welcome headline behind it.
-- **The address bar floats at the foot of the map**, like a chat input. It only takes an address;
-  "Try an example home" sits beside its label.
-- **The instant estimate floats top left**, so "See my estimate" is always one click away. View tools
-  (zoom, pan, map modes, 3D controls) and the view's status float top right; "Explore map",
-  "View in 3D" and "Use my exterior photo" sit bottom left, with imagery credits bottom right.
-- **Phones stack the same parts**: headline, then a card with the map (once an address matches)
-  directly above the address bar, then the instant estimate.
-- The draft notice floats over the top of the canvas on wide screens instead of pushing it down.
-- In the DOM the address input comes first, so keyboard and screen-reader users reach it before
-  the map tools; the grid places it visually under the map.
+1. **Arrival.** A concept house turns slowly behind the headline (the Step 3–5 renderer, drawn as a
+   floating model without sky or street). The address bar sits at the bottom like a chat input, with
+   the typical-home estimate above it. The model loads when the browser is idle, never with Save-Data,
+   stays out of the tab order, and does not turn with reduced motion; "Pause rotation" stops it.
+2. **Address found.** The bar moves to the top left as a search box. The view opens in 3D: Google 3D
+   when the key is set, otherwise the key-free OpenStreetMap 3D buildings. A **measuring pass** runs:
+   corner points appear, the outline draws in, dimension lines extend and their labels count up, then
+   a height line rises. When the building is mapped, the numbers come from its outline (approximate);
+   otherwise the card says "Illustrative dimensions". The camera then circles the building until it is
+   touched. Choosing the aerial photo instead is remembered on this device; the photo gets the same
+   measuring pass at the home's size, with illustrative placement.
+3. **"What would you like to change?"** Plain requests ("navy siding and new windows, under $30k",
+   "modern exterior with a black metal roof", "add a porch, no shutters") are read by `intent.js`, a
+   small deterministic interpreter with unit tests, so it works without AI and on the static site. It
+   sets the same controls Steps 2–4 use; prices always come from the estimate code, never the text.
+   Describing a trade ("fiber cement siding in sage") never drops the other trades; only "replace",
+   "new", "only" and similar words change the project.
+4. **Proposal.** A request that changes the look opens the proposal: the concept house fills the map,
+   an **Original / Proposed** switch sweeps between its Before and After versions, and the bar becomes
+   "Refine this design…" with **Change materials**, **Add features** and **Estimate project** (which
+   shows the live range). **Save concept** saves the project. The card at the top left says
+   "Exterior preview · Concept visualization": it is the concept model, not a photo of the remodel.
 
-| Before an address | After a match |
-|---|---|
-| ![Canvas before an address](assets/ui-review/v015-canvas-arrival-desktop.png) | ![Canvas after a match](assets/ui-review/v015-canvas-matched-desktop.png) |
+Labels are sentence case throughout: the uppercase, letter-spaced captions in the mock-ups would break
+the no-eyebrows rule. "Adjust landscaping" became "Add features" (porch, garage, fence, shutters,
+dormers, lighting), because there are no landscaping options yet.
 
-On a phone: [before an address](assets/ui-review/v015-canvas-arrival-phone.png) ·
-[after a match](assets/ui-review/v015-canvas-matched-phone.png). The green map is the synthetic QA
-imagery, because this sandbox cannot reach USGS.
+| Arrival | Address found | Proposal |
+|---|---|---|
+| ![Arrival](assets/ui-review/v015-map-arrival-desktop.png) | ![Measured](assets/ui-review/v015-map-matched-desktop.png) | ![Proposal](assets/ui-review/v015-map-proposal-desktop.png) |
+
+On a phone: [address found](assets/ui-review/v015-map-matched-phone.png) ·
+[proposal](assets/ui-review/v015-map-proposal-phone.png). The map uses the synthetic QA tiles and
+building, because this sandbox cannot reach USGS or OpenFreeMap; with the Google key the view is the
+photorealistic 3D city.
 
 ## Express path: fewest clicks to an estimate
 
@@ -104,7 +121,7 @@ options touch `estimate.js` or the price.
 
 ## Professional redesign
 
-This section describes the first redesign pass; the minimal canvas above supersedes its Step 1 layout.
+This section describes the first redesign pass; the property map above supersedes its Step 1 layout.
 
 `styles.css` was several theme layers overriding each other (about 78 KB). It is now one design
 system (about 61 KB): a single token set for color, radius, elevation and focus; one type scale; card
@@ -174,7 +191,7 @@ origin by the `strict-origin` referrer policy, and every failure mode lands on t
 ## Verification
 
 ```text
-npm run check          # syntax checks, 96 Node tests, public build
-npm run test:browser   # 57 Chromium checks: app (40), map (11), 3D remodel (6)
+npm run check          # syntax checks, 101 Node tests, public build
+npm run test:browser   # 61 Chromium checks: app (41), map (13), 3D remodel (7)
 npm run test:exterior  # 6 checks for the Austin exterior model
 ```

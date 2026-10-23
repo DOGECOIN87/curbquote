@@ -123,6 +123,34 @@ remodel = setupRemodel3D({
     }
   }
 });
+/**
+ * "Show my choices on this photo": the homeowner's own photo, restyled by an image model on the server
+ * (api/visualize). Hidden on the static site and wherever AI is not connected.
+ */
+const conceptButton = byId('photo-concept'), conceptResult = byId('photo-concept-result');
+if (!STATIC_SITE) fetch('api/visualize', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(body => { conceptButton.hidden = !body.available; }).catch(() => {});
+async function photoForConcept(file) {
+  const bitmap = await createImageBitmap(file), scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+  return canvas.toDataURL('image/jpeg', .85);
+}
+conceptButton.addEventListener('click', async () => {
+  if (!editor.file) return;
+  const p = projectOptions(), status = byId('photo-status');
+  const design = { siding: PRODUCTS.siding[p.sidingProduct].name, color: COLORS[selectedColor].name, roof: `${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name}` };
+  if (remodelDesign.trim !== 'default') design.trim = TRIM_COLORS[remodelDesign.trim].name;
+  conceptButton.disabled = true; conceptButton.setAttribute('aria-busy', 'true'); status.textContent = 'Making a photo-real concept of your choices. This can take up to a minute…';
+  try {
+    const response = await fetch('api/visualize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await photoForConcept(editor.file), design }) });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.image) throw new Error(body.error || 'The photo concept could not be made right now.');
+    conceptResult.querySelector('img').src = body.image; conceptResult.hidden = false;
+    status.textContent = 'Concept ready below. It is illustrative and does not change your estimate.';
+  } catch (error) { status.textContent = error.message; }
+  finally { conceptButton.disabled = !editor.file; conceptButton.removeAttribute('aria-busy'); }
+});
+byId('photo-upload').addEventListener('change', () => { conceptResult.hidden = true; setTimeout(() => { conceptButton.disabled = !editor.file; }, 300); });
 const projectDialog = byId('projects-dialog');
 byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
 function projectOptions() {
@@ -540,7 +568,7 @@ function confirmMeasuredSize({ sides, heightFt, measuredHeight, source }) {
     const storyHeight = Number(byId('storyHeightFt').value) || 9, rise = Number(byId('gableRiseFt').value) || 0;
     byId('stories').value = String(Math.min(4, Math.max(1, Math.round((heightFt - rise) / storyHeight))));
   }
-  const from = { outline: footprintData?.source?.provider || 'the mapped building outline', surface: 'the 3D view', map: 'OpenStreetMap map data' }[source] || 'the 3D view';
+  const from = { outline: footprintData?.source?.provider || 'the mapped building outline', surface: 'the 3D view', solar: 'Google’s roof data', map: 'OpenStreetMap map data' }[source] || 'the 3D view';
   footprintData = {
     ...(footprintData || {}), lengthFt, widthFt, stories: Number(byId('stories').value), automatic: false, confirmed: true,
     areaSqFt: source === 'outline' && footprintData?.areaSqFt ? footprintData.areaSqFt : lengthFt * widthFt,

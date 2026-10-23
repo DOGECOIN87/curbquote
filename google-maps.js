@@ -67,7 +67,14 @@ export async function streetView([lat, lon], { signal, width = 640, height = 400
  * The building nearest a point from Google's Solar API, as an outline ring of [lon, lat] points
  * (a rectangle turned to the roof's main direction), or null when there is none within `reach` metres.
  */
-export async function solarOutline([lat, lon], { signal, reach = 35 } = {}) {
+const solarCache = new Map();
+export function solarOutline([lat, lon], options = {}) {
+  // One request per building per visit: measuring again (a replay, a re-frame) reuses the answer.
+  const id = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+  if (!solarCache.has(id)) solarCache.set(id, findSolar([lat, lon], options));
+  return solarCache.get(id);
+}
+async function findSolar([lat, lon], { signal, reach = 35 } = {}) {
   const key = await mapsKey();
   if (!key) return null;
   try {
@@ -115,7 +122,12 @@ export function outlineFromInsights(insights) {
  * Whether Google has already made an Aerial View flyover of an address: { videoId } or null. Only
  * existing videos are used; none are commissioned.
  */
-export async function flyoverAvailable(address, { signal } = {}) {
+const flyoverCache = new Map();
+export function flyoverAvailable(address, options = {}) {
+  if (!flyoverCache.has(address)) flyoverCache.set(address, findFlyover(address, options));
+  return flyoverCache.get(address);
+}
+async function findFlyover(address, { signal } = {}) {
   const key = await mapsKey();
   if (!key || !address) return null;
   try {

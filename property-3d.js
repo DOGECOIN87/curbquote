@@ -7,6 +7,7 @@ import { STATIC_SITE, STATIC_MAP3D } from './config.js';
 import { loadCesium, webgl2Available } from './cesium-runtime.js';
 import { exteriorForLocation } from './exterior-catalog.js';
 import { setupExterior3D } from './property-exterior.js';
+import { solarOutline } from './google-maps.js';
 import { FEET_PER_METER, findRoof, illustrativeOutline, measureOutline, setupScreenMeasure } from './measure-overlay.js';
 export { webgl2Available } from './cesium-runtime.js';
 
@@ -141,14 +142,16 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
   }
   /**
    * Measures a building and plays the measuring pass. The outline is, in order: the mapped building
-   * (OpenStreetMap), the roof found in Google's 3D surface nearest the address point (or under a tap,
+   * (OpenStreetMap), Google's Solar API building, the roof found in Google's 3D surface nearest the address point (or under a tap,
    * `at`), or an illustrative rectangle of the estimate's size. Heights come from the 3D surface when
    * it answers in time. All of it is approximate and never becomes an estimate input.
    */
   async function measure({ outline = null, lengthFt = 48, widthFt = 34, wallFt = 18, heightFt = 26 } = {}, { at = null } = {}) {
     if (!widget || !target || !place) return null;
-    const request = serial, mapped = outline && !at ? measureOutline(outline) : null;
-    const found = mapped ? null : await roofNear(at || [place.lon, place.lat], Boolean(at));
+    const request = serial, osm = outline && !at ? measureOutline(outline) : null;
+    const solar = osm || at ? null : measureOutline(await solarOutline([place.lat, place.lon]) || []);
+    if (request !== serial || !open) return null;
+    const mapped = osm || solar, found = mapped ? null : await roofNear(at || [place.lon, place.lat], Boolean(at));
     if (request !== serial || !open) return null;
     const traced = found && measureOutline(found.ring);
     // A tap that finds no roof (a lawn, a street, a tree) leaves the current measurement as it is.
@@ -183,7 +186,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     layer.hidden = false;
     const result = measurer.play(shape, { ground, eave, peak }, project);
     if (resume) orbit();
-    return result && { ...result, source: mapped ? 'outline' : traced ? 'surface' : 'illustrative', measuredHeight: measured };
+    return result && { ...result, centre: shape.centre, source: osm ? 'outline' : solar ? 'solar' : traced ? 'surface' : 'illustrative', measuredHeight: measured };
   }
   /** The surface height at a point once its most detailed tiles load (null if unsupported or failed). */
   function surfaceHeight(lon, lat) {

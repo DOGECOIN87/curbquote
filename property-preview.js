@@ -2,6 +2,8 @@ import { isAddressMatch } from './address.js';
 import { aerialView, hasAerialCoverage, moveView, pointInView, DEFAULT_VIEW_METERS } from './property-view.js';
 import { setupProperty3D } from './property-3d.js';
 import { setupPropertyMap } from './property-map.js';
+import { streetView, flyoverAvailable, flyoverVideo } from './google-maps.js';
+import { webgl2Available } from './cesium-runtime.js';
 
 /**
  * Images are replaced atomically and discarded immediately when the address changes.
@@ -53,6 +55,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     showMeasure({ note: {
       outline: result.measuredHeight ? 'Approximate, from the mapped outline and the 3D view' : 'Approximate, from the mapped outline',
       surface: 'Approximate, measured in the 3D view. Not your home? Tap its roof.',
+      solar: 'Approximate, from Google’s roof data and the 3D view. Not your home? Tap its roof.',
       illustrative: 'Illustrative size. Tap your roof to measure it.'
     }[result.source] });
     offerSize(result.source === 'illustrative' ? null : result);
@@ -63,15 +66,30 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   const sameSize = (a, b) => a && b && a.sides.join() === b.sides.join() && a.heightFt === b.heightFt;
   function confirmState(state, text = '') {
     confirmCard.hidden = !state; confirmCard.dataset.state = state;
+    if (state !== 'ask') photo.hidden = true;
     byId('measure-yes').hidden = byId('measure-no').hidden = state !== 'ask';
     byId('measure-undo').hidden = state !== 'done';
     if (state === 'ask') {
       const [short, long] = [...offered.sides].sort((a, b) => a - b), tall = offered.measuredHeight && offered.heightFt ? `, ${Math.round(offered.heightFt)} ft tall` : '';
       confirmText.textContent = `Is this your home? It measures about ${long} × ${short} ft${tall}.`;
+      showFront(offered);
     } else if (state === 'pick') confirmText.textContent = view3d.isOpen ? 'Tap your home’s roof in the 3D view to measure it.' : 'Tap your home on the map to measure it.';
     else if (text) confirmText.textContent = text;
   }
   /** A new measurement asks again, unless it is the building already confirmed (a replay or a re-frame). */
+  // A Street View photo of the front of the measured building, shown as Google provides it.
+  const photo = byId('measure-photo'), photoImage = photo.querySelector('img'), photoCredit = photo.querySelector('figcaption');
+  let photoFor = null;
+  async function showFront(measured) {
+    const [lon, lat] = measured.centre || [match?.coordinates.lon, match?.coordinates.lat], key = `${lat},${lon}`;
+    if (!Number.isFinite(lat) || photoFor === key) { photo.hidden = !photoImage.src; return; }
+    photoFor = key; photo.hidden = true;
+    const location = match, view = await streetView([lat, lon]);
+    if (!view || match !== location || photoFor !== key || confirmCard.dataset.state !== 'ask') return;
+    photoImage.onload = () => { photo.hidden = false; }; photoImage.onerror = () => { photo.hidden = true; };
+    photoCredit.textContent = `Street View${view.date ? `, ${view.date}` : ''} · Google`;
+    photoImage.src = view.url;
+  }
   function offerSize(measured) {
     if (!measured?.sides || measured.sides.length < 2) { offered = null; if (confirmCard.dataset.state !== 'pick') confirmState(''); return; }
     offered = measured;
@@ -85,6 +103,27 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   });
   byId('measure-no').addEventListener('click', () => confirmState('pick'));
   byId('measure-undo').addEventListener('click', () => { onUndoSize?.(); confirmed = null; if (offered) confirmState('ask'); else confirmState(''); });
+  // Google's pre-rendered Aerial View flyover, when one already exists for the address.
+  const flyover = byId('flyover'), flyoverToggle = byId('flyover-toggle');
+  let flyoverId = null;
+  function closeFlyover() { flyover.pause(); flyover.removeAttribute('src'); flyover.hidden = true; flyoverToggle.setAttribute('aria-pressed', 'false'); flyoverToggle.textContent = 'Flyover'; }
+  async function openFlyover() {
+    const location = match, url = await flyoverVideo(flyoverId, { portrait: innerHeight > innerWidth });
+    if (!url || match !== location) { status.textContent = 'The flyover video is unavailable right now.'; return; }
+    flyover.setAttribute('aria-label', `Photorealistic aerial flyover of ${location.matchedAddress}, provided by Google Maps.`);
+    // Reduced motion: the video waits for the homeowner to press play.
+    flyover.controls = matchMedia('(prefers-reduced-motion: reduce)').matches; flyover.autoplay = !flyover.controls;
+    flyover.src = url; flyover.hidden = false; flyoverToggle.setAttribute('aria-pressed', 'true'); flyoverToggle.textContent = 'Close flyover';
+    status.textContent = 'Flyover video from Google Maps. Display only; it is not measured.';
+  }
+  flyoverToggle.addEventListener('click', () => { if (!flyover.hidden) closeFlyover(); else if (flyoverId) openFlyover(); });
+  async function findFlyover(location) {
+    const found = await flyoverAvailable(location.matchedAddress);
+    if (!found || match !== location) return;
+    flyoverId = found.videoId; flyoverToggle.hidden = false;
+    // Without WebGL there is no live 3D view, so the flyover leads.
+    if (!webgl2Available()) openFlyover();
+  }
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
   /**
@@ -283,7 +322,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
   function clear() {
-    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; offered = confirmed = null; confirmState(''); sync3d(); syncMap();
+    closeFlyover(); flyoverId = null; flyoverToggle.hidden = true;
+    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = photoFor = null; photo.hidden = true; photoImage.removeAttribute('src'); loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; offered = confirmed = null; confirmState(''); sync3d(); syncMap();
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
@@ -340,7 +380,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   }
   function show(location) {
     if (!isAddressMatch(location)) { failed(); return; }
-    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
+    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap(); findFlyover(location);
     const covered = hasAerialCoverage(location.coordinates);
     if (covered) center = framed(location.coordinates);
     else {

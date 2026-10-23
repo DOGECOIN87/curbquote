@@ -20,6 +20,9 @@
     },
     "api/lead.js": {
       "maxDuration": 10
+    },
+    "api/visualize.js": {
+      "maxDuration": 60
     }
   },
   "headers": [

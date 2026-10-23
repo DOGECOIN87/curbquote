@@ -20,6 +20,7 @@ else is optional and adds a feature.
 | Vercel | Hosting and server functions | Account | Free hobby tier | — |
 | Cesium ion | 3D view, testing only | Account + token | Free Community plan, 1,000 Google 3D sessions a month, non-commercial | `CESIUM_ION_TOKEN` |
 | Google Map Tiles API | 3D view for launch | Google Cloud project, billing and key | First 1,000 sessions a month free, then $6.00 per 1,000 | `GOOGLE_MAP_TILES_KEY` |
+| Google Maps Platform | Address suggestions, Street View front photo, Solar API roof outline, Aerial View flyover | Google Cloud project, billing and key (can be the Map Tiles key) | Free monthly allowances, then per request; Solar and Aerial View cost the most | `GOOGLE_MAPS_KEY` |
 | Vercel AI Gateway | AI project assistant | Vercel account; key or OIDC | Pay per use, $5 free credit a month | `AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL` |
 | Open ODbL building footprints | Step 3 approximate building dimensions | None (OSM Overpass / ODbL GeoJSON) | Free open data | `MICROSOFT_FOOTPRINTS_URL` (optional) |
 | Licensed building footprints | Step 3 commercial building outlines & roof pitch | Provider contract + consent | Varies | `EARTHDEFINE_KEY`, `EAGLEVIEW_KEY`, `ATTOM_KEY`, `DATA_USE_APPROVED` |
@@ -28,6 +29,36 @@ else is optional and adds a feature.
 
 Prices were checked in October 2026 ([docs/12](12-3d-and-ai-map-alternatives.md)); confirm them
 with each provider.
+
+## 1b. Google Maps Platform extras (optional, one key)
+
+`GOOGLE_MAPS_KEY` turns on four Step 1 features. Each one quietly switches off without the key, for
+places Google doesn't cover, or if a request fails.
+
+| API to enable | Feature |
+|---|---|
+| Places API (New) | Address suggestions while typing (with Google Maps attribution) |
+| Street View Static API | A front photo of the measured building in "Is this your home?" |
+| Solar API | The building's roof outline, used for measuring (still confirmed by the homeowner) |
+| Aerial View API | A "Flyover" button when Google already has a video of the address (none are commissioned) |
+
+1. In Google Cloud (https://console.cloud.google.com/), enable the four APIs above in the project
+   that has billing.
+2. Create an API key, or edit the Map Tiles key: under **Application restrictions** choose
+   **Websites** and add your site addresses; under **API restrictions** allow only these APIs (plus
+   Map Tiles if it is the same key). Set daily quotas, especially for Solar and Aerial View.
+3. Add it as `GOOGLE_MAPS_KEY` in Vercel, and as a repository secret of the same name for the Pages
+   demo, then redeploy. Without it, the Map Tiles key is tried.
+
+The key is public in the page by design, like the Map Tiles key, so the restrictions are what keep it safe.
+Typed addresses go to Google for suggestions; Street View, Solar and Aerial View receive only the
+address point or the matched address.
+
+**Photo concepts** ("Show my choices on this photo", Step 5 → Your photo) restyle the homeowner's own
+upload with an image model through the Vercel AI Gateway (`AI_IMAGE_MODEL`, default
+`google/gemini-2.5-flash-image`). They use the same AI Gateway credentials as the assistant, are
+rate-limited, store nothing, and are not available on the static Pages demo. Google imagery is never
+sent: the Maps Platform terms forbid modifying it.
 
 ## 1. Free government services (nothing to set up)
 

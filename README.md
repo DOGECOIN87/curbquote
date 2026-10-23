@@ -48,8 +48,8 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 112 Node tests, public build
-npm run test:browser   # 62 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run check          # syntax checks, 116 Node tests, public build
+npm run test:browser   # 64 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, Google 3D measuring pass, controls and fallback
 ```
 

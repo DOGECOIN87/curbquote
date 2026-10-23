@@ -37,7 +37,26 @@ against real Google 3D tiles on the live Pages configuration, without committing
 ## Verification
 
 ```text
-npm run check          # syntax checks, 112 Node tests, public build
-npm run test:browser   # 62 Chromium checks
+npm run check          # syntax checks, 116 Node tests, public build
+npm run test:browser   # 64 Chromium checks
 npm run test:exterior  # 9 checks
 ```
+
+## Google Maps Platform extras and photo concepts
+
+With one public `GOOGLE_MAPS_KEY` (see [SETUP §1b](SETUP.md#1b-google-maps-platform-extras-optional-one-key)),
+called straight from the browser so the Pages demo works too (`google-maps.js`):
+
+- **Address suggestions** (Places API New) under the search box, as a keyboard combobox with Google
+  Maps attribution. A pick runs the usual Census lookup (`address-suggest.js`).
+- **Street View front photo** in "Is this your home?", aimed from the nearest panorama at the measured
+  building, shown unmodified with its date and Google credit.
+- **Solar API outline**: when OpenStreetMap has no outline, Google's roof data gives a rectangle turned
+  to the roof's main direction (unit-tested), measured in the 3D view and still confirmed by the homeowner.
+- **Aerial View flyover**: a Flyover button when Google already has a video of the address; it leads
+  when the device has no WebGL. Only the free metadata lookup runs until the homeowner asks for it.
+- **Photo concepts** (`api/visualize.js`): the homeowner's own photo restyled with their chosen siding,
+  colour, trim and roof through the AI Gateway, labelled as an illustrative AI concept. Server only.
+
+Every feature switches itself off without its key or coverage, and none of them changes the estimate
+on its own.

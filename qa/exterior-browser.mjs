@@ -136,6 +136,11 @@ try {
   await surface.waitForTimeout(3200);
   const found = await labelsOf(surface), [short, long] = found.slice(0, 2).map(label => label.feet).sort((a, b) => a - b);
   near(long, 52, 6, 'house length'); near(short, 33, 6, 'house depth'); near(found[2]?.feet, 28, 2, 'house height');
+  // The size reaches the estimate only once the homeowner says it is their home; "Not my home" asks for a tap.
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\? It measures about \d+ × \d+ ft, \d+ ft tall\.$/);
+  assert.equal(await surface.locator('#lengthFt').inputValue(), '48', 'nothing changes before confirming');
+  await surface.locator('#measure-no').click();
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /Tap your home’s roof/);
   await surface.locator('#aerial-3d-recenter').click(); await surface.waitForTimeout(1200);
   await surface.locator('#aerial-3d-top').click(); await surface.waitForTimeout(1500);
   // Straight down with north up: find the garage from the house's corner points and the known layout.
@@ -147,9 +152,20 @@ try {
   await surface.waitForTimeout(3200);
   const garage = await labelsOf(surface), [gShort, gLong] = garage.slice(0, 2).map(label => label.feet).sort((a, b) => a - b);
   near(gLong, 26, 5, 'garage length'); near(gShort, 20, 5, 'garage depth'); near(garage[2]?.feet, 11, 2, 'garage height');
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\?/, 'the tapped building is offered');
+  await surface.locator('#measure-yes').click();
+  const sized = { length: Number(await surface.locator('#lengthFt').inputValue()), width: Number(await surface.locator('#widthFt').inputValue()) };
+  near(sized.length, gLong, 1, 'estimate length'); near(sized.width, gShort, 1, 'estimate width');
+  assert.equal(await surface.locator('#stories').inputValue(), '1', 'an 11 ft building is one story');
+  assert.match(await surface.locator('#instant-basis').textContent(), /sized from the 3D view, confirmed by you/);
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Your estimate now uses \d+(\.5)? × \d+(\.5)? ft, 1-story\.$/);
+  await surface.locator('#measure-undo').click();
+  assert.deepEqual([await surface.locator('#lengthFt').inputValue(), await surface.locator('#widthFt').inputValue(), await surface.locator('#stories').inputValue()], ['48', '34', '2'], 'Undo restores the earlier size');
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\?/);
   await surface.locator('#aerial-stage').screenshot({ path: 'qa-output/google3d-surface.png' });
   await surface.close();
   checks.push('Without a mapped outline, Google 3D finds the nearest roof in its own surface and measures it; tapping another roof measures that building');
+  checks.push('"Is this your home?" sizes the estimate only after the homeowner confirms, "Not my home" asks for a tap, and Undo restores the earlier size');
   assert.deepEqual(errors, []);
   await writeFile('qa-output/exterior-checks.json', JSON.stringify({ checks, errors }, null, 2));
   console.log(JSON.stringify({ checks, errors }, null, 2));

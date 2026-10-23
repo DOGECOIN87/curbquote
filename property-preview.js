@@ -18,7 +18,7 @@ const AVAILABLE_WAIT = 4000;
 const GOOGLE_READY = 'Google 3D view. Drag to look around, scroll or pinch to zoom, tap a roof to measure that building, or use Top view. Measurements here are approximate; the estimate uses the sizes in Step 3.';
 const prefers3d = () => { try { return localStorage.getItem(VIEW_KEY) !== 'photo'; } catch { return true; } };
 const rememberView = value => { try { localStorage.setItem(VIEW_KEY, value); } catch {} };
-export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
+export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onConfirmSize, onUndoSize }) {
   const byId = id => document.getElementById(id);
   const stage = byId('aerial-stage'), images = byId('aerial-images'), tools = byId('aerial-controls');
   const overlay = byId('aerial-placeholder'), marker = byId('aerial-marker'), status = byId('aerial-status');
@@ -55,7 +55,36 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
       surface: 'Approximate, measured in the 3D view. Not your home? Tap its roof.',
       illustrative: 'Illustrative size. Tap your roof to measure it.'
     }[result.source] });
+    offerSize(result.source === 'illustrative' ? null : result);
   }
+  // "Is this your home?": a measured building sizes the estimate only once the homeowner confirms it.
+  const confirmCard = byId('measure-confirm'), confirmText = byId('measure-confirm-text');
+  let offered = null, confirmed = null;
+  const sameSize = (a, b) => a && b && a.sides.join() === b.sides.join() && a.heightFt === b.heightFt;
+  function confirmState(state, text = '') {
+    confirmCard.hidden = !state; confirmCard.dataset.state = state;
+    byId('measure-yes').hidden = byId('measure-no').hidden = state !== 'ask';
+    byId('measure-undo').hidden = state !== 'done';
+    if (state === 'ask') {
+      const [short, long] = [...offered.sides].sort((a, b) => a - b), tall = offered.measuredHeight && offered.heightFt ? `, ${Math.round(offered.heightFt)} ft tall` : '';
+      confirmText.textContent = `Is this your home? It measures about ${long} × ${short} ft${tall}.`;
+    } else if (state === 'pick') confirmText.textContent = view3d.isOpen ? 'Tap your home’s roof in the 3D view to measure it.' : 'Tap your home on the map to measure it.';
+    else if (text) confirmText.textContent = text;
+  }
+  /** A new measurement asks again, unless it is the building already confirmed (a replay or a re-frame). */
+  function offerSize(measured) {
+    if (!measured?.sides || measured.sides.length < 2) { offered = null; if (confirmCard.dataset.state !== 'pick') confirmState(''); return; }
+    offered = measured;
+    if (sameSize(confirmed, measured)) return;
+    confirmState('ask');
+  }
+  byId('measure-yes').addEventListener('click', () => {
+    if (!offered) return;
+    const applied = onConfirmSize?.(offered); confirmed = offered;
+    confirmState('done', applied ? `Your estimate now uses ${applied}.` : 'Your estimate now uses this size.');
+  });
+  byId('measure-no').addEventListener('click', () => confirmState('pick'));
+  byId('measure-undo').addEventListener('click', () => { onUndoSize?.(); confirmed = null; if (offered) confirmState('ask'); else confirmState(''); });
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
   /** Space taken by the floating panels at the top and bottom of the view, in screen pixels. */
@@ -76,7 +105,10 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   }
   const viewMap = setupPropertyMap({
     stage, onFailure: unavailableMap, getPadding: overlayPadding, onOrbitChange: () => syncMap(), getDimensions,
-    onMeasure: result => showMeasure(result && { ...result, note: result.approximate ? 'Approximate, from the mapped building outline' : 'Illustrative dimensions' }),
+    onMeasure: result => {
+      showMeasure(result && { ...result, note: result.approximate ? 'Approximate, from the mapped building outline. Not your home? Tap it on the map.' : 'Illustrative dimensions' });
+      offerSize(result?.approximate ? { ...result, source: 'map' } : null);
+    },
     onBearing: bearing => byId('map-north').style.setProperty('--bearing', `${-bearing}deg`),
     onStatus: message => {
       if (!viewMap.isOpen) return;
@@ -216,6 +248,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   const measureChip = byId('measure-chip'), measureNote = byId('measure-note'), measureGroup = byId('aerial-measure');
   function showMeasure(result) {
     measureChip.hidden = !result;
+    if (!result && confirmCard.dataset.state !== 'done') confirmState('');
     if (result) measureNote.textContent = result.note;
   }
   function clearAerialMeasure() { measureGroup.replaceChildren(); }
@@ -248,7 +281,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
   function clear() {
-    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; sync3d(); syncMap();
+    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; offered = confirmed = null; confirmState(''); sync3d(); syncMap();
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;

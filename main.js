@@ -14,6 +14,7 @@ import { setupWizard } from './wizard.js';
 import { setupRemodel3D } from './remodel-3d.js';
 import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, styleSilhouette, ROOF_COLORS, ROOF_MATERIALS, TRIM_COLORS, MASONRY_FINISHES, SCENES, DEFAULT_DESIGN } from './house-spec.js';
 import { fetchPublicFootprint } from './footprint-client.js';
+import { setupLeadForm } from './lead-form.js';
 import { parseChangeRequest, describeChange } from './intent.js';
 
 const form = document.querySelector('#estimate-form');
@@ -41,6 +42,8 @@ let manualStyleOverride = false;
 let footprintData = null;
 // Typed size fields are never overwritten by the automatic open-data lookup.
 let measurementsTouched = false;
+// The inputs and source from before the homeowner confirmed a measured size, for Undo.
+let sizeBeforeConfirm = null;
 let manualInputsBackup = null;
 let footprintController = null;
 let activeProjectId = null;
@@ -64,7 +67,9 @@ const propertyPreview = setupPropertyPreview({
   getDimensions: () => {
     const value = id => Number(byId(id).value) || 0, wallFt = value('stories') * (value('storyHeightFt') || 9);
     return { lengthFt: value('lengthFt'), widthFt: value('widthFt'), wallFt, heightFt: wallFt + value('gableRiseFt'), fromPublicData: Boolean(footprintData), outline: footprintData?.polygon?.coordinates?.[0] ?? null };
-  }
+  },
+  onConfirmSize: measured => confirmMeasuredSize(measured),
+  onUndoSize: () => undoMeasuredSize()
 });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
 let remodelDesign = { ...DEFAULT_DESIGN, split: 100 };
@@ -254,6 +259,7 @@ function refreshReport() {
   }) : 'ALCO PRODUCTS / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.';
   byId('save-summary').disabled = !lastResult;
   byId('print-summary').disabled = !lastResult;
+  byId('send-lead').disabled = !lastResult;
   byId('save-project').disabled = !lastResult;
   byId('result-address').textContent = addressEl.value.trim() || 'No address provided — manual estimate';
 }
@@ -406,6 +412,7 @@ function scheduleAddressLookup() {
 function resetFootprintState({ restoreManual = false } = {}) {
   footprintController?.abort();
   footprintController = null;
+  sizeBeforeConfirm = null;
   if (restoreManual && manualInputsBackup) {
     for (const [key, value] of Object.entries(manualInputsBackup)) {
       if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
@@ -516,6 +523,48 @@ function applyFootprint(result, { automatic = false } = {}) {
   if (hasCalculated) calculate();
   refreshReport();
 }
+/**
+ * The homeowner confirmed the building measured in the 3D view or on the map: its sides size the
+ * estimate, and a measured height sets the stories. Returns the size now in use, for the card.
+ */
+function confirmMeasuredSize({ sides, heightFt, measuredHeight, source }) {
+  const [short, long] = [...sides].sort((a, b) => a - b), half = n => Math.min(350, Math.max(10, Math.round(n * 2) / 2));
+  if (!manualInputsBackup) manualInputsBackup = readInputs();
+  sizeBeforeConfirm ??= { inputs: readInputs(), footprintData };
+  // The mapped outline keeps its own measured size; the labels on screen are rounded to whole feet.
+  const outline = source === 'outline' && footprintData?.lengthFt && footprintData?.widthFt;
+  const lengthFt = half(outline ? footprintData.lengthFt : long), widthFt = half(outline ? footprintData.widthFt : short);
+  byId('lengthFt').value = String(lengthFt); byId('widthFt').value = String(widthFt);
+  if (measuredHeight && heightFt) {
+    const storyHeight = Number(byId('storyHeightFt').value) || 9, rise = Number(byId('gableRiseFt').value) || 0;
+    byId('stories').value = String(Math.min(4, Math.max(1, Math.round((heightFt - rise) / storyHeight))));
+  }
+  const from = { outline: footprintData?.source?.provider || 'the mapped building outline', surface: 'the 3D view', map: 'OpenStreetMap map data' }[source] || 'the 3D view';
+  footprintData = {
+    ...(footprintData || {}), lengthFt, widthFt, stories: Number(byId('stories').value), automatic: false, confirmed: true,
+    areaSqFt: source === 'outline' && footprintData?.areaSqFt ? footprintData.areaSqFt : lengthFt * widthFt,
+    perimeterFt: source === 'outline' && footprintData?.perimeterFt ? footprintData.perimeterFt : 2 * (lengthFt + widthFt),
+    source: { ...(footprintData?.source || {}), provider: `${from}, confirmed by you`, approximate: true }
+  };
+  byId('footprint-status').className = 'field-help success';
+  byId('footprint-status').textContent = `Sized from ${from}, confirmed by you: ${lengthFt} × ${widthFt} ft, ${byId('stories').value}-story. Approximate; adjust anything that looks off.`;
+  syncProjectControls({ microResponse: true }); paintInstant();
+  if (hasCalculated) calculate();
+  refreshReport();
+  return `${lengthFt} × ${widthFt} ft, ${byId('stories').value}-story`;
+}
+/** Puts back the size and source from before the first confirmation. */
+function undoMeasuredSize() {
+  if (!sizeBeforeConfirm) return;
+  const { inputs, footprintData: before } = sizeBeforeConfirm; sizeBeforeConfirm = null;
+  for (const [key, value] of Object.entries(inputs)) if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
+  footprintData = before;
+  byId('footprint-status').className = before ? 'field-help success' : 'field-help';
+  byId('footprint-status').textContent = before ? `Sized from ${before.source?.provider || 'a public building outline'}.` : 'Using your manual dimensions below.';
+  syncProjectControls({ microResponse: true }); paintInstant();
+  if (hasCalculated) calculate();
+  refreshReport();
+}
 /** After an address match, size the house from open data with no extra click, unless the homeowner typed a size. */
 async function autoFootprint(location) {
   if (footprintData || measurementsTouched || !location?.coordinates) return;
@@ -526,7 +575,8 @@ async function autoFootprint(location) {
   paintInstant('Sizing your home from public building outlines…');
   try {
     const result = await fetchPublicFootprint({ coordinates: location.coordinates, styleId: selectedHomeStyle, openOnly: true, signal: controller.signal });
-    if (controller.signal.aborted || matched !== location || measurementsTouched) return;
+    // A size the homeowner already confirmed in the 3D view stays.
+    if (controller.signal.aborted || matched !== location || measurementsTouched || footprintData?.confirmed) return;
     applyFootprint(result, { automatic: true });
   } catch (error) {
     if (controller.signal.aborted || matched !== location) return;
@@ -670,6 +720,12 @@ byId('save-summary').addEventListener('click', () => {
 });
 byId('print-summary').addEventListener('click', () => {
   if (calculate({ focus: true })) window.print();
+});
+setupLeadForm({
+  getRequest: () => calculate({ focus: true }) && {
+    estimate: { address: (matched?.matchedAddress || addressEl.value.trim()).slice(0, 200) || undefined, range: lastRangeText.slice(0, 80) || undefined },
+    brief: byId('print-report-content').textContent.slice(0, 16000)
+  }
 });
 // Browser-menu printing must also validate the current fields and never expose stale costs.
 window.addEventListener('beforeprint', () => { if (hasCalculated) calculate(); else refreshReport(); });

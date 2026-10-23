@@ -254,6 +254,14 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .measure-chip span,.preview-chip span{display:block;font-size:12px;line-height:1.4;color:var(--glass-muted)}
 .measure-chip button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#fff}
 .measure-chip button:hover{background:rgba(255,255,255,.18)}
+/* "Is this your home?": the measured size reaches the estimate only once confirmed. */
+.measure-confirm{display:grid;gap:8px;max-width:100%;padding:12px 12px 12px 15px}
+.measure-confirm p{margin:0;font-size:13px;line-height:1.45;color:var(--glass-text)}
+.measure-confirm-actions{display:flex;flex-wrap:wrap;gap:6px}
+.measure-confirm-actions button{min-height:44px;padding:0 15px;border:1px solid var(--glass-line);border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:500;white-space:nowrap}
+.measure-confirm-actions button:hover{background:rgba(255,255,255,.12)}
+.measure-confirm #measure-yes{border-color:#fff;background:#fff;color:var(--ink)}
+.measure-confirm #measure-yes:hover{background:#e9f5df}
 .aerial-status{margin:0;padding:9px 14px;font-size:12.5px;line-height:1.5;color:var(--glass-muted)}
 .aerial-status[data-tone=warn]{color:#ffd9a8}
 .hero[data-dock=top]:has(.aerial-stage[data-view=matched]) .aerial-status:not([data-tone=warn]){position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
@@ -311,7 +319,7 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .proposal-actions button[aria-expanded=true]{background:#fff;color:var(--ink)}
 .save-concept{justify-self:center;margin-top:6px}
 .hero:not([data-mode=proposal]) :is(.proposal-switch-wrap,.proposal-ready,.proposal-actions,.save-concept,.preview-chip){display:none}
-.hero[data-mode=proposal] :is(.instant-estimate,.view-top-right,.view-foot,.measure-chip,.aerial-status,.map-selection,.map-housenumbers,.map-zoom,#aerial-controls,#aerial-3d-toggle){display:none}
+.hero[data-mode=proposal] :is(.instant-estimate,.view-top-right,.view-foot,.measure-chip,.measure-confirm,.aerial-status,.map-selection,.map-housenumbers,.map-zoom,#aerial-controls,#aerial-3d-toggle){display:none}
 body:has(.hero[data-mode=proposal]) main>.draft-bar{top:calc(max(560px,100svh) - 64px);left:clamp(12px,1.6vw,20px);transform:none}
 
 /* The property view itself */
@@ -602,6 +610,20 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
 .save-project-row .primary-button{width:100%;justify-content:space-between}
 .save-project-row>span{display:block;margin-top:8px;text-align:center;font-size:13px;color:var(--muted)}
 .result-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 0}
+.result-actions .save-project{grid-column:1/-1}
+.result-actions-note{margin:8px 0 0;text-align:center;font-size:13px;color:var(--muted)}
+.lead-dialog form{margin:18px 0 0}
+.lead-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.lead-fields>div:first-child,.lead-notes{grid-column:1/-1}
+.lead-fields textarea{min-height:84px;padding:12px 14px;font-size:15px;resize:vertical}
+.optional{font-weight:400;color:var(--muted)}
+.lead-consent{display:flex;align-items:flex-start;gap:10px;margin:16px 0 0;font-weight:400;cursor:pointer}
+.lead-consent input{flex:none;margin-top:1px}
+#lead-status[data-tone=warn]{color:var(--danger)}
+.lead-dialog .primary-button{margin-top:4px}
+.lead-privacy{margin-top:16px}
+.lead-privacy a{color:var(--ink);white-space:nowrap}
+@media (max-width:560px){.lead-fields{grid-template-columns:1fr}.lead-dialog{padding:22px 18px}}
 .next-steps{margin:24px 0 0;padding:18px 20px;border:1px solid var(--line);border-radius:var(--r-lg);background:#fff}
 .next-steps h3{margin:0 0 6px;font-size:16px;font-weight:500}
 .next-steps ol{display:grid;gap:4px;margin:0;padding:0;list-style:none}

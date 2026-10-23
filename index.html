@@ -82,8 +82,12 @@
           <div class="view-top-left">
             <div id="preview-chip" class="preview-chip"><div><strong>Exterior preview</strong><span>Concept visualization</span></div><button type="button" id="proposal-exit">Show my home</button></div>
             <div id="measure-chip" class="measure-chip" hidden><div><strong>Exterior measurements</strong><span id="measure-note">Illustrative dimensions</span></div><button type="button" id="measure-replay" aria-label="Measure again" title="Measure again"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg></button></div>
+            <div id="measure-confirm" class="measure-confirm" hidden>
+              <p id="measure-confirm-text" role="status">Is this your home?</p>
+              <div class="measure-confirm-actions"><button type="button" id="measure-yes">Yes, use this size</button><button type="button" id="measure-no">Not my home</button><button type="button" id="measure-undo" hidden>Undo</button></div>
+            </div>
             <p id="aerial-status" class="aerial-status" role="status" aria-live="polite">An aerial view helps you recognize the building. It does not supply renovation measurements.</p>
-            <p id="map-selection" class="map-selection" hidden>Map outline highlighted for visual reference. This does not confirm the building’s identity or supply measurements.</p>
+            <p id="map-selection" class="map-selection" hidden>Building highlighted for reference. Its size is used only if you confirm it.</p>
             <div id="map-housenumbers" class="map-housenumbers" hidden aria-live="polite"><strong>Nearby house numbers</strong><p class="micro-note">Tap a number to centre the map. Use a highlighted building outline as your visual confirmation before you enter measurements in Step 3 — this does not auto-fill the estimate.</p><div id="map-housenumber-list" class="housenumber-list" role="list"></div></div>
           </div>
           <div class="view-top-right">
@@ -382,7 +386,7 @@
               <div id="lead-notice" class="notice" hidden><strong>Pre-1978 building: lead-safe review</strong><span>Lead-safe work requirements may affect scope and cost. This model does not price lead remediation.</span></div>
               <div class="notice muted-notice"><strong>What's not included?</strong><span>Permits, taxes, specialty trim, disposal, rot, lead-safe work, unusual geometry, and site-specific labor adjustments. Verify measurements before ordering.</span></div>
             </div>
-            <div class="save-project-row"><button type="button" id="save-project" class="primary-button">Save this project <span aria-hidden="true">+</span></button><span>Saved on this device, including your photo selections.</span></div><div class="result-actions"><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div>
+            <div class="save-project-row"><button type="button" id="send-lead" class="primary-button">Send to Alco Products <span aria-hidden="true">→</span></button><span>Alco Products checks your measurements and gets back to you.</span></div><div class="result-actions"><button type="button" id="save-project" class="outline-button save-project">Save this project <span aria-hidden="true">+</span></button><button type="button" id="save-summary" class="outline-button">Download summary ↓</button><button type="button" id="print-summary" class="outline-button">Print ↗</button></div><p class="result-actions-note">Saved projects stay on this device, including your photo selections.</p>
             <div class="next-steps">
               <h3>What you can do next</h3>
               <ol>
@@ -546,6 +550,22 @@
     <p id="saved-project-status" class="field-help" role="status"></p>
     <div id="saved-project-list"></div>
     <button type="button" id="new-project" class="outline-button wide-button">Start a new project</button>
+  </dialog>
+  <dialog id="lead-dialog" class="projects-dialog lead-dialog" aria-labelledby="lead-title">
+    <div class="dialog-header"><h2 id="lead-title">Send to Alco Products</h2><button type="button" id="close-lead" class="outline-button" aria-label="Close">✕</button></div>
+    <p id="lead-intro" class="studio-help">Alco Products gets your estimate summary and contact details, reviews the measurements and gets back to you. Nothing is sent until you press Send.</p>
+    <form id="lead-form" novalidate>
+      <div class="lead-fields">
+        <div><label for="lead-name">Name</label><input id="lead-name" name="name" autocomplete="name" maxlength="100" required></div>
+        <div><label for="lead-email">Email</label><input id="lead-email" name="email" type="email" autocomplete="email" maxlength="200" required></div>
+        <div><label for="lead-phone">Phone <span class="optional">(optional)</span></label><input id="lead-phone" name="phone" type="tel" autocomplete="tel" maxlength="40"></div>
+        <div class="lead-notes"><label for="lead-notes">Anything we should know? <span class="optional">(optional)</span></label><textarea id="lead-notes" name="notes" rows="3" maxlength="1000" placeholder="Best time to call, timing, questions"></textarea></div>
+      </div>
+      <label class="lead-consent"><input id="lead-consent" name="consent" type="checkbox" required><span>Alco Products may contact me about this estimate.</span></label>
+      <p id="lead-status" class="field-help" role="status"></p>
+      <button type="submit" id="lead-submit" class="primary-button wide-button">Send</button>
+    </form>
+    <p class="field-help lead-privacy">Your details go only to Alco Products. CurbQuote does not keep them. Prefer to talk? <a href="tel:3015931691">(301) 593-1691</a></p>
   </dialog>
   <p id="project-toast" class="project-toast" role="status" hidden></p>
   <section id="print-report" class="print-report" aria-label="Printable preliminary estimate"><pre id="print-report-content"></pre></section>

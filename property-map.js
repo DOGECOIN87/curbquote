@@ -44,7 +44,7 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     const mappedHeight = Number(raw?.properties?.render_height);
     const heightFt = mapped && mappedHeight > 3 && mappedHeight < 40 ? mappedHeight * FEET_PER_METER : fallback.heightFt;
     const shown = measurer.play(shape, { heightFt });
-    onMeasure?.(shown && { ...shown, approximate: Boolean(mapped) });
+    onMeasure?.(shown && { ...shown, approximate: Boolean(mapped), measuredHeight: Boolean(mapped) && heightFt !== fallback.heightFt });
     return shown;
   }
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;

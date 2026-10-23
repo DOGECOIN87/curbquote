@@ -57,7 +57,9 @@ try {
   let automaticRequests = 0;
   const countAutomatic = request => { if (request.url().includes('/api/geocode?')) automaticRequests++; };
   page.on('request', countAutomatic);
+  // Paused, so a slow fill cannot let real time run the 700 ms debounce early.
   await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 1000);
   await page.locator('#property-address').fill('123 Main Street');
   await page.clock.runFor(900);
   assert.equal(automaticRequests, 0);
@@ -65,6 +67,7 @@ try {
   await page.clock.runFor(500);
   assert.equal(automaticRequests, 0);
   await page.clock.runFor(250);
+  await page.clock.resume();
   await page.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
   assert.equal(automaticRequests, 1);
   assert.match(await page.locator('#aerial-address').textContent(), /SILVER HILL RD/);
@@ -248,6 +251,49 @@ try {
   assert.match(exported, /4600 SILVER HILL RD/);
   assert.equal(exported, await page.locator('#print-report-content').textContent());
   checks.push('Download and print share the full input, pricing, provenance and assumptions report');
+  const leads = [];
+  let leadReply = { json: { sent: true } };
+  await page.route('**/api/lead', route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: { configured: true, email: 'estimates@alco.example' } });
+    leads.push(route.request().postDataJSON());
+    return route.fulfill(leadReply);
+  });
+  await page.locator('#send-lead').click();
+  await page.locator('#lead-dialog[open]').waitFor();
+  await page.locator('#lead-submit').click();
+  assert.equal(await page.locator('#lead-status').textContent(), 'Enter your name.');
+  assert.equal(await page.locator('#lead-name').getAttribute('aria-invalid'), 'true');
+  await page.locator('#lead-name').fill('Pat Homeowner');
+  await page.locator('#lead-email').fill('pat@example.com');
+  await page.locator('#lead-phone').fill('(301) 555-0100');
+  await page.locator('#lead-submit').click();
+  assert.match(await page.locator('#lead-status').textContent(), /Tick the box/);
+  assert.equal(leads.length, 0, 'nothing is sent before the homeowner agrees to be contacted');
+  await page.locator('#lead-consent').check();
+  await page.locator('#lead-submit').click();
+  await page.waitForFunction(() => document.querySelector('#lead-intro').textContent.startsWith('Sent.'));
+  assert.equal(leads.length, 1);
+  assert.deepEqual(leads[0].contact, { name: 'Pat Homeowner', email: 'pat@example.com', phone: '(301) 555-0100' });
+  assert.equal(leads[0].consent, true);
+  assert.match(leads[0].estimate.address, /4600 SILVER HILL RD/);
+  assert.equal(leads[0].brief, await page.locator('#print-report-content').textContent());
+  assert.equal(await page.locator('#lead-form').isHidden(), true);
+  await page.locator('#close-lead').click();
+  // A failed delivery offers the same message as an email to Alco's inbox.
+  leadReply = { status: 502, json: { error: 'Your request could not be delivered.', code: 'LEAD_DELIVERY_FAILED', email: 'estimates@alco.example' } };
+  await page.evaluate(() => { HTMLAnchorElement.prototype.click = function () { if (this.href.startsWith('mailto:')) window.mailtoOpened = this.href; }; });
+  await page.locator('#send-lead').click();
+  await page.locator('#lead-submit').click();
+  await page.waitForFunction(() => document.querySelector('#lead-submit').textContent === 'Write the email');
+  assert.match(await page.locator('#lead-status').textContent(), /could not be delivered\. You can email it instead/);
+  await page.locator('#lead-submit').click();
+  const mailto = new URL(await page.evaluate(() => window.mailtoOpened));
+  assert.equal(mailto.pathname, 'estimates@alco.example');
+  assert.match(mailto.searchParams.get('body'), /^Name: Pat Homeowner\nEmail: pat@example\.com\nPhone: \(301\) 555-0100\n\nALCO PRODUCTS/);
+  assert.equal(leads.length, 2);
+  await page.screenshot({ path: join(outputDir, 'send-to-alco.png') });
+  await page.locator('#close-lead').click();
+  checks.push('"Send to Alco Products" needs a name, email and consent, posts the contact details with the full summary, and offers an email when delivery fails');
   const valid = { matchedAddress: '999 TEST ST, AUSTIN, TX, 78701', coordinates: { lat: 30.2, lon: -97.7 }, source: 'U.S. Census Geocoder — address-range approximation' };
   await page.route('**/api/geocode?**', route => route.fulfill({ status: 500, contentType: 'text/html', body: '<h1>Unavailable</h1>' }));
   await go('#verify-address'); await page.locator('#verify-address').click();

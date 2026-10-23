@@ -17,6 +17,9 @@
     },
     "api/assistant.js": {
       "maxDuration": 30
+    },
+    "api/lead.js": {
+      "maxDuration": 10
     }
   },
   "headers": [

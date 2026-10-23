@@ -24,6 +24,7 @@ else is optional and adds a feature.
 | Open ODbL building footprints | Step 3 approximate building dimensions | None (OSM Overpass / ODbL GeoJSON) | Free open data | `MICROSOFT_FOOTPRINTS_URL` (optional) |
 | Licensed building footprints | Step 3 commercial building outlines & roof pitch | Provider contract + consent | Varies | `EARTHDEFINE_KEY`, `EAGLEVIEW_KEY`, `ATTOM_KEY`, `DATA_USE_APPROVED` |
 | Licensed property data | Pre-filled stories and year built | Provider contract | Varies | `PROPERTY_*`, `DATA_USE_APPROVED` |
+| Lead inbox (webhook or email) | "Send to Alco Products" on Step 5 | A form or automation URL, or an inbox | Free tiers available | `LEAD_WEBHOOK_URL`, `LEAD_EMAIL` |
 
 Prices were checked in October 2026 ([docs/12](12-3d-and-ai-map-alternatives.md)); confirm them
 with each provider.
@@ -60,6 +61,7 @@ A shareable demo at `https://dogecoin87.github.io/curbquote/`, built by
 | 3D view | Works with `CESIUM_ION_TOKEN` (or `GOOGLE_MAP_TILES_KEY`), which is baked into the public `config.js` at build time. |
 | Estimator, plans, saving, photo colours, contractor brief | Works, entirely in the browser. |
 | AI assistant | Not available, because Pages has no server. The automatic planner still works. |
+| Send to Alco Products | Writes an email to `LEAD_EMAIL` (a repository variable) for the homeowner to send. Without it, the page shows the phone number. |
 | Licensed property data | Not available, because it needs a server. |
 
 Setup:
@@ -162,6 +164,27 @@ anything until there's a signed data agreement**: the adapter enforces the grant
 Configuration (`PROPERTY_LOOKUP_URL`, `PROPERTY_API_KEY`, field map, grant) is described in
 [docs/09](09-property-data-adapter.md) and `.env.example`.
 
+## 5b. Send to Alco Products (optional)
+
+On Step 5 the homeowner can send their estimate summary with their name, email, optional phone
+and notes, after ticking a box that lets Alco Products contact them. Nothing is stored by
+CurbQuote; the request goes straight to Alco.
+
+1. **Direct delivery (Vercel):** set **`LEAD_WEBHOOK_URL`** to an `https://` address that accepts
+   a JSON POST, such as a CRM web-form endpoint, a Zapier or Make "catch hook", or a Power
+   Automate HTTP trigger. Each request is
+   `{ source, submittedAt, contact: { name, email, phone?, notes? }, estimate: { address?, range? }, brief }`,
+   where `brief` is the same text as the downloaded summary. Point the automation at Alco's inbox
+   or CRM. Treat the URL like a password: it is only read on the server and never reaches the page.
+2. **Email instead (Vercel or GitHub Pages):** set **`LEAD_EMAIL`** to Alco's estimates inbox. With
+   no webhook, or if the webhook fails, the page writes the message into the homeowner's own email
+   app. For the Pages demo add it under **Settings → Secrets and variables → Actions → Variables**
+   (a variable, not a secret: the address ships in `config.js`).
+3. Redeploy. `GET /api/lead` should then report `"configured": true` (webhook) or show the email.
+
+Without either, the button explains that online requests are not set up and shows the phone number.
+Requests are limited to five per visitor every ten minutes.
+
 ## 6. Claude Code cloud sessions (optional)
 
 To let Claude test the live app from a cloud session, open the environment settings (session
@@ -183,4 +206,5 @@ https://code.claude.com/docs/en/cloud-environments#network-access
 - [ ] Google key restricted, capped at 30 a day, budget alert on (launch only)
 - [ ] Redeployed after adding variables
 - [ ] Optional: AI Gateway credit and OIDC
+- [ ] Optional: `LEAD_WEBHOOK_URL` and/or `LEAD_EMAIL` for "Send to Alco Products"
 - [ ] Optional: property-data agreement signed before any `PROPERTY_*` setup

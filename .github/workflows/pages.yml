@@ -26,6 +26,8 @@ jobs:
           # Restrict this token in Cesium ion to assets:read and your github.io URL; it ships in config.js.
           CESIUM_ION_TOKEN: ${{ secrets.CESIUM_ION_TOKEN }}
           GOOGLE_MAP_TILES_KEY: ${{ secrets.GOOGLE_MAP_TILES_KEY }}
+          # Optional: Alco's inbox for "Send to Alco Products" (a repository variable; the address ships in config.js).
+          LEAD_EMAIL: ${{ vars.LEAD_EMAIL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist-pages

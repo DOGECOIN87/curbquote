@@ -9,17 +9,19 @@ const noise = (() => { let seed = 7; return () => ((seed = (seed * 16807) % 2147
 const grid = surface => Array.from({ length: N * N }, (_, k) => surface((k % N - MIDDLE) * STEP, (Math.floor(k / N) - MIDDLE) * STEP));
 const span = (corners, axis) => Math.max(...corners.map(p => p[axis])) - Math.min(...corners.map(p => p[axis]));
 // Ground at 30 m with gentle noise; a 15 × 9 m gabled house north of the point (ridge east–west, 8.5 m
-// at the top); a rough tree canopy south-west; a smaller flat-roofed garage south-east.
+// at the top) with a smooth tree crown against its east wall; a lumpy canopy south-west; a smaller
+// flat-roofed garage south-east.
 const lot = (x, y) => {
   const ground = 30 + noise() * .08;
   if (x > -7.5 && x < 7.5 && y > 6.5 && y < 15.5) return 30 + 8.5 - .6 * Math.abs(y - 11);
-  // Canopies in photogrammetry are lumpy at about a metre: smooth bumps plus noise.
+  // Canopies in photogrammetry are domes with metre-scale lumps; one tree leans against the house's east wall.
   if (Math.hypot(x + 14, y + 12) < 6) return 30 + 7 + 1.2 * Math.sin(x * 1.7) * Math.cos(y * 1.9) + noise() * .6;
+  if (Math.hypot(x - 10.5, y - 11) < 4) return 30 + 5 + 3 * (1 - (Math.hypot(x - 10.5, y - 11) / 4) ** 2) + .4 * Math.sin(x * 1.7) * Math.cos(y * 1.9) + noise() * .1;
   if (x > 12 && x < 19 && y > -15 && y < -8) return 30 + 3.2;
   return ground;
 };
 
-test('the roof nearest the address point is found, its gable kept whole and the tree skipped', () => {
+test('the roof nearest the address point is found, its gable kept whole and the trees skipped', () => {
   const roof = findRoof(grid(lot), N, STEP);
   assert.ok(roof, 'a roof is found');
   assert.ok(Math.abs(span(roof.corners, 0) - 15) <= 2.5, `width ${span(roof.corners, 0)}`);

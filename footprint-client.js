@@ -6,6 +6,7 @@
 import { STATIC_SITE } from './config.js';
 import { hasAerialCoverage } from './property-view.js';
 import { DEFAULT_HOME_STYLE, resolveHomeStyle, suggestStyleFromFootprint } from './home-styles.js';
+import { nearbyBuildings } from './osm-tiles.js';
 
 export const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
 const EARTH_RADIUS_M = 6378137;
@@ -186,21 +187,48 @@ export function parseGeoJsonFootprint(feature, styleId = DEFAULT_HOME_STYLE) {
   return result;
 }
 
+const OPEN_WARNINGS = Object.freeze([
+  'Derived from public OpenStreetMap building outlines — approximate, not your surveyed footprint.',
+  'Porch, dormer and shutter previews are visual only and are not priced.'
+]);
+/** The same OpenStreetMap outlines, read from OpenFreeMap's map tiles; null when none is near. */
+export async function fromMapTiles(coordinates, styleId, signal, fetchImpl) {
+  const parsed = parseOverpassFootprint(await nearbyBuildings(coordinates, { signal, fetchImpl }), coordinates, styleId);
+  return parsed && {
+    ...parsed,
+    source: { provider: 'OpenStreetMap via OpenFreeMap (ODbL)', license: 'ODbL-1.0', retrievedAt: new Date().toISOString(), approximate: true },
+    warnings: [...OPEN_WARNINGS]
+  };
+}
+
 /**
  * Fetches building dimensions on demand with zero caching, `credentials: 'omit'` and
  * `referrerPolicy: 'strict-origin'`. Uses relative `api/footprint` when hosted, with a direct
- * Overpass open-data fallback on static GitHub Pages builds.
+ * Overpass open-data lookup on static GitHub Pages builds. Overpass is often busy or throttled, so
+ * when either answer fails the same OpenStreetMap outlines are read from OpenFreeMap's map tiles.
  */
-export async function fetchPublicFootprint({ address, coordinates, styleId = DEFAULT_HOME_STYLE, consented = false, openOnly = false, signal } = {}) {
+export async function fetchPublicFootprint(options = {}) {
+  // Hosted, the server already falls back to the map tiles; the static site has no server.
+  if (!STATIC_SITE) return lookupFootprint(options);
+  const { coordinates, styleId = DEFAULT_HOME_STYLE, signal, fetchImpl = fetch } = options;
+  try { return await lookupFootprint(options); }
+  catch (error) {
+    if (signal?.aborted || error?.consent) throw error;
+    const fallback = await fromMapTiles(coordinates, styleId, signal, fetchImpl).catch(() => null);
+    if (fallback) return fallback;
+    throw error;
+  }
+}
+async function lookupFootprint({ address, coordinates, styleId = DEFAULT_HOME_STYLE, consented = false, openOnly = false, signal, fetchImpl = fetch } = {}) {
   // `openOnly` is the automatic lookup after an address match: open data, coordinate only, no confirmation.
   if (!consented && !openOnly) {
-    throw new Error('Confirm that you want to look up public or authorized building dimensions for this address first.');
+    throw Object.assign(new Error('Confirm that you want to look up public or authorized building dimensions for this address first.'), { consent: true });
   }
   if (!hasAerialCoverage(coordinates)) {
-    throw new Error('Public footprint lookup covers the contiguous U.S. Enter measurements manually below.');
+    throw Object.assign(new Error('Public footprint lookup covers the contiguous U.S. Enter measurements manually below.'), { consent: true });
   }
   if (!STATIC_SITE) {
-    const response = await fetch('api/footprint', {
+    const response = await fetchImpl('api/footprint', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(openOnly ? { coordinates, styleId, consented: false, openOnly: true } : { address: address || undefined, coordinates, styleId, consented: true }),
@@ -216,7 +244,7 @@ export async function fetchPublicFootprint({ address, coordinates, styleId = DEF
     return payload;
   }
   const body = `data=${encodeURIComponent(buildOverpassQuery(coordinates))}`;
-  const response = await fetch(OVERPASS_ENDPOINT, {
+  const response = await fetchImpl(OVERPASS_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', Accept: 'application/json' },
     body,

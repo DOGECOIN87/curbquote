@@ -61,55 +61,73 @@ export function measureOutline(ring) {
 /**
  * Finds the roof nearest the middle of a square grid of surface heights (metres; NaN where unknown),
  * `n` samples a side and `step` metres apart, or the roof under `pick` ([column, row]) when given.
- * Roofs stand above the ground and are locally flat planes; tree canopies stand as high but are rough,
- * so they are skipped. Returns the roof's corner points in metres from the middle (x east, y north),
- * the ground height and the roof's top, or null when no roof-like surface is near enough.
+ * A roof is built from faces: patches where neighbouring samples lie on one tilted plane, keeping the
+ * same slope from sample to sample. Tree canopies stand as high but change slope every metre or so,
+ * so they break into scraps and are left out. Faces close together (the two sides of a gable, the
+ * four of a hip) make one roof. Returns the roof's corner points in metres from the middle (x east,
+ * y north), the ground height and the roof's top, or null when no roof is near enough.
  */
 export function findRoof(heights, n, step, { pick = null, minArea = 30, maxArea = 1500 } = {}) {
   const at = (i, j) => i < 0 || j < 0 || i >= n || j >= n ? NaN : heights[j * n + i];
   const known = heights.filter(Number.isFinite).sort((a, b) => a - b);
   if (known.length < n * n / 2) return null;
   const ground = known[Math.floor(known.length * .15)], raised = (i, j) => at(i, j) > ground + 2.4;
-  // A plane fitted to the 3 × 3 neighbourhood: a roof fits it to a few centimetres, a canopy does not.
-  const flat = (i, j) => {
-    const zs = [];
-    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const z = at(i + di, j + dj); if (!Number.isFinite(z)) return false; zs.push([di, dj, z]); }
-    const a = zs.reduce((s, [, , z]) => s + z, 0) / 9, b = zs.reduce((s, [x, , z]) => s + x * z, 0) / 6, c = zs.reduce((s, [, y, z]) => s + y * z, 0) / 6;
-    return Math.sqrt(zs.reduce((s, [x, y, z]) => s + (z - a - b * x - c * y) ** 2, 0) / 9) < .25;
-  };
-  const core = new Uint8Array(n * n);
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (raised(i, j) && flat(i, j)) core[j * n + i] = 1;
-  // Grow each flat patch by one sample, so ridges join their two slopes and the edge by the walls counts.
-  const grown = new Uint8Array(n * n);
+  // Each raised sample's plane from its 3 × 3 neighbourhood: slopes per sample along x and y, kept only
+  // when the plane fits to a few centimetres.
+  const planes = new Array(n * n).fill(null);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     if (!raised(i, j)) continue;
-    for (let dj = -1; dj <= 1 && !grown[j * n + i]; dj++) for (let di = -1; di <= 1; di++) {
-      const ni = i + di, nj = j + dj;
-      if (ni >= 0 && nj >= 0 && ni < n && nj < n && core[nj * n + ni]) { grown[j * n + i] = 1; break; }
-    }
+    const zs = [];
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) zs.push([di, dj, at(i + di, j + dj)]);
+    if (!zs.every(([, , z]) => Number.isFinite(z))) continue;
+    const a = zs.reduce((s, [, , z]) => s + z, 0) / 9, b = zs.reduce((s, [x, , z]) => s + x * z, 0) / 6, c = zs.reduce((s, [, y, z]) => s + y * z, 0) / 6;
+    if (Math.sqrt(zs.reduce((s, [x, y, z]) => s + (z - a - b * x - c * y) ** 2, 0) / 9) < .15) planes[j * n + i] = { b, c };
   }
-  const seen = new Uint8Array(n * n), parts = [];
+  // Faces: neighbours on the same plane (the same slopes, and each predicting the other's height).
+  const face = new Int32Array(n * n).fill(-1), faces = [];
   for (let start = 0; start < n * n; start++) {
-    if (!grown[start] || seen[start]) continue;
-    const cells = [], queue = [start]; seen[start] = 1;
+    if (!planes[start] || face[start] >= 0) continue;
+    const id = faces.length, cells = [], queue = [start]; face[start] = id;
     while (queue.length) {
-      const k = queue.pop(), i = k % n, j = (k - i) / n; cells.push([i, j]);
+      const k = queue.pop(), i = k % n, j = (k - i) / n, p = planes[k]; cells.push([i, j]);
       for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const ni = i + di, nj = j + dj, nk = nj * n + ni;
-        if (ni >= 0 && nj >= 0 && ni < n && nj < n && grown[nk] && !seen[nk]) { seen[nk] = 1; queue.push(nk); }
+        const ni = i + di, nj = j + dj, nk = nj * n + ni, q = ni >= 0 && nj >= 0 && ni < n && nj < n ? planes[nk] : null;
+        if (q && face[nk] < 0 && Math.abs(p.b - q.b) < .1 && Math.abs(p.c - q.c) < .1 && Math.abs(at(ni, nj) - at(i, j) - p.b * di - p.c * dj) < .15) { face[nk] = id; queue.push(nk); }
       }
     }
-    // Edges and ridges are never flat, so a whole roof is about half flat; a canopy's flat specks are far fewer.
-    const area = cells.length * step * step, flatCells = cells.filter(([i, j]) => core[j * n + i]).length;
-    if (area >= minArea && area <= maxArea && flatCells / cells.length >= .35 && flatCells * step * step >= 12) parts.push(cells);
+    faces.push(cells);
+  }
+  const kept = faces.map(cells => cells.length * step * step >= 7.5);
+  // Roofs: kept faces within two samples of each other.
+  const parent = faces.map((_, id) => id), root = id => parent[id] === id ? id : (parent[id] = root(parent[id]));
+  for (let id = 0; id < faces.length; id++) if (kept[id]) for (const [i, j] of faces[id]) {
+    for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+      const ni = i + di, nj = j + dj, other = ni >= 0 && nj >= 0 && ni < n && nj < n ? face[nj * n + ni] : -1;
+      if (other >= 0 && kept[other] && root(other) !== root(id)) parent[root(other)] = root(id);
+    }
+  }
+  const roofs = new Map();
+  faces.forEach((cells, id) => { if (kept[id]) roofs.set(root(id), [...(roofs.get(root(id)) || []), ...cells]); });
+  const parts = [];
+  for (const cells of roofs.values()) {
+    // The roof's edge by the walls and its ridges are never planar: add the raised samples touching it.
+    const member = new Set(cells.map(([i, j]) => j * n + i)), outline = [...cells];
+    for (const [i, j] of cells) for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const ni = i + di, nj = j + dj, k = nj * n + ni;
+      if (ni >= 0 && nj >= 0 && ni < n && nj < n && !member.has(k) && raised(ni, nj)) { member.add(k); outline.push([ni, nj]); }
+    }
+    // The top: the ridge counts (a sample straddling it is never planar), a taller tree beside it does not.
+    const faceTop = Math.max(...cells.map(([i, j]) => at(i, j)));
+    const area = outline.length * step * step, top = Math.max(...outline.map(([i, j]) => at(i, j)).filter(z => z <= faceTop + 1));
+    if (area >= minArea && area <= maxArea && top - ground <= 25) parts.push({ cells, outline, top });
   }
   const middle = (n - 1) / 2, [pi, pj] = pick || [middle, middle];
   const reach = cells => Math.min(...cells.map(([i, j]) => Math.hypot(i - pi, j - pj)));
-  const best = parts.map(cells => ({ cells, gap: reach(cells) })).filter(part => part.gap <= (pick ? 3 : middle)).sort((a, b) => a.gap - b.gap)[0];
+  const best = parts.map(part => ({ ...part, gap: reach(part.outline) })).filter(part => part.gap <= (pick ? 3 : middle)).sort((a, b) => a.gap - b.gap)[0];
   if (!best) return null;
-  const tops = best.cells.map(([i, j]) => at(i, j)).sort((a, b) => a - b), half = step / 2;
-  const corners = hull(best.cells.flatMap(([i, j]) => [[-half, -half], [half, -half], [half, half], [-half, half]].map(([dx, dy]) => [(i - middle) * step + dx, (j - middle) * step + dy])));
-  return { corners, ground, peak: tops[Math.floor((tops.length - 1) * .95)] };
+  const half = step / 2;
+  const corners = hull(best.outline.flatMap(([i, j]) => [[-half, -half], [half, -half], [half, half], [-half, half]].map(([dx, dy]) => [(i - middle) * step + dx, (j - middle) * step + dy])));
+  return { corners, ground, peak: best.top };
 }
 
 /** An illustrative rectangle of the given size, centred on a point and squared to north. */

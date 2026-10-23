@@ -56,6 +56,7 @@ A shareable demo at `https://dogecoin87.github.io/curbquote/`, built by
 | Part | On GitHub Pages |
 |---|---|
 | Address lookup | Works. The page asks Census directly (JSONP). |
+| Home size from public data | Works. The page asks OpenStreetMap's Overpass for the building outline, and reads the same outlines from OpenFreeMap's map tiles when Overpass is busy. |
 | 3D view | Works with `CESIUM_ION_TOKEN` (or `GOOGLE_MAP_TILES_KEY`), which is baked into the public `config.js` at build time. |
 | Estimator, plans, saving, photo colours, contractor brief | Works, entirely in the browser. |
 | AI assistant | Not available, because Pages has no server. The automatic planner still works. |

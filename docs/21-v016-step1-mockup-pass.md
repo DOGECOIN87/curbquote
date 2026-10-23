@@ -60,3 +60,16 @@ called straight from the browser so the Pages demo works too (`google-maps.js`):
 
 Every feature switches itself off without its key or coverage, and none of them changes the estimate
 on its own.
+
+## Less on screen, especially on phones
+
+- One name for the price everywhere: "Your estimate" (Step 1 says "Estimate for a typical home" until
+  the size comes from the home). "Instant estimate", "Estimate so far", "Preliminary range",
+  "Working estimate" and "Preliminary project range" are gone, and the "not a contractor quote" and
+  "concept model" notices appear once instead of on several panels.
+- While "Is this your home?" asks, it replaces the measuring card instead of repeating it, and the
+  question is shorter. The camera re-aims whenever that card appears or goes.
+- Phones, once a home is found: a one-row header (logo, step numbers, Saved), the question at the top,
+  the house in the open middle, and two round buttons: **3D** and **More views** (Aerial photo,
+  Explore map, Use my photo, Flyover). Pinch zooms and two fingers turn the view; the map's credits
+  stay visible. Short windows (browser bars showing) tighten the panels further.

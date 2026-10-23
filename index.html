@@ -48,7 +48,7 @@
           </div>
           <section id="instant-estimate" class="instant-estimate" aria-labelledby="instant-label">
             <div class="instant-figure">
-              <h2 id="instant-label">Instant estimate for a typical home</h2>
+              <h2 id="instant-label">Estimate for a typical home</h2>
               <p class="instant-range"><strong data-live-range>—</strong></p>
               <p id="instant-basis" class="instant-basis" aria-live="polite">Example 48 × 34 ft, 2-story colonial · siding, windows and doors · Standard tier. Enter your address to size it to your home.</p>
             </div>
@@ -104,7 +104,7 @@
             <video id="flyover" class="flyover" muted loop playsinline preload="none" hidden></video>
           </div>
           <div id="proposal-stage" class="proposal-stage" data-turntable="true"></div>
-          <div class="view-foot">
+          <div id="view-foot" class="view-foot">
             <div class="aerial-actions"><button type="button" id="aerial-3d-toggle" hidden>View in 3D</button><button type="button" id="flyover-toggle" aria-pressed="false" hidden>Flyover</button><button type="button" id="aerial-map-toggle" aria-pressed="false" hidden>Explore map</button><button type="button" id="aerial-retry" hidden>Retry imagery ↻</button><button type="button" id="aerial-photo">Use my photo ↗</button></div>
             <div class="aerial-meta"><span id="aerial-width">Aerial preview</span><a href="https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer" target="_blank" rel="noopener noreferrer">Imagery: USGS / USDA ↗</a><a id="exterior-credit" href="assets/exteriors/neill-cochran/manifest.json" target="_blank" rel="noopener noreferrer" hidden>Data: USGS / City of Austin ↗</a><span>Image age and coverage vary.</span></div>
             <div id="map-attribution" class="map-attribution" hidden><a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a><a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></div>
@@ -116,6 +116,7 @@
                 <div class="aerial-tool-group"><button type="button" id="aerial-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-zoom-out" aria-label="Zoom out">−</button><button type="button" id="aerial-recenter">Recenter</button></div>
                 <div class="aerial-tool-group"><button type="button" data-pan="-.3,0" aria-label="Move view west">←</button><button type="button" data-pan="0,-.3" aria-label="Move view north">↑</button><button type="button" data-pan="0,.3" aria-label="Move view south">↓</button><button type="button" data-pan=".3,0" aria-label="Move view east">→</button></div>
               </div>
+            <button type="button" id="view-more" class="view-more" aria-expanded="false" aria-controls="view-foot" aria-label="More views" title="More views"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
             <div id="aerial-3d-controls" class="view-stack" role="group" aria-label="3D view controls" hidden><button type="button" id="aerial-3d-recenter" class="map-north" aria-label="Face north" title="Face north"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l4 9h-8z" fill="currentColor" stroke="none"/><path d="M12 21l-4-9h8z" opacity=".35" fill="currentColor" stroke="none"/></svg></button><button type="button" id="aerial-3d-rotate" aria-label="Rotate the 3D view a quarter turn" title="Rotate">⟳</button><button type="button" id="aerial-3d-top" aria-pressed="false" aria-label="Top view" title="Top view">Top</button><button type="button" id="aerial-3d-orbit" class="view-3d" aria-pressed="false" aria-label="Circle the home in 3D" title="Circle the home in 3D">3D</button><button type="button" id="aerial-3d-zoom-in" aria-label="Zoom in">+</button><button type="button" id="aerial-3d-zoom-out" aria-label="Zoom out">−</button></div>
           </div>
           <p id="aerial-instructions" class="sr-only">Use the arrow buttons or arrow keys to pan the aerial photo. Click or tap the image to center a building. The dot stays at the approximate address location. In a 3D view, drag to orbit and scroll or pinch to zoom. The exterior example also supports arrow keys, plus, minus, and Home when its canvas is focused.</p>
@@ -171,7 +172,7 @@
           <section class="form-section wizard-step" data-step="3" aria-labelledby="measure-heading" hidden>
             <div class="section-head"><h2 id="measure-heading">Tell us about your home</h2><p>We size it from public data where we can. Rough numbers are fine; adjust anything that looks off.</p></div>
             <div class="live-estimate" data-live-estimate>
-              <p><span>Estimate so far</span><strong data-live-range>—</strong></p>
+              <p><span>Your estimate</span><strong data-live-range>—</strong></p>
               <button type="button" class="outline-button" data-open-studio>Preview in 3D <span aria-hidden="true">↗</span></button>
             </div>
             <div class="size-block">
@@ -241,9 +242,9 @@
             <div class="wizard-nav"><button type="button" class="outline-button" data-back>Back</button><button type="button" class="primary-button" data-next>Next: your choices <span aria-hidden="true">→</span></button></div>
           </section>
           <section class="form-section pricing-section wizard-step" data-step="4" aria-labelledby="pricing-heading" hidden>
-            <div class="section-head"><h2 id="pricing-heading">Make your choices</h2><p>Pick materials, quality and color. Prices are examples, not a contractor quote.</p></div>
+            <div class="section-head"><h2 id="pricing-heading">Make your choices</h2><p>Pick materials, quality and color.</p></div>
             <div class="live-estimate" data-live-estimate>
-              <p><span>Estimate so far</span><strong data-live-range>—</strong></p>
+              <p><span>Your estimate</span><strong data-live-range>—</strong></p>
               <button type="button" class="outline-button" data-open-studio>Preview in 3D <span aria-hidden="true">↗</span></button>
             </div>
             <div class="field-grid field-grid-3 choice-grid">
@@ -296,7 +297,7 @@
             </div>
             <p class="step3-3d-pair">Each trade you include updates your preliminary range and unlocks its material options in Step 4.</p>
             <div class="dock-estimate-card">
-              <span>Preliminary range</span>
+              <span>Your estimate</span>
               <strong data-live-range>—</strong>
               <small id="dock-scope-summary">Siding, windows &amp; doors included</small>
             </div>
@@ -355,11 +356,11 @@
         <div class="wizard-step estimate-step" data-step="5" hidden>
         <aside class="result-panel" aria-label="Estimate results">
           <p id="result-status" class="sr-only" role="status" aria-live="polite"></p>
-          <div class="result-heading"><h2 class="result-title">Your project snapshot</h2><span class="live-indicator"><span></span> Working estimate</span></div>
+          <div class="result-heading"><h2 class="result-title">Your project snapshot</h2><span class="live-indicator"><span></span> Live</span></div>
           <div id="empty-state" class="empty-state"><div class="empty-symbol" aria-hidden="true">▤</div><h2>Your numbers, in focus.</h2><p>Confirm your home details and calculate to build an itemized range.</p><div class="empty-lines" aria-hidden="true"><span></span><span></span><span></span></div></div>
           <div id="results" hidden>
             <p id="result-address" class="result-address"></p>
-            <div class="total-card"><div id="total-range" class="total-range">—</div><p>Preliminary project range. Illustrative, not a contractor quote.</p></div>
+            <div class="total-card"><div id="total-range" class="total-range">—</div><p>Your estimate. Illustrative, not a contractor quote.</p></div>
             <button type="button" id="jump-to-3d" class="jump-to-3d">See your home in 3D <span aria-hidden="true">↓</span></button>
             <figure class="cost-share-summary estimate-cost-share" aria-labelledby="estimate-share-title">
               <figcaption><strong id="estimate-share-title">A quick look at the mix</strong><span>Segments use each illustrative trade range's midpoint. Full ranges follow below.</span></figcaption>
@@ -400,7 +401,7 @@
           </div>
           <section class="design-studio" aria-labelledby="studio-heading">
             <div class="studio-heading"><div><h2 id="studio-heading">Design studio</h2></div><span id="studio-model-badge" class="studio-badge">Concept model</span></div>
-            <p class="studio-intro">Concept house built from your Step 3 measurements and Step 4 choices — not an image or footprint of your real property on Step 1. Restyle it and compare Before and After.</p>
+            <p class="studio-intro">Built from your Step 3 measurements and Step 4 choices. Restyle it and compare Before and After.</p>
             <div class="studio-tabs studio-tabs-3" role="tablist" aria-label="Design preview">
               <button type="button" id="remodel-tab" role="tab" aria-selected="true" aria-controls="remodel-panel">3D remodel</button>
               <button type="button" id="illustration-tab" role="tab" aria-selected="false" aria-controls="illustration-panel" tabindex="-1">Example home</button>
@@ -489,7 +490,7 @@
                 <label><input type="checkbox" id="add-fence"><span>Front picket fence</span></label>
               </fieldset>
               <p id="remodel-status" class="studio-help" role="status" aria-live="polite">Your siding color, materials and door from step 4 appear here, on a house sized from your step 3 measurements.</p>
-              <p class="studio-help">Additions are shown to help you decide — they are not priced in the estimate yet. This is a concept model, not a measurement of your home.</p>
+              <p class="studio-help">Additions help you decide; they are not priced yet.</p>
             </div>
             <div id="illustration-panel" role="tabpanel" aria-labelledby="illustration-tab" hidden>
               <svg id="concept-house" class="concept-house" viewBox="0 0 500 300" role="img" aria-label="Illustrative home with your selected siding color, window style and door">
@@ -572,6 +573,6 @@
     <p class="field-help lead-privacy">Your details go only to Alco Products. CurbQuote does not keep them. Prefer to talk? <a href="tel:3015931691">(301) 593-1691</a></p>
   </dialog>
   <p id="project-toast" class="project-toast" role="status" hidden></p>
-  <section id="print-report" class="print-report" aria-label="Printable preliminary estimate"><pre id="print-report-content"></pre></section>
+  <section id="print-report" class="print-report" aria-label="Printable estimate"><pre id="print-report-content"></pre></section>
 </body>
 </html>

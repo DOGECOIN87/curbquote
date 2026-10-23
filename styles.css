@@ -270,12 +270,11 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .measure-chip span,.preview-chip span{display:block;font-size:12px;line-height:1.4;color:var(--glass-muted)}
 .measure-chip button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#fff}
 .measure-chip button:hover{background:rgba(255,255,255,.18)}
-/* "Is this your home?": the measured size reaches the estimate only once confirmed. It joins the
-   measuring card above it, so the two read as one panel. */
+/* "Is this your home?": the measured size reaches the estimate only once confirmed. While it asks,
+   it replaces the measuring card, which would only repeat it. */
 .measure-confirm{display:grid;gap:8px;max-width:100%;padding:12px 12px 12px 15px}
 .view-top-left>:is(.measure-chip,.measure-confirm){width:100%}
-.measure-chip:has(+.measure-confirm:not([hidden])){border-bottom:0;border-radius:16px 16px 0 0}
-.measure-chip:not([hidden])+.measure-confirm{margin-top:-8px;padding-top:4px;border-top:0;border-radius:0 0 16px 16px}
+.measure-chip:has(+.measure-confirm:not([hidden])){display:none}
 .photo-concept{margin:12px 0 0}
 .photo-concept img{display:block;width:100%;height:auto;border-radius:var(--r)}
 .photo-concept figcaption{margin-top:6px;font-size:12.5px;color:var(--muted)}
@@ -328,6 +327,7 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 /* The 3D camera: compass, quarter turn, top view, the 3D button (circle the home) and zoom, as round
    buttons stacked at the bottom right like a map's. */
 .view-stack:not([hidden]){display:grid;justify-items:end;gap:8px}
+.view-more{display:none}
 .view-stack button{width:44px;font-size:15px}
 .view-stack #aerial-3d-top{font-size:12.5px;font-weight:600}
 .view-stack .view-3d{width:48px;height:48px;font-size:14px;font-weight:700;letter-spacing:.02em}
@@ -854,9 +854,15 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   /* Once a home is found: view options under the search box, the house in the middle, and the
      "Is this your home?" card low on the left beside the 3D stack, just above the price. */
   .hero[data-dock=top] .view-foot{align-self:start}
-  .hero[data-dock=top] .view-top-left{align-self:end;width:calc(100% - 64px)}
+  .hero[data-dock=top] .view-top-left{align-self:start;width:calc(100% - 64px)}
+  /* The view options fold behind the "More views" button; while open they cover the card for a moment. */
+  .hero[data-dock=top] .view-more{display:grid}
+  .hero[data-dock=top] .view-foot:not([data-open]) .aerial-actions{display:none}
+  .hero[data-dock=top] .view-foot[data-open]{z-index:4}
   .hero[data-dock=top] .measure-chip span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  .view-stack #aerial-3d-rotate,.view-stack #aerial-3d-top{display:none}
+  /* Phones keep two round buttons, 3D and More views: pinch zooms and two fingers turn the view. */
+  .view-stack #aerial-3d-rotate,.view-stack #aerial-3d-top,.view-stack #aerial-3d-recenter,.view-stack #aerial-3d-zoom-in,.view-stack #aerial-3d-zoom-out,.hero[data-dock=top] .map-zoom{display:none!important}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) #fullscreen-toggle{display:none}
   .hero[data-dock=top] .instant-estimate{padding:8px 8px 8px 16px}
   .hero[data-dock=top] .instant-range strong{font-size:18px}
   .hero[data-dock=top] .instant-actions .primary-button{padding:0 12px;font-size:13.5px}
@@ -927,6 +933,28 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   .assistant-panel{padding:20px 16px}
   .chip-picker{grid-template-columns:repeat(3,minmax(0,1fr))}
   .studio-actions{grid-template-columns:minmax(0,1fr)}
+}
+/* Once a home is found on a phone, the header is one row: logo, step numbers, Saved. */
+@media(min-width:380px) and (max-width:720px){
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]){--map-top:68px}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .brand-logo{height:26px}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) #open-projects{width:44px;padding:0;justify-content:center}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) #project-count{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .site-header{grid-template-columns:auto minmax(0,1fr) auto;column-gap:8px}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .wizard-steps{grid-column:2;grid-row:1;justify-self:center}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .wizard-steps ol{width:auto}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .wizard-steps li{flex:0 0 auto}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .wizard-steps .step-name{display:none}
+  body[data-active-step="1"]:has(.aerial-stage[data-view=matched]) .wizard-steps button{justify-content:center;padding:0 9px}
+}
+/* Short phone windows (browser bars showing): tighter panels so the house keeps an open middle. */
+@media(max-width:720px) and (max-height:720px){
+  :root{--map-top:118px}
+  .hero[data-dock=top] .measure-confirm{gap:6px}
+  .hero[data-dock=top] .measure-confirm p{font-size:12.5px}
+  .hero[data-dock=top] .measure-photo{display:none}
+  .hero[data-dock=top] .instant-figure h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .property-preview{row-gap:6px}
 }
 @media(max-width:440px){
   .instant-actions{grid-template-columns:minmax(0,1fr)}

@@ -379,7 +379,7 @@ function calculate({ scroll = false, focus = false } = {}) {
     errorEl.hidden = true;
     errorEl.textContent = '';
     paintResult(lastResult);
-    byId('result-status').textContent = `Preliminary estimate updated: ${range(lastResult.total)}. Illustrative pricing.`;
+    byId('result-status').textContent = `Estimate updated: ${range(lastResult.total)}.`;
     if (scroll) wizard.show(5, { focus: true });
     return true;
   } catch (error) {

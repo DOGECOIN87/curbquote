@@ -146,7 +146,7 @@ try {
   const found = await labelsOf(surface), [short, long] = found.slice(0, 2).map(label => label.feet).sort((a, b) => a - b);
   near(long, 52, 6, 'house length'); near(short, 33, 6, 'house depth'); near(found[2]?.feet, 28, 2, 'house height');
   // The size reaches the estimate only once the homeowner says it is their home; "Not my home" asks for a tap.
-  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\? It measures about \d+ × \d+ ft, \d+ ft tall\.$/);
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\? About \d+ × \d+ ft, \d+ ft tall\.$/);
   assert.equal(await surface.locator('#lengthFt').inputValue(), '48', 'nothing changes before confirming');
   await surface.locator('#measure-no').click();
   assert.match(await surface.locator('#measure-confirm-text').textContent(), /Tap your home’s roof/);

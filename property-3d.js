@@ -38,7 +38,7 @@ export function setupProperty3D(options) {
     },
     close() { serial++; google.close(); exterior.close(); },
     setTop: value => current.setTop(value), rotate: () => current.rotate(), recenter: () => current.recenter(), orbit: () => current.orbit(),
-    zoomBy: step => current.zoomBy?.(step),
+    zoomBy: step => current.zoomBy?.(step), refit: () => current.refit?.(),
     // The reviewed exterior is already a measured model; only Google's view gets the measuring pass.
     measure: (dims, options) => current === google ? google.measure(dims, options) : Promise.resolve(null),
     get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }, get isOrbiting() { return Boolean(current.isOrbiting); }
@@ -281,6 +281,8 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     setTop(value) { cancelOrbit(); top = value; frame(0.8); },
     rotate() { cancelOrbit(); heading = (heading + Math.PI / 2) % (2 * Math.PI); frame(0.8); },
     recenter() { cancelOrbit(); heading = 0; frame(0.8); },
+    /** Re-aims after the panels over the view change size; a circling camera re-aims on its own. */
+    refit() { if (widget && target && !orbiting && !top) { paddingAt = 0; frame(0.6); } },
     /** Moves the camera in (step > 0) or out; a circling camera keeps circling at the new distance. */
     zoomBy(step) {
       if (!widget || !target) return;

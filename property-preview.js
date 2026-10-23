@@ -67,11 +67,13 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   function confirmState(state, text = '') {
     confirmCard.hidden = !state; confirmCard.dataset.state = state;
     if (state !== 'ask') photo.hidden = true;
+    // The card changes the open area above it, so the house is framed again once it has laid out.
+    requestAnimationFrame(() => view3d.refit());
     byId('measure-yes').hidden = byId('measure-no').hidden = state !== 'ask';
     byId('measure-undo').hidden = state !== 'done';
     if (state === 'ask') {
       const [short, long] = [...offered.sides].sort((a, b) => a - b), tall = offered.measuredHeight && offered.heightFt ? `, ${Math.round(offered.heightFt)} ft tall` : '';
-      confirmText.textContent = `Is this your home? It measures about ${long} × ${short} ft${tall}.`;
+      confirmText.textContent = `Is this your home? About ${long} × ${short} ft${tall}.`;
       showFront(offered);
     } else if (state === 'pick') confirmText.textContent = view3d.isOpen ? 'Tap your home’s roof in the 3D view to measure it.' : 'Tap your home on the map to measure it.';
     else if (text) confirmText.textContent = text;
@@ -86,7 +88,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     photoFor = key; photo.hidden = true;
     const location = match, view = await streetView([lat, lon]);
     if (!view || match !== location || photoFor !== key || confirmCard.dataset.state !== 'ask') return;
-    photoImage.onload = () => { photo.hidden = false; }; photoImage.onerror = () => { photo.hidden = true; };
+    photoImage.onload = () => { photo.hidden = false; requestAnimationFrame(() => view3d.refit()); }; photoImage.onerror = () => { photo.hidden = true; };
     photoCredit.textContent = `Street View${view.date ? `, ${view.date}` : ''} · Google`;
     photoImage.src = view.url;
   }
@@ -116,6 +118,11 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     flyover.src = url; flyover.hidden = false; flyoverToggle.setAttribute('aria-pressed', 'true'); flyoverToggle.textContent = 'Close flyover';
     status.textContent = 'Flyover video from Google Maps. Display only; it is not measured.';
   }
+  // On phones the view options fold behind one button in the 3D stack; picking one folds them again.
+  const viewMore = byId('view-more'), viewFoot = byId('view-foot');
+  const foldViews = open => { viewFoot.toggleAttribute('data-open', open); viewMore.setAttribute('aria-expanded', String(open)); };
+  viewMore.addEventListener('click', () => foldViews(!viewFoot.hasAttribute('data-open')));
+  viewFoot.querySelector('.aerial-actions').addEventListener('click', event => { if (event.target.closest('button')) foldViews(false); });
   flyoverToggle.addEventListener('click', () => { if (!flyover.hidden) closeFlyover(); else if (flyoverId) openFlyover(); });
   async function findFlyover(location) {
     const found = await flyoverAvailable(location.matchedAddress);

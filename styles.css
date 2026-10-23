@@ -227,7 +227,11 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .instant-actions .primary-button:hover:not(:disabled){background:#e9f5df}
 .instant-actions .outline-button{min-height:44px;padding:0 14px;background:transparent;border-color:var(--glass-line);color:#fff}
 .instant-actions .outline-button:hover:not(:disabled){background:rgba(255,255,255,.1)}
-.hero[data-dock=top] .instant-estimate{max-width:600px;padding:12px 12px 12px 20px;border-radius:20px}
+.hero[data-dock=top] .instant-estimate{max-width:640px;padding:8px 8px 8px 20px;border-radius:20px}
+.hero[data-dock=top] .instant-figure{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px}
+.hero[data-dock=top] .instant-range{order:-1;margin:0}
+.hero[data-dock=top] .instant-range strong{font-size:22px;white-space:nowrap}
+.hero[data-dock=top] .instant-basis{flex:1 0 100%}
 
 /* "What would you like to change?" */
 .change-entry{display:flex;align-items:center;gap:6px;min-height:60px;padding:7px;border-radius:999px}
@@ -254,8 +258,12 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .measure-chip span,.preview-chip span{display:block;font-size:12px;line-height:1.4;color:var(--glass-muted)}
 .measure-chip button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.08);color:#fff}
 .measure-chip button:hover{background:rgba(255,255,255,.18)}
-/* "Is this your home?": the measured size reaches the estimate only once confirmed. */
+/* "Is this your home?": the measured size reaches the estimate only once confirmed. It joins the
+   measuring card above it, so the two read as one panel. */
 .measure-confirm{display:grid;gap:8px;max-width:100%;padding:12px 12px 12px 15px}
+.view-top-left>:is(.measure-chip,.measure-confirm){width:100%}
+.measure-chip:has(+.measure-confirm:not([hidden])){border-bottom:0;border-radius:16px 16px 0 0}
+.measure-chip:not([hidden])+.measure-confirm{margin-top:-8px;padding-top:4px;border-top:0;border-radius:0 0 16px 16px}
 .measure-confirm p{margin:0;font-size:13px;line-height:1.45;color:var(--glass-text)}
 .measure-confirm-actions{display:flex;flex-wrap:wrap;gap:6px}
 .measure-confirm-actions button{min-height:44px;padding:0 15px;border:1px solid var(--glass-line);border-radius:999px;background:transparent;color:#fff;font-size:13px;font-weight:500;white-space:nowrap}
@@ -275,20 +283,21 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .housenumber-pill:hover{background:rgba(255,255,255,.18)}
 .view-top-right>*{padding:4px;border-radius:999px}
 .view-top-right>*,.aerial-tool-group,.map-mode-picker{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px}
-#aerial-3d-controls,#aerial-3d-controls .aerial-tool-group{flex-wrap:nowrap}
-.map-mode-controls button,.aerial-3d-controls button,#aerial-3d-controls button{min-width:44px;min-height:44px;height:44px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--glass-muted);font-size:13px;font-weight:500;white-space:nowrap}
-.map-mode-controls button:hover,#aerial-3d-controls button:hover{color:#fff;background:rgba(255,255,255,.1)}
-.map-mode-controls button[aria-pressed=true],#aerial-3d-controls button[aria-pressed=true]{background:#fff;color:var(--ink)}
+.map-mode-controls button{min-width:44px;min-height:44px;height:44px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--glass-muted);font-size:13px;font-weight:500;white-space:nowrap}
+.map-mode-controls button:hover{color:#fff;background:rgba(255,255,255,.1)}
+.map-mode-controls button[aria-pressed=true]{background:#fff;color:var(--ink)}
 
 /* Bottom left: actions and credits. Bottom right: compass, zoom and the 3D switch. */
-.aerial-actions{display:flex;flex-wrap:nowrap;gap:0;padding:0;border-radius:999px;overflow:hidden}
+.aerial-actions{display:flex;flex-wrap:nowrap;gap:0;max-width:100%;padding:0;border-radius:999px;overflow:hidden;overflow-x:auto;scrollbar-width:none}
 .aerial-actions:not(:has(>button:not([hidden]))){display:none}
 .aerial-actions button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;font-size:13px;font-weight:500;white-space:nowrap}
 .aerial-actions button:hover{background:rgba(255,255,255,.1)}
 .view-tools button:hover{background:var(--glass-strong)}
 .aerial-meta,.map-attribution{display:flex;flex-wrap:wrap;gap:2px 10px;padding:0 4px;font-size:11px;line-height:1.5;color:rgba(255,255,255,.88);text-shadow:0 1px 2px rgba(0,0,0,.8),0 0 10px rgba(0,0,0,.45)}
 .aerial-meta a,.map-attribution a{color:#fff;text-decoration:underline;text-decoration-color:rgba(255,255,255,.4);text-underline-offset:3px;white-space:nowrap}
-/* Cesium shows Google's own credits in the 3D view. */
+/* Cesium shows Google's own credits in the 3D view, kept small and readable over the imagery. */
+.aerial-3d .cesium-widget-credits{padding:0 8px 3px;font-size:10px;line-height:1.35;color:rgba(255,255,255,.9);text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.aerial-3d .cesium-credit-logoContainer img{height:14px;width:auto}
 .property-preview:has(>.aerial-stage[data-mode=google]) .aerial-meta{display:none}
 .property-preview:has(>.aerial-stage[data-view=empty]) .aerial-meta{display:none}
 .view-tools button{display:grid;place-items:center;min-width:44px;min-height:44px;height:44px;padding:0;border-radius:50%;font-size:18px;font-weight:500}
@@ -297,7 +306,15 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 #aerial-controls .aerial-tool-group{display:grid;grid-template-columns:repeat(2,44px);gap:2px;justify-content:center}
 #aerial-controls #aerial-recenter{grid-column:1/-1;width:auto;padding:0 10px;border-radius:999px;font-size:12.5px}
 .map-north svg{transform:rotate(var(--bearing,0deg));transition:transform .1s linear;color:#ff6b5b}
-#aerial-3d-toggle{width:auto;padding:0 16px;border-radius:999px;font-size:13.5px;font-weight:600}
+/* The 3D camera: compass, quarter turn, top view, the 3D button (circle the home) and zoom, as round
+   buttons stacked at the bottom right like a map's. */
+.view-stack:not([hidden]){display:grid;justify-items:end;gap:8px}
+.view-stack button{width:44px;font-size:15px}
+.view-stack #aerial-3d-top{font-size:12.5px;font-weight:600}
+.view-stack .view-3d{width:48px;height:48px;font-size:14px;font-weight:700;letter-spacing:.02em}
+.view-stack button[aria-pressed=true]{background:#fff;color:var(--ink);border-color:#fff}
+.view-stack button[aria-pressed=true]:hover{background:#e9f5df}
+.view-stack #aerial-3d-zoom-in{margin-top:4px}
 
 /* The proposal: the concept house fills the map, an Original / Proposed switch sits at the top and
    the bar refines the design. Everything else about the map steps aside. */
@@ -328,6 +345,8 @@ body:has(.hero[data-mode=proposal]) main>.draft-bar{top:calc(max(560px,100svh) -
 .aerial-images img:active{cursor:grabbing}
 .aerial-marker{pointer-events:none}
 .aerial-3d{position:absolute;inset:0;z-index:2;background:#0f1913;touch-action:none}
+/* While the 3D tiles load, say so instead of showing an empty frame. */
+.aerial-3d[data-loading]::after{content:'Loading the 3D view…';position:absolute;top:50%;left:50%;z-index:3;padding:10px 18px;border:1px solid var(--glass-line);border-radius:999px;background:var(--glass);color:var(--glass-text);font-size:14px;font-weight:500;white-space:nowrap;transform:translate(-50%,-50%);animation:aerial-pulse 1.5s ease-in-out infinite;pointer-events:none}
 .aerial-placeholder{display:flex;flex-direction:column;justify-content:center;align-items:center;width:100%;height:100%;padding:24px;text-align:center;color:#fff;background:radial-gradient(ellipse at center,rgba(137,198,63,.16) 0,transparent 62%),linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:100% 100%,36px 36px,36px 36px}
 .aerial-place-icon{margin-bottom:14px;color:var(--lime)}
 .aerial-placeholder strong{font-size:18px;font-weight:500;color:#fff}
@@ -812,6 +831,17 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   .view-top-left{grid-row:3;width:auto;max-width:calc(100% - 64px)}
   .view-foot{grid-column:2/4;grid-row:3}
   .view-tools{grid-row:3}
+  /* Once a home is found: view options under the search box, the house in the middle, and the
+     "Is this your home?" card low on the left beside the 3D stack, just above the price. */
+  .hero[data-dock=top] .view-foot{align-self:start}
+  .hero[data-dock=top] .view-top-left{align-self:end;width:calc(100% - 64px)}
+  .hero[data-dock=top] .measure-chip span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .view-stack #aerial-3d-rotate,.view-stack #aerial-3d-top{display:none}
+  .hero[data-dock=top] .instant-estimate{padding:8px 8px 8px 16px}
+  .hero[data-dock=top] .instant-range strong{font-size:18px}
+  .hero[data-dock=top] .instant-actions .primary-button{padding:0 12px;font-size:13.5px}
+  /* Google's credits need their own strip under the bar on a phone. */
+  .property-preview:has(>.aerial-stage[data-mode=google]){grid-template-rows:var(--map-top) auto minmax(0,1fr) auto auto 36px}
   .aerial-actions button{min-height:44px;padding:0 12px;font-size:13px}
   .map-attribution{font-size:10.5px;padding:4px 10px}
   .hero[data-mode=proposal] :is(.view-dock,.proposal-ready){display:none}
@@ -886,6 +916,7 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   .assistant-controls{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:360px){
+  .aerial-actions button{padding:0 10px;font-size:12.5px}
   .field-grid-2,.field-grid-3{grid-template-columns:minmax(0,1fr)}
   .result-heading{display:block}
   .wizard-steps button:not([aria-current=step]){padding:0 5px}

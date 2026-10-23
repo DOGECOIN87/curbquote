@@ -594,11 +594,12 @@ function paintInstant(busy = '') {
   const scopes = [['siding', 'siding'], ['windows', 'windows'], ['doors', 'doors']].filter(([key]) => p[key]).map(([, label]) => label);
   const scope = scopes.length > 1 ? `${scopes.slice(0, -1).join(', ')} and ${scopes.at(-1)}` : scopes[0] || 'no trades selected';
   const size = `${byId('lengthFt').value} × ${byId('widthFt').value} ft, ${byId('stories').value}-story ${style.name.toLowerCase()}`;
-  byId('instant-label').textContent = matched ? 'Instant estimate for this address' : 'Instant estimate for a typical home';
+  // "This address" only once the size comes from the home itself; until then it is a typical home.
+  byId('instant-label').textContent = footprintData ? 'Estimate for this address' : 'Estimate for a typical home';
   byId('instant-basis').textContent = busy || (footprintData
     ? `${size}, sized from ${footprintData.source?.provider || 'a public building outline'} · ${scope} · ${TIERS[p.tier].name} tier.`
     : matched
-    ? `Example ${size} · ${scope} · ${TIERS[p.tier].name} tier. Adjust the size in Customize for a closer range.`
+    ? `${size} until you confirm your home’s size · ${scope}.`
     : `Example ${size} · ${scope} · ${TIERS[p.tier].name} tier. Enter your address to size it to your home.`);
 }
 

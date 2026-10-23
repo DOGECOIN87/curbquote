@@ -19,6 +19,10 @@ const TILE_FAILURES = 6;
 const ORBIT_SPEED = 7;
 // CesiumJS defaults to a 1.5 GB in-memory tile cache for Google tiles, too much for phones.
 const CACHE_BYTES = 256 * 1024 * 1024;
+// The camera looks down at 42°, from far enough that the street and the neighbours frame the house.
+const PITCH = -42, RANGE_MIN = 40, RANGE_MAX = 600;
+// The floating panels over the view; measurement labels move out from under them.
+const PANELS = '.view-dock, .instant-estimate, :is(.change-dock, .view-top-left, .view-top-right, .view-foot, .view-tools) > :not([hidden])';
 
 export function setupProperty3D(options) {
   const google = setupGoogle3D(options), exterior = setupExterior3D(options), localAvailable = webgl2Available();
@@ -33,19 +37,20 @@ export function setupProperty3D(options) {
     },
     close() { serial++; google.close(); exterior.close(); },
     setTop: value => current.setTop(value), rotate: () => current.rotate(), recenter: () => current.recenter(), orbit: () => current.orbit(),
+    zoomBy: step => current.zoomBy?.(step),
     // The reviewed exterior is already a measured model; only Google's view gets the measuring pass.
     measure: (dims, options) => current === google ? google.measure(dims, options) : Promise.resolve(null),
     get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }, get isOrbiting() { return Boolean(current.isOrbiting); }
   };
 }
-function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
+function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getPadding }) {
   const container = document.createElement('div');
   container.className = 'aerial-3d'; container.hidden = true;
   container.setAttribute('aria-label', 'Google 3D view around the approximate address location');
   stage.append(container);
   let key = null, ionToken = null, Cesium = null, widget = null, marker = null, ready = null, serial = 0, open = false;
-  let target = null, place = null, heading = 0, top = false, range = 115;
-  let orbitFrame = 0, orbiting = false, measurer = null;
+  let target = null, place = null, heading = 0, top = false, range = 115, padding = null, paddingAt = 0;
+  let orbitFrame = 0, orbiting = false, measurer = null, tileset = null, loading = 0;
   const layer = document.createElement('div');
   layer.className = 'measure-3d'; layer.hidden = true; layer.setAttribute('aria-hidden', 'true');
   const available = (STATIC_SITE ? Promise.resolve(STATIC_MAP3D) : fetch('api/map3d', { headers: { Accept: 'application/json' }, cache: 'no-store' }).then(response => response.ok ? response.json() : {}))
@@ -65,7 +70,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
   function destroy() {
     cancelOrbit();
     try { widget?.destroy(); } catch { /* already torn down */ }
-    measurer?.clear(); widget = marker = ready = measurer = null; container.replaceChildren();
+    measurer?.clear(); widget = marker = ready = measurer = tileset = null; container.replaceChildren();
   }
   function start() {
     ready ??= (async () => {
@@ -84,7 +89,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
       let tiles;
       try { tiles = await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }); }
       catch (error) { throw refused(error?.statusCode); }
-      const tileset = widget.scene.primitives.add(tiles);
+      tileset = widget.scene.primitives.add(tiles);
       // A key that runs out of quota or is revoked mid-visit fails tile by tile; hand over to the next tier.
       let loadedTiles = 0, failedTiles = 0;
       tileset.tileLoad.addEventListener(() => { loadedTiles++; });
@@ -112,8 +117,8 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
         onPick?.([Cesium.Math.toDegrees(spot.longitude), Cesium.Math.toDegrees(spot.latitude)]);
       });
       // The measuring pass is drawn over the canvas and follows every rendered frame.
-      container.append(layer); measurer = setupScreenMeasure(layer);
-      widget.scene.postRender.addEventListener(() => measurer?.redraw());
+      container.append(layer); measurer = setupScreenMeasure(layer, { obstacles: () => [...stage.parentElement.querySelectorAll(PANELS)].filter(el => el.offsetParent).map(el => el.getBoundingClientRect()) });
+      widget.scene.postRender.addEventListener(() => { measurer?.redraw(); if (target && container.dataset.loading && tileset?.tilesLoaded) loaded(); });
       widget.scene.requestRender();
     })();
     return ready;
@@ -172,7 +177,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
     // Frame the building itself rather than the address point, close enough to fill the view.
     const across = Math.hypot(...shape.sides.map(side => side.feet)) / FEET_PER_METER;
     target = Cartesian3.fromDegrees(cx, cy, ground + (eave - ground) / 2); marker.show = false;
-    range = Math.max(55, Math.min(150, across * 2.4 + (peak - ground) + 20));
+    range = Math.max(70, Math.min(220, across * 3 + (peak - ground) + 30));
     const resume = orbiting; cancelOrbit(); await frame(1.1);
     if (request !== serial || !open) return null;
     layer.hidden = false;
@@ -187,13 +192,27 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
     return scene.sampleHeightMostDetailed([Cesium.Cartographic.fromDegrees(lon, lat)])
       .then(([point]) => Number.isFinite(point?.height) ? point.height : null, () => null);
   }
-  const offset = () => new Cesium.HeadingPitchRange(heading, Cesium.Math.toRadians(top ? -89.5 : -35), top ? range + 10 : range);
+  const offset = () => new Cesium.HeadingPitchRange(heading, Cesium.Math.toRadians(top ? -89.5 : PITCH), top ? range + 10 : range);
+  /**
+   * The point the camera looks at: the building, moved toward the camera so the building sits in the
+   * middle of the open area between the floating panels rather than behind the bottom ones.
+   */
+  function aim() {
+    const now = performance.now();
+    if (getPadding && now - paddingAt > 300) { padding = getPadding(); paddingAt = now; }
+    const height = widget.canvas.clientHeight, shift = padding && height ? (padding.bottom - padding.top) / 2 : 0;
+    if (!shift) return target;
+    const { Cartesian3, Matrix4, Transforms } = Cesium, fovy = widget.scene.camera.frustum.fovy || Math.PI / 3;
+    const distance = top ? range + 10 : range, metres = shift * 2 * distance * Math.tan(fovy / 2) / height;
+    const along = metres / Math.sin(Math.abs(Cesium.Math.toRadians(top ? -89.5 : PITCH)));
+    return Matrix4.multiplyByPoint(Transforms.eastNorthUpToFixedFrame(target), new Cartesian3(-Math.sin(heading) * along, -Math.cos(heading) * along, 0), new Cartesian3());
+  }
   /** Angled or straight-down view of the target; animated unless reduced motion is preferred. Resolves on arrival. */
   function frame(duration = 0) {
     if (!widget || !target) return Promise.resolve();
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
     return new Promise(resolve => {
-      widget.scene.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), { offset: offset(), duration, complete: resolve, cancel: resolve });
+      widget.scene.camera.flyToBoundingSphere(new Cesium.BoundingSphere(aim(), 1), { offset: offset(), duration, complete: resolve, cancel: resolve });
       widget.scene.requestRender();
     });
   }
@@ -207,22 +226,26 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
       frame(0.8);
       return;
     }
-    orbiting = true;
+    // Circling is always the angled view, as with the 3D button on a map.
+    orbiting = true; top = false;
     onOrbitChange?.(true);
     widget.useDefaultRenderLoop = true;
     let last = performance.now();
     const tick = now => {
       if (!orbiting || !open || !widget) { cancelOrbit(); return; }
       heading = (heading + Math.min(.05, (now - last) / 1000) * Cesium.Math.toRadians(ORBIT_SPEED)) % (2 * Math.PI); last = now;
-      try { widget.scene.camera.lookAt(target, offset()); } catch { /* camera not ready */ }
+      try { widget.scene.camera.lookAt(aim(), offset()); } catch { /* camera not ready */ }
       widget.scene.requestRender();
       orbitFrame = requestAnimationFrame(tick);
     };
     orbitFrame = requestAnimationFrame(tick);
   }
+  /** The loading note stays until the tiles around the building have arrived (or 25 s have passed). */
+  function loaded() { clearTimeout(loading); delete container.dataset.loading; }
   /** Resolves 'framed' (on the address point), 'overview' (no surface height) or null if superseded. */
   async function show(location) {
-    const request = ++serial; open = true; container.hidden = false;
+    const request = ++serial; open = true; container.hidden = false; container.dataset.loading = 'true';
+    clearTimeout(loading); loading = setTimeout(loaded, 45000);
     try { await start(); }
     // A failed start leaves nothing half-built, so the next attempt begins again.
     catch (error) { destroy(); if (request === serial) close(); throw error; }
@@ -231,23 +254,23 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
     widget.useDefaultRenderLoop = true; marker.show = false; target = null; heading = 0; top = false; range = 115;
     place = { lon, lat }; measurer?.clear(); layer.hidden = true;
     camera.setView({ destination: Cartesian3.fromDegrees(lon, lat, 1800) });
-    const aim = height => { target = Cartesian3.fromDegrees(lon, lat, height); marker.position = target; marker.show = true; };
+    const point = height => { target = Cartesian3.fromDegrees(lon, lat, height); marker.position = target; marker.show = true; };
     const sampled = surfaceHeight(lon, lat);
     const height = await Promise.race([sampled, new Promise(resolve => setTimeout(resolve, HEIGHT_TIMEOUT, null))]);
     if (request !== serial) return null;
-    if (height !== null) { aim(height); frame(); }
+    if (height !== null) { point(height); frame(); clearTimeout(loading); loading = setTimeout(loaded, 25000); }
     // Slow connections can take longer than the deadline to load the detailed tiles: keep the overview,
     // then fly in and hand back to the page once the height arrives.
     else sampled.then(late => {
       if (late === null || request !== serial || !open || target) return;
-      aim(late); frame(1.2); onFramed?.();
+      point(late); frame(1.2); clearTimeout(loading); loading = setTimeout(loaded, 25000); onFramed?.();
     });
     widget.scene.requestRender();
     return height === null ? 'overview' : 'framed';
   }
   function close() {
     cancelOrbit(); measurer?.clear(); layer.hidden = true;
-    serial++; open = false; container.hidden = true;
+    serial++; open = false; container.hidden = true; loaded();
     if (widget) widget.useDefaultRenderLoop = false;
   }
   return {
@@ -255,6 +278,12 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
     setTop(value) { cancelOrbit(); top = value; frame(0.8); },
     rotate() { cancelOrbit(); heading = (heading + Math.PI / 2) % (2 * Math.PI); frame(0.8); },
     recenter() { cancelOrbit(); heading = 0; frame(0.8); },
+    /** Moves the camera in (step > 0) or out; a circling camera keeps circling at the new distance. */
+    zoomBy(step) {
+      if (!widget || !target) return;
+      range = Math.max(RANGE_MIN, Math.min(RANGE_MAX, range * (step > 0 ? .75 : 1 / .75)));
+      if (!orbiting) frame(0.4);
+    },
     orbit,
     get isOpen() { return open; }, get isTop() { return top; }, get isOrbiting() { return orbiting; }
   };

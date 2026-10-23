@@ -26,7 +26,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null, fallbackNote = '';
   const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top'), orbitButton = byId('aerial-3d-orbit');
   const north = document.querySelector('.aerial-north'), usgsCredit = document.querySelector('.aerial-meta a');
-  const view3d = setupProperty3D({ stage,
+  const view3d = setupProperty3D({ stage, getPadding: overlayPadding,
     onFailure: error => { if (saved) unavailable3d(error); },
     onViewChange: () => sync3d(),
     // A tap on a roof in Google's view measures that building.
@@ -39,7 +39,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
       measure3d();
     },
     onOrbitChange: orbiting => {
-      if (orbiting) status.textContent = 'Orbiting 360° — camera locked on the building. Drag, scroll or press Orbit again to stop.';
+      if (orbiting) status.textContent = 'Circling the building in 3D. Drag, scroll or press 3D again to stop.';
       else if (view3d.isOpen) status.textContent = view3d.hasLocal(match)
         ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
         : GOOGLE_READY;
@@ -87,14 +87,21 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   byId('measure-undo').addEventListener('click', () => { onUndoSize?.(); confirmed = null; if (offered) confirmState('ask'); else confirmState(''); });
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
-  /** Space taken by the floating panels at the top and bottom of the view, in screen pixels. */
+  /**
+   * Space taken by the floating panels at the top and bottom of the view, in screen pixels. Only panels
+   * across the middle of the view count: a search box in the top left corner does not hide the house.
+   */
   function overlayPadding() {
     const box = stage.getBoundingClientRect();
     if (!box.height) return null;
-    const panels = [...document.querySelectorAll('.instant-estimate, .view-dock, .change-dock')].filter(el => el.offsetParent && el.getBoundingClientRect().top > box.top + box.height / 2);
-    const bottom = panels.length ? box.bottom - Math.min(...panels.map(el => el.getBoundingClientRect().top)) : 0;
-    const top = parseFloat(getComputedStyle(stage).getPropertyValue('--map-top')) || 0;
-    return { top: Math.min(top, box.height / 4), bottom: Math.min(bottom, box.height / 2), left: 0, right: 0 };
+    const middle = box.left + box.width / 2, band = box.width * .2, half = box.top + box.height / 2;
+    const panels = [...document.querySelectorAll('.instant-estimate, .view-dock, .change-dock, :is(.view-top-left, .view-foot, .proposal-switch-wrap) > :not([hidden])')]
+      .filter(el => el.offsetParent).map(el => el.getBoundingClientRect())
+      .filter(r => r.width && r.right > middle - band && r.left < middle + band && r.height < box.height / 2);
+    const header = parseFloat(getComputedStyle(stage).getPropertyValue('--map-top')) || 0;
+    const top = Math.max(header, ...panels.filter(r => r.bottom < half).map(r => r.bottom - box.top));
+    const bottom = Math.max(0, ...panels.filter(r => r.top > half).map(r => box.bottom - r.top));
+    return { top: Math.min(top, box.height / 3), bottom: Math.min(bottom, box.height / 2), left: 0, right: 0 };
   }
   /** Moves the photo's centre south so the address sits in the open area above the bottom panels. */
   function framed(coords) {
@@ -148,12 +155,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     if (open3dShown()) north.hidden = true;
     byId('exterior-credit').hidden = !(view3d.isOpen && view3d.isExterior);
     topButton.setAttribute('aria-pressed', String(view3d.isOpen && view3d.isTop));
-    if (orbitButton) {
-      const orbiting = Boolean(view3d.isOrbiting);
-      orbitButton.setAttribute('aria-pressed', String(orbiting));
-      orbitButton.textContent = orbiting ? 'Stop orbit' : 'Orbit 360°';
-      orbitButton.hidden = !view3d.isOpen;
-    }
+    if (orbitButton) { orbitButton.setAttribute('aria-pressed', String(Boolean(view3d.isOrbiting))); orbitButton.hidden = !view3d.isOpen; }
   }
   function syncMap() {
     syncMode();
@@ -389,6 +391,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   byId('aerial-3d-rotate').addEventListener('click', () => { view3d.rotate(); sync3d(); });
   byId('aerial-3d-recenter').addEventListener('click', () => { view3d.recenter(); sync3d(); });
   orbitButton?.addEventListener('click', () => view3d.orbit());
+  byId('aerial-3d-zoom-in').addEventListener('click', () => view3d.zoomBy(1));
+  byId('aerial-3d-zoom-out').addEventListener('click', () => view3d.zoomBy(-1));
   stage.addEventListener('keydown', event => {
     const delta = { ArrowLeft: [-.3, 0], ArrowRight: [.3, 0], ArrowUp: [0, -.3], ArrowDown: [0, .3] }[event.key];
     if (!delta || !loaded || view3d.isOpen || viewMap.isOpen) return; event.preventDefault(); pan(...delta);

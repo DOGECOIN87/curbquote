@@ -191,7 +191,7 @@ origin by the `strict-origin` referrer policy, and every failure mode lands on t
 ## Verification
 
 ```text
-npm run check          # syntax checks, 111 Node tests, public build
+npm run check          # syntax checks, 112 Node tests, public build
 npm run test:browser   # 62 Chromium checks: app (42), map (13), 3D remodel (7)
 npm run test:exterior  # 9 checks: the Austin exterior model, and Google 3D measuring from a mapped outline or its own surface
 ```

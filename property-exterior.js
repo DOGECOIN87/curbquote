@@ -139,5 +139,5 @@ export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange 
       });
     } catch (error) { if (current()) close(); throw error; }
   }
-  return { show, close, recenter, rotate() { cancelOrbit(); heading += Math.PI/2; frame(); }, setTop(value) { cancelOrbit(); top = value; pitch = value ? -Math.PI/2 + .01 : -.55; frame(); }, orbit, get isOpen() { return open; }, get isTop() { return top; }, get isOrbiting() { return orbiting; } };
+  return { show, close, recenter, rotate() { cancelOrbit(); heading += Math.PI/2; frame(); }, zoomBy(step) { cancelOrbit(); range *= step > 0 ? 1 / 1.3 : 1.3; constrain(); }, setTop(value) { cancelOrbit(); top = value; pitch = value ? -Math.PI/2 + .01 : -.55; frame(); }, orbit, get isOpen() { return open; }, get isTop() { return top; }, get isOrbiting() { return orbiting; } };
 }

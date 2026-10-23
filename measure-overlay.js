@@ -220,6 +220,21 @@ export function setupMapMeasure(map, api) {
   return { play, clear };
 }
 
+/**
+ * Where a label of size w × h centred at p should go so it is not hidden under a panel: p itself
+ * when clear, else the nearest spot just above, below, left or right of the panel in the way.
+ */
+export function clearOf(p, w, h, rects, gap = 8) {
+  const hits = (x, y) => rects.find(r => x + w / 2 + gap > r.left && x - w / 2 - gap < r.right && y + h / 2 + gap > r.top && y - h / 2 - gap < r.bottom);
+  const first = hits(p.x, p.y);
+  if (!first) return p;
+  const options = [
+    { x: p.x, y: first.top - h / 2 - gap }, { x: p.x, y: first.bottom + h / 2 + gap },
+    { x: first.left - w / 2 - gap, y: p.y }, { x: first.right + w / 2 + gap, y: p.y }
+  ].sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+  return options.find(o => !hits(o.x, o.y)) || p;
+}
+
 const SVG = 'http://www.w3.org/2000/svg';
 const node = (name, className, parent) => { const el = document.createElementNS(SVG, name); el.setAttribute('class', className); parent.append(el); return el; };
 const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -229,8 +244,9 @@ const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
  * CesiumJS): the outline at ground level, walls rising to the eaves, dimension lines with counting
  * labels and a height line, all projected to the screen on every frame so they follow the camera.
  * `project([lon, lat, metres])` returns screen pixels or null when the point is off camera.
+ * `obstacles()` lists screen rectangles (the floating panels) that labels move out from under.
  */
-export function setupScreenMeasure(layer) {
+export function setupScreenMeasure(layer, { obstacles = () => [] } = {}) {
   const svg = node('svg', 'measure-3d-lines', layer);
   const glow = node('path', 'measure-3d-glow', svg), base = node('path', 'measure-3d-outline', svg), walls = node('path', 'measure-3d-walls', svg);
   const dims = node('path', 'measure-3d-dims', svg), ticks = node('path', 'measure-3d-ticks', svg), rise = node('path', 'measure-3d-rise', svg);
@@ -241,9 +257,17 @@ export function setupScreenMeasure(layer) {
     for (const p of points) { if (!p) { open = false; continue; } d += `${open ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`; open = true; }
     return d;
   }).join('');
-  const place = (el, p) => { el.hidden = !p; if (p) el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -50%)`; };
+  let blocked = [];
+  const place = (el, p) => {
+    el.hidden = !p;
+    if (!p) return;
+    const { x, y } = clearOf(p, el.offsetWidth, el.offsetHeight, blocked);
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+  };
   function draw(now = performance.now()) {
     if (!model || !project) return;
+    const box = layer.getBoundingClientRect();
+    blocked = obstacles().map(r => ({ left: r.left - box.left, right: r.right - box.left, top: r.top - box.top, bottom: r.bottom - box.top }));
     const t = reducedMotion() ? Infinity : now - start, at = h => p => project([p[0], p[1], h]);
     const { ring, ground, eave, peak } = model, ringAt = h => ring.map(at(h));
     const drawn = span(t, 250, 1100), rising = span(t, 900, 900), reach = span(t, 1250, 650), count = span(t, 1500, 700), lift = span(t, 2000, 800);

@@ -58,6 +58,60 @@ export function measureOutline(ring) {
   };
 }
 
+/**
+ * Finds the roof nearest the middle of a square grid of surface heights (metres; NaN where unknown),
+ * `n` samples a side and `step` metres apart, or the roof under `pick` ([column, row]) when given.
+ * Roofs stand above the ground and are locally flat planes; tree canopies stand as high but are rough,
+ * so they are skipped. Returns the roof's corner points in metres from the middle (x east, y north),
+ * the ground height and the roof's top, or null when no roof-like surface is near enough.
+ */
+export function findRoof(heights, n, step, { pick = null, minArea = 30, maxArea = 1500 } = {}) {
+  const at = (i, j) => i < 0 || j < 0 || i >= n || j >= n ? NaN : heights[j * n + i];
+  const known = heights.filter(Number.isFinite).sort((a, b) => a - b);
+  if (known.length < n * n / 2) return null;
+  const ground = known[Math.floor(known.length * .15)], raised = (i, j) => at(i, j) > ground + 2.4;
+  // A plane fitted to the 3 × 3 neighbourhood: a roof fits it to a few centimetres, a canopy does not.
+  const flat = (i, j) => {
+    const zs = [];
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const z = at(i + di, j + dj); if (!Number.isFinite(z)) return false; zs.push([di, dj, z]); }
+    const a = zs.reduce((s, [, , z]) => s + z, 0) / 9, b = zs.reduce((s, [x, , z]) => s + x * z, 0) / 6, c = zs.reduce((s, [, y, z]) => s + y * z, 0) / 6;
+    return Math.sqrt(zs.reduce((s, [x, y, z]) => s + (z - a - b * x - c * y) ** 2, 0) / 9) < .25;
+  };
+  const core = new Uint8Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (raised(i, j) && flat(i, j)) core[j * n + i] = 1;
+  // Grow each flat patch by one sample, so ridges join their two slopes and the edge by the walls counts.
+  const grown = new Uint8Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    if (!raised(i, j)) continue;
+    for (let dj = -1; dj <= 1 && !grown[j * n + i]; dj++) for (let di = -1; di <= 1; di++) {
+      const ni = i + di, nj = j + dj;
+      if (ni >= 0 && nj >= 0 && ni < n && nj < n && core[nj * n + ni]) { grown[j * n + i] = 1; break; }
+    }
+  }
+  const seen = new Uint8Array(n * n), parts = [];
+  for (let start = 0; start < n * n; start++) {
+    if (!grown[start] || seen[start]) continue;
+    const cells = [], queue = [start]; seen[start] = 1;
+    while (queue.length) {
+      const k = queue.pop(), i = k % n, j = (k - i) / n; cells.push([i, j]);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ni = i + di, nj = j + dj, nk = nj * n + ni;
+        if (ni >= 0 && nj >= 0 && ni < n && nj < n && grown[nk] && !seen[nk]) { seen[nk] = 1; queue.push(nk); }
+      }
+    }
+    // Edges and ridges are never flat, so a whole roof is about half flat; a canopy's flat specks are far fewer.
+    const area = cells.length * step * step, flatCells = cells.filter(([i, j]) => core[j * n + i]).length;
+    if (area >= minArea && area <= maxArea && flatCells / cells.length >= .35 && flatCells * step * step >= 12) parts.push(cells);
+  }
+  const middle = (n - 1) / 2, [pi, pj] = pick || [middle, middle];
+  const reach = cells => Math.min(...cells.map(([i, j]) => Math.hypot(i - pi, j - pj)));
+  const best = parts.map(cells => ({ cells, gap: reach(cells) })).filter(part => part.gap <= (pick ? 3 : middle)).sort((a, b) => a.gap - b.gap)[0];
+  if (!best) return null;
+  const tops = best.cells.map(([i, j]) => at(i, j)).sort((a, b) => a - b), half = step / 2;
+  const corners = hull(best.cells.flatMap(([i, j]) => [[-half, -half], [half, -half], [half, half], [-half, half]].map(([dx, dy]) => [(i - middle) * step + dx, (j - middle) * step + dy])));
+  return { corners, ground, peak: tops[Math.floor((tops.length - 1) * .95)] };
+}
+
 /** An illustrative rectangle of the given size, centred on a point and squared to north. */
 export function illustrativeOutline([lon, lat], lengthFt, widthFt) {
   const local = frame([lon, lat]), x = lengthFt / FEET_PER_METER / 2, y = widthFt / FEET_PER_METER / 2;

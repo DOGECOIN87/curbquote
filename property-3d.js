@@ -7,11 +7,13 @@ import { STATIC_SITE, STATIC_MAP3D } from './config.js';
 import { loadCesium, webgl2Available } from './cesium-runtime.js';
 import { exteriorForLocation } from './exterior-catalog.js';
 import { setupExterior3D } from './property-exterior.js';
-import { FEET_PER_METER, illustrativeOutline, measureOutline, setupScreenMeasure } from './measure-overlay.js';
+import { FEET_PER_METER, findRoof, illustrativeOutline, measureOutline, setupScreenMeasure } from './measure-overlay.js';
 export { webgl2Available } from './cesium-runtime.js';
 
 const HEIGHT_TIMEOUT = 15000;
 const MEASURE_TIMEOUT = 12000;
+// The roof search samples Google's surface every 1.25 m over a 50 m square around the point.
+const ROOF_STEP = 1.25, ROOF_SAMPLES = 41;
 const TILE_FAILURES = 6;
 // Degrees per second for the turn around the building; the free 3D map turns at the same pace.
 const ORBIT_SPEED = 7;
@@ -32,11 +34,11 @@ export function setupProperty3D(options) {
     close() { serial++; google.close(); exterior.close(); },
     setTop: value => current.setTop(value), rotate: () => current.rotate(), recenter: () => current.recenter(), orbit: () => current.orbit(),
     // The reviewed exterior is already a measured model; only Google's view gets the measuring pass.
-    measure: dims => current === google ? google.measure(dims) : Promise.resolve(null),
+    measure: (dims, options) => current === google ? google.measure(dims, options) : Promise.resolve(null),
     get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }, get isOrbiting() { return Boolean(current.isOrbiting); }
   };
 }
-function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed }) {
+function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick }) {
   const container = document.createElement('div');
   container.className = 'aerial-3d'; container.hidden = true;
   container.setAttribute('aria-label', 'Google 3D view around the approximate address location');
@@ -98,6 +100,17 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed }) {
       widget.canvas.addEventListener('pointerdown', cancelOrbit);
       widget.canvas.addEventListener('wheel', cancelOrbit, { passive: true });
       widget.canvas.addEventListener('keydown', cancelOrbit);
+      // A tap (not a drag) on a roof measures that building instead.
+      let press = null;
+      widget.canvas.addEventListener('pointerdown', event => { press = event.isPrimary ? { x: event.clientX, y: event.clientY } : null; });
+      widget.canvas.addEventListener('pointerup', event => {
+        const start = press; press = null;
+        if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6 || !open || !target || !widget.scene.pickPositionSupported) return;
+        const box = widget.canvas.getBoundingClientRect(), world = widget.scene.pickPosition(new Cesium.Cartesian2(event.clientX - box.left, event.clientY - box.top));
+        if (!world) return;
+        const spot = Cesium.Cartographic.fromCartesian(world);
+        onPick?.([Cesium.Math.toDegrees(spot.longitude), Cesium.Math.toDegrees(spot.latitude)]);
+      });
       // The measuring pass is drawn over the canvas and follows every rendered frame.
       container.append(layer); measurer = setupScreenMeasure(layer);
       widget.scene.postRender.addEventListener(() => measurer?.redraw());
@@ -112,22 +125,38 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed }) {
     const point = SceneTransforms.worldToWindowCoordinates(widget.scene, world);
     return point ? { x: point.x, y: point.y } : null;
   }
+  /** The roof nearest a point (or under it, for a tap), found in a grid of Google's surface heights. */
+  async function roofNear([lon, lat], picked) {
+    if (!widget.scene.sampleHeightSupported) return null;
+    const middle = (ROOF_SAMPLES - 1) / 2, kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540, points = [];
+    for (let j = 0; j < ROOF_SAMPLES; j++) for (let i = 0; i < ROOF_SAMPLES; i++) points.push(Cesium.Cartographic.fromDegrees(lon + (i - middle) * ROOF_STEP / kx, lat + (j - middle) * ROOF_STEP / ky));
+    const sampled = await Promise.race([widget.scene.sampleHeightMostDetailed(points).catch(() => null), new Promise(resolve => setTimeout(resolve, MEASURE_TIMEOUT, null))]);
+    const roof = sampled && findRoof(sampled.map(point => Number.isFinite(point.height) ? point.height : NaN), ROOF_SAMPLES, ROOF_STEP, picked ? { pick: [middle, middle] } : {});
+    return roof && { ring: [...roof.corners, roof.corners[0]].map(([x, y]) => [lon + x / kx, lat + y / ky]), ground: roof.ground, peak: roof.peak };
+  }
   /**
-   * Measures the building and plays the measuring pass. The outline comes from the mapped building
-   * (approximate) or is an illustrative rectangle of the estimate's size at the address point; the
-   * ground and roof heights are sampled from Google's 3D surface when it answers in time.
+   * Measures a building and plays the measuring pass. The outline is, in order: the mapped building
+   * (OpenStreetMap), the roof found in Google's 3D surface nearest the address point (or under a tap,
+   * `at`), or an illustrative rectangle of the estimate's size. Heights come from the 3D surface when
+   * it answers in time. All of it is approximate and never becomes an estimate input.
    */
-  async function measure({ outline = null, lengthFt = 48, widthFt = 34, wallFt = 18, heightFt = 26 } = {}) {
+  async function measure({ outline = null, lengthFt = 48, widthFt = 34, wallFt = 18, heightFt = 26 } = {}, { at = null } = {}) {
     if (!widget || !target || !place) return null;
-    const request = serial, mapped = outline ? measureOutline(outline) : null;
-    const shape = mapped || measureOutline(illustrativeOutline([place.lon, place.lat], lengthFt, widthFt));
+    const request = serial, mapped = outline && !at ? measureOutline(outline) : null;
+    const found = mapped ? null : await roofNear(at || [place.lon, place.lat], Boolean(at));
+    if (request !== serial || !open) return null;
+    const traced = found && measureOutline(found.ring);
+    // A tap that finds no roof (a lawn, a street, a tree) leaves the current measurement as it is.
+    if (at && !traced) return null;
+    const shape = mapped || traced || measureOutline(illustrativeOutline(at || [place.lon, place.lat], lengthFt, widthFt));
     if (!shape) return null;
     const { Cartesian3, Cartographic } = Cesium, [cx, cy] = shape.centre;
     const around = k => shape.outline.map(([lon, lat]) => [cx + (lon - cx) * k, cy + (lat - cy) * k]);
     // Ground just outside the walls (the lowest sample, so trees and fences do not lift it); roof inside them.
     const groundPoints = around(1.6), roofPoints = mapped ? [shape.centre, ...around(.55)] : [];
     let ground = Cartographic.fromCartesian(target).height, peak = null;
-    if (widget.scene.sampleHeightSupported) {
+    if (traced) ({ ground, peak } = found);
+    else if (widget.scene.sampleHeightSupported) {
       const points = [...groundPoints, ...roofPoints].map(([lon, lat]) => Cartographic.fromDegrees(lon, lat));
       const sampled = await Promise.race([widget.scene.sampleHeightMostDetailed(points).catch(() => null), new Promise(resolve => setTimeout(resolve, MEASURE_TIMEOUT, null))]);
       if (request !== serial || !open) return null;
@@ -149,7 +178,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed }) {
     layer.hidden = false;
     const result = measurer.play(shape, { ground, eave, peak }, project);
     if (resume) orbit();
-    return result && { ...result, approximate: Boolean(mapped), measuredHeight: measured };
+    return result && { ...result, source: mapped ? 'outline' : traced ? 'surface' : 'illustrative', measuredHeight: measured };
   }
   /** The surface height at a point once its most detailed tiles load (null if unsupported or failed). */
   function surfaceHeight(lon, lat) {

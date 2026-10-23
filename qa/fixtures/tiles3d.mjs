@@ -31,7 +31,13 @@ function box([x0, y0, z0], [x1, y1, z1]) {
   return { positions, normals, indices };
 }
 
-/** A binary glTF with one coloured primitive per box. */
+/** Two triangle lists as one. */
+function merge(a, b) {
+  const shift = a.positions.length / 3;
+  return { positions: [...a.positions, ...b.positions], normals: [...a.normals, ...b.normals], indices: [...a.indices, ...b.indices.map(i => i + shift)] };
+}
+
+/** A binary glTF with one coloured primitive per part. */
 function glb(parts) {
   const chunks = [], views = [], accessors = [], primitives = [];
   let offset = 0;
@@ -62,12 +68,13 @@ function glb(parts) {
 /**
  * The lot is centred on the test coordinate at `groundHeight` metres; the house is `house` metres
  * (east, north, height) with its centre `northOffset` metres north of the point, as an address point
- * on the street side would be. Returns the tileset JSON, the content and the house's outline ring.
+ * on the street side would be, and a garage (`garage`, centred at `garageAt` metres east and north)
+ * stands to its west. Returns the tileset JSON, the content and the house's outline ring.
  */
-export function syntheticTileset({ lon, lat, groundHeight = 30, house = [16, 10, 8.5], northOffset = 12 }) {
-  const { origin, east, north, up } = frame(lon, lat, groundHeight), [w, d, h] = house;
+export function syntheticTileset({ lon, lat, groundHeight = 30, house = [16, 10, 8.5], northOffset = 12, garage = [8, 6, 3.5], garageAt = [-16, 2] }) {
+  const { origin, east, north, up } = frame(lon, lat, groundHeight), [w, d, h] = house, [gw, gd, gh] = garage, [gx, gy] = garageAt;
   const transform = [...east, 0, ...north, 0, ...up, 0, ...origin, 1];
-  const content = glb([box([-60, -60, -0.5], [60, 60, 0]), box([-w / 2, northOffset - d / 2, 0], [w / 2, northOffset + d / 2, h])]);
+  const content = glb([box([-60, -60, -0.5], [60, 60, 0]), { ...merge(box([-w / 2, northOffset - d / 2, 0], [w / 2, northOffset + d / 2, h]), box([gx - gw / 2, gy - gd / 2, 0], [gx + gw / 2, gy + gd / 2, gh])) }]);
   const tileset = { asset: { version: '1.1' }, geometricError: 64, root: { transform, boundingVolume: { sphere: [0, 0, 4, 90] }, geometricError: 0, refine: 'REPLACE', content: { uri: 'house.glb' } } };
   const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540, at = (x, y) => [lon + x / kx, lat + y / ky];
   const outline = [at(-w / 2, northOffset - d / 2), at(w / 2, northOffset - d / 2), at(w / 2, northOffset + d / 2), at(-w / 2, northOffset + d / 2), at(-w / 2, northOffset - d / 2)];

@@ -87,10 +87,12 @@ set, Google wins.
 2. Open **Access Tokens**: https://ion.cesium.com/tokens, then **Create token**.
    - **Name:** for example `curbquote-browser`.
    - **Scopes:** only `assets:read`. Untick everything else.
-   - **Allowed URLs:** turn the restriction on and add your Vercel domain(s) and
-     `http://localhost:3000`.
-3. Copy the token and set **`CESIUM_ION_TOKEN`**:
-   - **Vercel:** Settings → Environment Variables, then redeploy.
+   - **Allowed URLs:** turn the restriction on and add your Vercel domain(s), your GitHub Pages
+     address and `http://localhost:3000`.
+3. Copy the token and set **`CESIUM_ION_TOKEN`** (exactly this name; any other name is ignored):
+   - **Vercel:** Settings → Environment Variables, tick Production and Preview, then redeploy.
+     Vercel only applies a new or changed variable to deployments made after it.
+   - **GitHub Pages:** a repository secret with the same name, used on the next push to `main`.
    - **Your computer:** add `CESIUM_ION_TOKEN=...` to `.env.local` and start the dev server with
      `node --env-file=.env.local scripts/dev-server.mjs`.
 
@@ -111,7 +113,8 @@ commercial use" until you move to Google or a paid Cesium plan ([pricing](https:
 5. **Stay inside the free tier:** at https://console.cloud.google.com/apis/api/tile.googleapis.com/quotas,
    set root tileset requests per day to **30**. 30 × 31 = 930, under the 1,000 free sessions a month.
 6. **Add a budget alert as a backstop:** https://console.cloud.google.com/billing/budgets
-7. Set **`GOOGLE_MAP_TILES_KEY`** in Vercel (and `.env.local`), then redeploy.
+7. Set **`GOOGLE_MAP_TILES_KEY`** (exactly this name) in Vercel and `.env.local`, and as a GitHub
+   secret for the Pages site, then redeploy.
 
 ### Until the Google key is live: the fallback order
 

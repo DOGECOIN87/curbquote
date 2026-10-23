@@ -2,6 +2,8 @@ import { isAddressMatch } from './address.js';
 import { aerialView, hasAerialCoverage, moveView, pointInView, DEFAULT_VIEW_METERS } from './property-view.js';
 import { setupProperty3D } from './property-3d.js';
 import { setupPropertyMap } from './property-map.js';
+import { streetView, flyoverAvailable, flyoverVideo } from './google-maps.js';
+import { webgl2Available } from './cesium-runtime.js';
 
 /**
  * Images are replaced atomically and discarded immediately when the address changes.
@@ -26,7 +28,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null, fallbackNote = '';
   const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top'), orbitButton = byId('aerial-3d-orbit');
   const north = document.querySelector('.aerial-north'), usgsCredit = document.querySelector('.aerial-meta a');
-  const view3d = setupProperty3D({ stage,
+  const view3d = setupProperty3D({ stage, getPadding: overlayPadding,
     onFailure: error => { if (saved) unavailable3d(error); },
     onViewChange: () => sync3d(),
     // A tap on a roof in Google's view measures that building.
@@ -39,7 +41,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
       measure3d();
     },
     onOrbitChange: orbiting => {
-      if (orbiting) status.textContent = 'Orbiting 360° — camera locked on the building. Drag, scroll or press Orbit again to stop.';
+      if (orbiting) status.textContent = 'Circling the building in 3D. Drag, scroll or press 3D again to stop.';
       else if (view3d.isOpen) status.textContent = view3d.hasLocal(match)
         ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
         : GOOGLE_READY;
@@ -53,6 +55,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     showMeasure({ note: {
       outline: result.measuredHeight ? 'Approximate, from the mapped outline and the 3D view' : 'Approximate, from the mapped outline',
       surface: 'Approximate, measured in the 3D view. Not your home? Tap its roof.',
+      solar: 'Approximate, from Google’s roof data and the 3D view. Not your home? Tap its roof.',
       illustrative: 'Illustrative size. Tap your roof to measure it.'
     }[result.source] });
     offerSize(result.source === 'illustrative' ? null : result);
@@ -63,15 +66,32 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   const sameSize = (a, b) => a && b && a.sides.join() === b.sides.join() && a.heightFt === b.heightFt;
   function confirmState(state, text = '') {
     confirmCard.hidden = !state; confirmCard.dataset.state = state;
+    if (state !== 'ask') photo.hidden = true;
+    // The card changes the open area above it, so the house is framed again once it has laid out.
+    requestAnimationFrame(() => view3d.refit());
     byId('measure-yes').hidden = byId('measure-no').hidden = state !== 'ask';
     byId('measure-undo').hidden = state !== 'done';
     if (state === 'ask') {
       const [short, long] = [...offered.sides].sort((a, b) => a - b), tall = offered.measuredHeight && offered.heightFt ? `, ${Math.round(offered.heightFt)} ft tall` : '';
-      confirmText.textContent = `Is this your home? It measures about ${long} × ${short} ft${tall}.`;
+      confirmText.textContent = `Is this your home? About ${long} × ${short} ft${tall}.`;
+      showFront(offered);
     } else if (state === 'pick') confirmText.textContent = view3d.isOpen ? 'Tap your home’s roof in the 3D view to measure it.' : 'Tap your home on the map to measure it.';
     else if (text) confirmText.textContent = text;
   }
   /** A new measurement asks again, unless it is the building already confirmed (a replay or a re-frame). */
+  // A Street View photo of the front of the measured building, shown as Google provides it.
+  const photo = byId('measure-photo'), photoImage = photo.querySelector('img'), photoCredit = photo.querySelector('figcaption');
+  let photoFor = null;
+  async function showFront(measured) {
+    const [lon, lat] = measured.centre || [match?.coordinates.lon, match?.coordinates.lat], key = `${lat},${lon}`;
+    if (!Number.isFinite(lat) || photoFor === key) { photo.hidden = !photoImage.src; return; }
+    photoFor = key; photo.hidden = true;
+    const location = match, view = await streetView([lat, lon]);
+    if (!view || match !== location || photoFor !== key || confirmCard.dataset.state !== 'ask') return;
+    photoImage.onload = () => { photo.hidden = false; requestAnimationFrame(() => view3d.refit()); }; photoImage.onerror = () => { photo.hidden = true; };
+    photoCredit.textContent = `Street View${view.date ? `, ${view.date}` : ''} · Google`;
+    photoImage.src = view.url;
+  }
   function offerSize(measured) {
     if (!measured?.sides || measured.sides.length < 2) { offered = null; if (confirmCard.dataset.state !== 'pick') confirmState(''); return; }
     offered = measured;
@@ -85,16 +105,49 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   });
   byId('measure-no').addEventListener('click', () => confirmState('pick'));
   byId('measure-undo').addEventListener('click', () => { onUndoSize?.(); confirmed = null; if (offered) confirmState('ask'); else confirmState(''); });
+  // Google's pre-rendered Aerial View flyover, when one already exists for the address.
+  const flyover = byId('flyover'), flyoverToggle = byId('flyover-toggle');
+  let flyoverId = null;
+  function closeFlyover() { flyover.pause(); flyover.removeAttribute('src'); flyover.hidden = true; flyoverToggle.setAttribute('aria-pressed', 'false'); flyoverToggle.textContent = 'Flyover'; }
+  async function openFlyover() {
+    const location = match, url = await flyoverVideo(flyoverId, { portrait: innerHeight > innerWidth });
+    if (!url || match !== location) { status.textContent = 'The flyover video is unavailable right now.'; return; }
+    flyover.setAttribute('aria-label', `Photorealistic aerial flyover of ${location.matchedAddress}, provided by Google Maps.`);
+    // Reduced motion: the video waits for the homeowner to press play.
+    flyover.controls = matchMedia('(prefers-reduced-motion: reduce)').matches; flyover.autoplay = !flyover.controls;
+    flyover.src = url; flyover.hidden = false; flyoverToggle.setAttribute('aria-pressed', 'true'); flyoverToggle.textContent = 'Close flyover';
+    status.textContent = 'Flyover video from Google Maps. Display only; it is not measured.';
+  }
+  // On phones the view options fold behind one button in the 3D stack; picking one folds them again.
+  const viewMore = byId('view-more'), viewFoot = byId('view-foot');
+  const foldViews = open => { viewFoot.toggleAttribute('data-open', open); viewMore.setAttribute('aria-expanded', String(open)); };
+  viewMore.addEventListener('click', () => foldViews(!viewFoot.hasAttribute('data-open')));
+  viewFoot.querySelector('.aerial-actions').addEventListener('click', event => { if (event.target.closest('button')) foldViews(false); });
+  flyoverToggle.addEventListener('click', () => { if (!flyover.hidden) closeFlyover(); else if (flyoverId) openFlyover(); });
+  async function findFlyover(location) {
+    const found = await flyoverAvailable(location.matchedAddress);
+    if (!found || match !== location) return;
+    flyoverId = found.videoId; flyoverToggle.hidden = false;
+    // Without WebGL there is no live 3D view, so the flyover leads.
+    if (!webgl2Available()) openFlyover();
+  }
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
-  /** Space taken by the floating panels at the top and bottom of the view, in screen pixels. */
+  /**
+   * Space taken by the floating panels at the top and bottom of the view, in screen pixels. Only panels
+   * across the middle of the view count: a search box in the top left corner does not hide the house.
+   */
   function overlayPadding() {
     const box = stage.getBoundingClientRect();
     if (!box.height) return null;
-    const panels = [...document.querySelectorAll('.instant-estimate, .view-dock, .change-dock')].filter(el => el.offsetParent && el.getBoundingClientRect().top > box.top + box.height / 2);
-    const bottom = panels.length ? box.bottom - Math.min(...panels.map(el => el.getBoundingClientRect().top)) : 0;
-    const top = parseFloat(getComputedStyle(stage).getPropertyValue('--map-top')) || 0;
-    return { top: Math.min(top, box.height / 4), bottom: Math.min(bottom, box.height / 2), left: 0, right: 0 };
+    const middle = box.left + box.width / 2, band = box.width * .2, half = box.top + box.height / 2;
+    const panels = [...document.querySelectorAll('.instant-estimate, .view-dock, .change-dock, :is(.view-top-left, .view-foot, .proposal-switch-wrap) > :not([hidden])')]
+      .filter(el => el.offsetParent).map(el => el.getBoundingClientRect())
+      .filter(r => r.width && r.right > middle - band && r.left < middle + band && r.height < box.height / 2);
+    const header = parseFloat(getComputedStyle(stage).getPropertyValue('--map-top')) || 0;
+    const top = Math.max(header, ...panels.filter(r => r.bottom < half).map(r => r.bottom - box.top));
+    const bottom = Math.max(0, ...panels.filter(r => r.top > half).map(r => box.bottom - r.top));
+    return { top: Math.min(top, box.height / 3), bottom: Math.min(bottom, box.height / 2), left: 0, right: 0 };
   }
   /** Moves the photo's centre south so the address sits in the open area above the bottom panels. */
   function framed(coords) {
@@ -148,12 +201,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     if (open3dShown()) north.hidden = true;
     byId('exterior-credit').hidden = !(view3d.isOpen && view3d.isExterior);
     topButton.setAttribute('aria-pressed', String(view3d.isOpen && view3d.isTop));
-    if (orbitButton) {
-      const orbiting = Boolean(view3d.isOrbiting);
-      orbitButton.setAttribute('aria-pressed', String(orbiting));
-      orbitButton.textContent = orbiting ? 'Stop orbit' : 'Orbit 360°';
-      orbitButton.hidden = !view3d.isOpen;
-    }
+    if (orbitButton) { orbitButton.setAttribute('aria-pressed', String(Boolean(view3d.isOrbiting))); orbitButton.hidden = !view3d.isOpen; }
   }
   function syncMap() {
     syncMode();
@@ -281,7 +329,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
   function clear() {
-    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; offered = confirmed = null; confirmState(''); sync3d(); syncMap();
+    closeFlyover(); flyoverId = null; flyoverToggle.hidden = true;
+    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = photoFor = null; photo.hidden = true; photoImage.removeAttribute('src'); loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; offered = confirmed = null; confirmState(''); sync3d(); syncMap();
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
@@ -338,7 +387,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   }
   function show(location) {
     if (!isAddressMatch(location)) { failed(); return; }
-    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap();
+    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap(); findFlyover(location);
     const covered = hasAerialCoverage(location.coordinates);
     if (covered) center = framed(location.coordinates);
     else {
@@ -389,6 +438,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   byId('aerial-3d-rotate').addEventListener('click', () => { view3d.rotate(); sync3d(); });
   byId('aerial-3d-recenter').addEventListener('click', () => { view3d.recenter(); sync3d(); });
   orbitButton?.addEventListener('click', () => view3d.orbit());
+  byId('aerial-3d-zoom-in').addEventListener('click', () => view3d.zoomBy(1));
+  byId('aerial-3d-zoom-out').addEventListener('click', () => view3d.zoomBy(-1));
   stage.addEventListener('keydown', event => {
     const delta = { ArrowLeft: [-.3, 0], ArrowRight: [.3, 0], ArrowUp: [0, -.3], ArrowDown: [0, .3] }[event.key];
     if (!delta || !loaded || view3d.isOpen || viewMap.isOpen) return; event.preventDefault(); pan(...delta);

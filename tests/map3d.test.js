@@ -23,21 +23,25 @@ async function withServer(t, options) {
 test('3D configuration exposes the browser key only when one is set', async () => {
   for (const value of [undefined, '', '   ', 'short', 'has spaces in the middle of key']) {
     const { code, body, headers } = await call(createMap3DHandler({ env: { GOOGLE_MAP_TILES_KEY: value } }));
-    assert.equal(code, 200); assert.deepEqual(body, { configured: false }); assert.equal(headers['Cache-Control'], 'no-store');
+    assert.equal(code, 200); assert.deepEqual(body, { configured: false, mapsKey: null }); assert.equal(headers['Cache-Control'], 'no-store');
   }
   const { body } = await call(createMap3DHandler({ env: { GOOGLE_MAP_TILES_KEY: ' AIzaSyEXAMPLE-key_0123456789 ' } }));
-  assert.deepEqual(body, { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyEXAMPLE-key_0123456789' });
+  assert.deepEqual(body, { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyEXAMPLE-key_0123456789', mapsKey: 'AIzaSyEXAMPLE-key_0123456789' });
   const ionToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzeW50aGV0aWMiOnRydWV9.c3ludGhldGljLXNpZ25hdHVyZQ';
-  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: ionToken } }))).body, { configured: true, provider: 'Google Photorealistic 3D Tiles via Cesium ion', ionToken });
-  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: 'not a token' } }))).body, { configured: false });
+  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: ionToken } }))).body, { configured: true, provider: 'Google Photorealistic 3D Tiles via Cesium ion', ionToken, mapsKey: null });
+  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: 'not a token' } }))).body, { configured: false, mapsKey: null });
   // A Google key wins, and the ion token is then never sent to the browser.
-  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: ionToken, GOOGLE_MAP_TILES_KEY: 'AIzaSyEXAMPLE-key_0123456789' } }))).body, { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyEXAMPLE-key_0123456789' });
+  assert.deepEqual((await call(createMap3DHandler({ env: { CESIUM_ION_TOKEN: ionToken, GOOGLE_MAP_TILES_KEY: 'AIzaSyEXAMPLE-key_0123456789' } }))).body, { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyEXAMPLE-key_0123456789', mapsKey: 'AIzaSyEXAMPLE-key_0123456789' });
+  // The Maps key (suggestions, Street View, Solar, Aerial View) is its own setting, else the Map Tiles key.
+  assert.deepEqual((await call(createMap3DHandler({ env: { GOOGLE_MAPS_KEY: 'AIzaSyMAPS-key_0123456789ab' } }))).body, { configured: false, mapsKey: 'AIzaSyMAPS-key_0123456789ab' });
+  assert.deepEqual((await call(createMap3DHandler({ env: { GOOGLE_MAPS_KEY: 'AIzaSyMAPS-key_0123456789ab', GOOGLE_MAP_TILES_KEY: 'AIzaSyEXAMPLE-key_0123456789' } }))).body.mapsKey, 'AIzaSyMAPS-key_0123456789ab');
+  assert.equal((await call(createMap3DHandler({ env: { GOOGLE_MAPS_KEY: 'bad key <script>' } }))).body.mapsKey, null);
   const post = await call(createMap3DHandler({ env: {} }), 'POST');
   assert.equal(post.code, 405); assert.equal(post.headers.Allow, 'GET');
 });
 test('the development server serves the allowlisted CesiumJS runtime with binary types and the CSP patch', async t => {
   const base = await withServer(t, { mapHandler: createMap3DHandler({ env: {} }) });
-  assert.deepEqual(await (await fetch(`${base}/api/map3d`)).json(), { configured: false });
+  assert.deepEqual(await (await fetch(`${base}/api/map3d`)).json(), { configured: false, mapsKey: null });
   const bundle = await fetch(`${base}/vendor/cesium/index.js`);
   assert.equal(bundle.status, 200); assert.equal(bundle.headers.get('content-type'), 'text/javascript; charset=utf-8');
   assert.doesNotMatch(await bundle.text(), /\(0,eval\)/);

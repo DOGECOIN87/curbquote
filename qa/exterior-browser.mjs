@@ -87,7 +87,11 @@ try {
     const view = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     view.on('pageerror', error => errors.push(error.message));
     view.on('console', message => { if (message.type() === 'error' && /Content Security Policy|unsafe-eval/i.test(message.text())) errors.push(message.text()); });
-    await view.route('**/api/map3d', route => route.fulfill({ json: { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyQA-synthetic-key_0123456789' } }));
+    await view.route('**/api/map3d', route => route.fulfill({ json: { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyQA-synthetic-key_0123456789', mapsKey: 'AIzaSyQA-synthetic-key_0123456789' } }));
+    // Street View answers with a synthetic panorama; Solar and Aerial View have nothing for this place.
+    await view.route('https://maps.googleapis.com/maps/api/streetview/metadata?**', route => route.fulfill({ headers: cors, json: { status: 'OK', pano_id: 'SYNTHETIC_PANO', date: '2024-05', location: { lat: point.lat - .0003, lng: point.lon } } }));
+    await view.route('https://maps.googleapis.com/maps/api/streetview?**', route => route.fulfill({ headers: cors, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') }));
+    await view.route(/https:\/\/(solar|aerialview)\.googleapis\.com\/.*/, route => route.fulfill({ status: 404, headers: cors, json: { error: { code: 404 } } }));
     await view.route('https://tile.googleapis.com/**', route => {
       const url = route.request().url();
       if (url.includes('/v1/3dtiles/root.json')) return route.fulfill({ headers: cors, json: fixture.tileset });
@@ -117,6 +121,11 @@ try {
   const stage = await google.locator('#aerial-stage').boundingBox();
   assert.ok(shown.every(({ box }) => box.left >= stage.x && box.right <= stage.x + stage.width && box.top >= stage.y && box.bottom <= stage.y + stage.height), 'labels stay inside the view');
   assert.equal(await google.locator('#aerial-3d-orbit').getAttribute('aria-pressed'), 'true');
+  // "Is this your home?" shows the front of the building from Street View, aimed from the panorama at it.
+  await google.waitForFunction(() => !document.querySelector('#measure-photo').hidden, null, { timeout: 15000 });
+  const front = new URL(await google.locator('#measure-photo img').getAttribute('src'));
+  assert.equal(front.searchParams.get('pano'), 'SYNTHETIC_PANO'); assert.ok(Math.abs(Number(front.searchParams.get('heading'))) < 20 || Number(front.searchParams.get('heading')) > 340, 'the camera faces north, at the house');
+  assert.match(await google.locator('#measure-photo figcaption').textContent(), /Street View, 2024-05 · Google/);
   await google.waitForTimeout(800);
   const turned = await labels();
   assert.ok(turned.some((label, i) => Math.hypot(label.box.x - shown[i].box.x, label.box.y - shown[i].box.y) > 2), 'the labels follow the circling camera');
@@ -137,7 +146,7 @@ try {
   const found = await labelsOf(surface), [short, long] = found.slice(0, 2).map(label => label.feet).sort((a, b) => a - b);
   near(long, 52, 6, 'house length'); near(short, 33, 6, 'house depth'); near(found[2]?.feet, 28, 2, 'house height');
   // The size reaches the estimate only once the homeowner says it is their home; "Not my home" asks for a tap.
-  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\? It measures about \d+ × \d+ ft, \d+ ft tall\.$/);
+  assert.match(await surface.locator('#measure-confirm-text').textContent(), /^Is this your home\? About \d+ × \d+ ft, \d+ ft tall\.$/);
   assert.equal(await surface.locator('#lengthFt').inputValue(), '48', 'nothing changes before confirming');
   await surface.locator('#measure-no').click();
   assert.match(await surface.locator('#measure-confirm-text').textContent(), /Tap your home’s roof/);

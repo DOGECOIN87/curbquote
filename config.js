@@ -2,3 +2,4 @@
 export const STATIC_SITE = false;
 export const STATIC_MAP3D = { configured: false };
 export const STATIC_LEAD = { email: null };
+export const STATIC_MAPS = { key: null };

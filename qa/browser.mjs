@@ -695,6 +695,60 @@ try {
     checks.push('Without WebGL2 the configured 3D toggle stays hidden');
   }
   await page3d.close();
+  // Address suggestions from Google Places with the public Maps key; picking one runs the usual lookup.
+  const suggest = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }); await suggest.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
+  suggest.on('pageerror', error => errors.push(error.message));
+  const placesBodies = [];
+  await suggest.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await suggest.route('**/api/map3d', route => route.fulfill({ json: { configured: false, mapsKey: syntheticKey } }));
+  await suggest.route('https://places.googleapis.com/v1/places:autocomplete', route => {
+    assert.equal(route.request().headers()['x-goog-api-key'], syntheticKey); placesBodies.push(route.request().postDataJSON());
+    return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { suggestions: [
+      { placePrediction: { text: { text: '4600 Silver Hill Rd, Suitland, MD 20746, USA' }, structuredFormat: { mainText: { text: '4600 Silver Hill Rd' }, secondaryText: { text: 'Suitland, MD 20746, USA' } } } },
+      { placePrediction: { text: { text: '4600 Silver Hill Rd, Washington, DC 20233, USA' }, structuredFormat: { mainText: { text: '4600 Silver Hill Rd' }, secondaryText: { text: 'Washington, DC 20233, USA' } } } }
+    ] } });
+  });
+  await suggest.goto(base);
+  await suggest.locator('#property-address').pressSequentially('4600 Silv', { delay: 20 });
+  await suggest.waitForFunction(() => document.querySelectorAll('#address-suggestions [role=option]').length === 2);
+  assert.equal(await suggest.locator('#property-address').getAttribute('aria-expanded'), 'true');
+  assert.equal(await suggest.locator('.suggest-credit').textContent(), 'Google Maps');
+  assert.deepEqual({ ...placesBodies.at(-1), sessionToken: typeof placesBodies.at(-1).sessionToken }, { input: '4600 Silv', sessionToken: 'string', includedRegionCodes: ['us'], languageCode: 'en' });
+  await suggest.keyboard.press('ArrowDown'); await suggest.keyboard.press('ArrowDown');
+  assert.equal(await suggest.locator('#property-address').getAttribute('aria-activedescendant'), 'address-suggestions-1');
+  await suggest.keyboard.press('Enter');
+  assert.equal(await suggest.locator('#property-address').inputValue(), '4600 Silver Hill Rd, Washington, DC 20233');
+  assert.equal(await suggest.locator('#address-suggest').isHidden(), true);
+  await suggest.waitForFunction(() => document.querySelector('#aerial-address').textContent.includes('SILVER HILL RD'));
+  await suggest.locator('#property-address').fill(''); await suggest.locator('#property-address').pressSequentially('4600 Silv', { delay: 20 });
+  await suggest.waitForFunction(() => !document.querySelector('#address-suggest').hidden);
+  await suggest.keyboard.press('Escape'); assert.equal(await suggest.locator('#address-suggest').isHidden(), true);
+  await suggest.close();
+  checks.push('Address suggestions (Google Places, public key) work as a keyboard combobox with Google attribution, and a picked suggestion runs the usual address lookup');
+  // An existing Aerial View flyover is offered after a match and plays from Google's video host under the CSP.
+  const fly = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }); await fly.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
+  fly.on('pageerror', error => errors.push(error.message));
+  const flyLookups = [];
+  await fly.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await fly.route('**/api/map3d', route => route.fulfill({ json: { configured: false, mapsKey: syntheticKey } }));
+  await fly.route('https://aerialview.googleapis.com/**', route => {
+    const url = new URL(route.request().url()); flyLookups.push(url.pathname);
+    if (url.pathname.endsWith('lookupVideoMetadata')) return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { state: 'ACTIVE', metadata: { videoId: 'SYNTHETIC-VIDEO' } } });
+    assert.equal(url.searchParams.get('videoId'), 'SYNTHETIC-VIDEO');
+    return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { state: 'ACTIVE', uris: { MP4_MEDIUM: { landscapeUri: 'https://rr1---sn-synthetic.googlevideo.com/videoplayback?id=synthetic', portraitUri: 'https://rr1---sn-synthetic.googlevideo.com/videoplayback?id=portrait' } } } });
+  });
+  await fly.route('https://rr1---sn-synthetic.googlevideo.com/**', route => route.fulfill({ status: 204, body: '' }));
+  await fly.goto(base); await fly.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233'); await fly.locator('#verify-address').click();
+  await fly.waitForFunction(() => !document.querySelector('#flyover-toggle').hidden);
+  assert.deepEqual(flyLookups, ['/v1/videos:lookupVideoMetadata'], 'only the free metadata lookup runs until the homeowner asks for the video');
+  await fly.locator('#flyover-toggle').click();
+  await fly.waitForFunction(() => !document.querySelector('#flyover').hidden);
+  assert.match(await fly.locator('#flyover').getAttribute('src'), /^https:\/\/rr1---sn-synthetic\.googlevideo\.com\/videoplayback\?id=synthetic$/);
+  assert.equal(await fly.locator('#flyover').evaluate(video => video.controls && !video.autoplay), true, 'with reduced motion the video waits for play');
+  assert.match(await fly.locator('#flyover').getAttribute('aria-label'), /aerial flyover of .*SILVER HILL RD.*provided by Google Maps/);
+  await fly.locator('#flyover-toggle').click(); assert.equal(await fly.locator('#flyover').isHidden(), true);
+  await fly.close();
+  checks.push('An existing Google Aerial View flyover is offered after a match, fetched only on request, and plays from Google’s video host with a description');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({media:'print'});
   await page.screenshot({path:join(outputDir,'print-report.png'),fullPage:true});

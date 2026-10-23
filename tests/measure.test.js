@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findRoof, measureOutline, FEET_PER_METER } from '../measure-overlay.js';
+import { clearOf, findRoof, measureOutline, FEET_PER_METER } from '../measure-overlay.js';
 
 const N = 41, STEP = 1.25, MIDDLE = (N - 1) / 2;
 // A repeatable pseudo-random sequence, so the "rough" canopy is the same on every run.
@@ -47,4 +47,16 @@ test('measureOutline reports the sides of a turned rectangle in feet', () => {
   const shape = measureOutline([corner(-8, -5), corner(8, -5), corner(8, 5), corner(-8, 5), corner(-8, -5)]);
   assert.deepEqual(shape.sides.map(side => Math.round(side.feet)).sort((a, b) => a - b), [Math.round(10 * FEET_PER_METER), Math.round(16 * FEET_PER_METER)]);
   assert.equal(measureOutline([[0, 0], [0, 0], [0, 0]]), null);
+});
+
+test('a measurement label moves just clear of a panel in its way, and stays put when nothing is', () => {
+  const bar = { left: 400, right: 1040, top: 800, bottom: 860 }, card = { left: 20, right: 400, top: 160, bottom: 300 };
+  assert.deepEqual(clearOf({ x: 700, y: 500 }, 60, 26, [bar, card]), { x: 700, y: 500 });
+  // Under the bar's top edge: up is the shortest way out.
+  assert.deepEqual(clearOf({ x: 700, y: 810 }, 60, 26, [bar]), { x: 700, y: 800 - 13 - 8 });
+  // By the card's right edge: right is shortest.
+  assert.deepEqual(clearOf({ x: 390, y: 230 }, 60, 26, [card]), { x: 400 + 30 + 8, y: 230 });
+  // The nearest way out would land on another panel, so the next one is taken.
+  const below = { left: 600, right: 800, top: 760, bottom: 790 };
+  assert.deepEqual(clearOf({ x: 700, y: 810 }, 60, 26, [bar, below]), { x: 700, y: 860 + 13 + 8 });
 });

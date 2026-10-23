@@ -13,6 +13,9 @@ import { setupPropertyMap } from './property-map.js';
  * aerial photo is remembered on this device, so later matches open the photo instead.
  */
 const VIEW_KEY = 'curbquote.property.view';
+// How long a match waits for the 3D credential check before choosing a view without it.
+const AVAILABLE_WAIT = 4000;
+const GOOGLE_READY = 'Google 3D view. Drag to look around, scroll or pinch to zoom, or use Top view. Measurements here are approximate; the estimate uses the sizes in Step 3.';
 const prefers3d = () => { try { return localStorage.getItem(VIEW_KEY) !== 'photo'; } catch { return true; } };
 const rememberView = value => { try { localStorage.setItem(VIEW_KEY, value); } catch {} };
 export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
@@ -20,20 +23,34 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   const stage = byId('aerial-stage'), images = byId('aerial-images'), tools = byId('aerial-controls');
   const overlay = byId('aerial-placeholder'), marker = byId('aerial-marker'), status = byId('aerial-status');
   let serial = 0, pendingImage, timeout, match = null, view = null, center = null;
-  let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null;
+  let width = DEFAULT_VIEW_METERS, loaded = false, pointer = null, has3d = false, saved = null, fallbackNote = '';
   const toggle3d = byId('aerial-3d-toggle'), widthLabel = byId('aerial-width'), tools3d = byId('aerial-3d-controls'), topButton = byId('aerial-3d-top'), orbitButton = byId('aerial-3d-orbit');
   const north = document.querySelector('.aerial-north'), usgsCredit = document.querySelector('.aerial-meta a');
   const view3d = setupProperty3D({ stage,
-    onFailure: () => { if (saved) unavailable3d(); },
+    onFailure: error => { if (saved) unavailable3d(error); },
     onViewChange: () => sync3d(),
+    // The detailed tiles arrived after the overview was shown: offer the view tools and start circling.
+    onFramed: () => {
+      if (!view3d.isOpen) return;
+      tools3d.hidden = false; sync3d(); status.textContent = GOOGLE_READY;
+      if (!view3d.isOrbiting && !matchMedia('(prefers-reduced-motion: reduce)').matches) view3d.orbit();
+      measure3d();
+    },
     onOrbitChange: orbiting => {
       if (orbiting) status.textContent = 'Orbiting 360° — camera locked on the building. Drag, scroll or press Orbit again to stop.';
       else if (view3d.isOpen) status.textContent = view3d.hasLocal(match)
         ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
-        : 'Google 3D view. The dot is the approximate address point. Drag to orbit, scroll or pinch to zoom, or use Top view. For recognizing the building only; it supplies no measurements.';
+        : GOOGLE_READY;
       sync3d();
     }
   });
+  /** Measures the building in Google's view; the chip says where the numbers came from. */
+  async function measure3d() {
+    const location = match, result = await view3d.measure(getDimensions() || {});
+    if (!result || match !== location || !view3d.isOpen) return;
+    showMeasure({ note: !result.approximate ? 'Illustrative dimensions'
+      : result.measuredHeight ? 'Approximate: outline from OpenStreetMap, height from the 3D view' : 'Approximate, from the mapped building outline' });
+  }
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
   /** Space taken by the floating panels at the top and bottom of the view, in screen pixels. */
@@ -56,7 +73,12 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     stage, onFailure: unavailableMap, getPadding: overlayPadding, onOrbitChange: () => syncMap(), getDimensions,
     onMeasure: result => showMeasure(result && { ...result, note: result.approximate ? 'Approximate, from the mapped building outline' : 'Illustrative dimensions' }),
     onBearing: bearing => byId('map-north').style.setProperty('--bearing', `${-bearing}deg`),
-    onStatus: message => { if (viewMap.isOpen) { if (status.textContent !== message) status.textContent = message; syncMap(); } },
+    onStatus: message => {
+      if (!viewMap.isOpen) return;
+      const text = fallbackNote ? `${fallbackNote} ${message}` : message;
+      if (status.textContent !== text) status.textContent = text;
+      syncMap();
+    },
     onSelection: selected => { byId('map-clear-selection').hidden = !selected; byId('map-selection').hidden = !selected; },
     onHousenumbers: list => {
       if (!viewMap.isOpen || !housenumbersWrap) return;
@@ -115,12 +137,23 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     tools.hidden = previous.tools; widthLabel.textContent = previous.width; status.textContent = previous.status;
     if (previous.reload) load();
   }
+  /** Says what to fix when Google 3D was refused, so a site owner can tell a token setting from an outage. */
+  function refusalNote(error) {
+    const code = error?.status;
+    if (error?.via === 'ion' && (code === 401 || code === 403)) return 'Cesium ion refused the token for this site address: add it under the token’s Allowed URLs.';
+    if (error?.via === 'ion' && code === 404) return 'This Cesium ion account cannot open Google’s 3D tiles.';
+    if (error?.via === 'google' && (code === 400 || code === 403)) return 'Google refused the Map Tiles key for this site address.';
+    return 'Google 3D is unavailable right now.';
+  }
   /** Google 3D failed (denied key, quota, network): try the key-free 3D buildings before the aerial photo. */
-  function unavailable3d() {
-    const location = match;
+  function unavailable3d(error) {
+    const location = match, note = refusalNote(error);
     view3d.close(); restore2d();
-    if (viewMap.available && location && !view3d.hasLocal(location)) { openMap({ initialMode: '3d', fallback: true }); status.textContent = 'Google 3D is unavailable right now. Loading open 3D buildings instead…'; return; }
-    status.textContent = 'The 3D view is unavailable right now. The aerial view still works.';
+    if (viewMap.available && location && !view3d.hasLocal(location)) {
+      fallbackNote = `${note} Showing the key-free 3D view.`;
+      openMap({ initialMode: '3d', fallback: true }); status.textContent = `${note} Loading open 3D buildings instead…`; return;
+    }
+    status.textContent = `${note} The aerial view still works.`;
   }
   function unavailableMap(fallback = false) {
     viewMap.close(); restore2d();
@@ -128,6 +161,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   }
   async function openMap({ initialMode = null, fallback = false, reload = false, orbit = false } = {}) {
     if (view3d.isOpen) { view3d.close(); restore2d(); }
+    if (!fallback) fallbackNote = '';
     const location = match, solid = initialMode === '3d';
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload: reload || Boolean(pendingImage) || Boolean(saved?.reload) };
     if (pendingImage) cancel();
@@ -137,7 +171,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     try {
       const ready = await pending;
       if (!ready || !viewMap.isOpen || match !== location) return;
-      status.textContent = fallback ? `Google 3D is unavailable, so this is the key-free 3D view. ${viewMap.message}` : viewMap.message;
+      status.textContent = fallbackNote ? `${fallbackNote} ${viewMap.message}` : viewMap.message;
       if (orbit) viewMap.orbit(true);
       syncMap(); sync3d();
     } catch { if (match === location && saved) unavailableMap(fallback || solid); }
@@ -145,7 +179,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   /** Opens 3D over the current view. `reload` loads the aerial photo if 3D is closed or fails. */
   async function open3d({ reload = Boolean(pendingImage), orbit = false } = {}) {
     if (viewMap.isOpen) { viewMap.close(); restore2d(); }
-    const location = match;
+    const location = match; fallbackNote = '';
     saved = { tools: tools.hidden, width: widthLabel.textContent, status: status.textContent, reload };
     if (pendingImage) cancel();
     const local = view3d.hasLocal(location);
@@ -154,15 +188,16 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     const pending = view3d.show(location); sync3d(); syncMap();
     let result;
     try { result = await pending; }
-    catch { if (match === location && saved) unavailable3d(); return; }
+    catch (error) { if (match === location && saved) unavailable3d(error); return; }
     if (!result || !view3d.isOpen) return;
     tools3d.hidden = result !== 'framed'; sync3d();
     if (orbit && (local || result === 'framed') && !view3d.isOrbiting && !matchMedia('(prefers-reduced-motion: reduce)').matches) view3d.orbit();
     status.textContent = local
       ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
-      : result === 'framed'
-      ? 'Google 3D view. The dot is the approximate address point. Drag to orbit, scroll or pinch to zoom, or use Top view. For recognizing the building only; it supplies no measurements.'
-      : 'Google 3D view from above. Zoom in to find the building. It supplies no measurements.';
+      : result === 'framed' ? GOOGLE_READY
+      : 'Google 3D view from above while the detailed view loads. It moves in on the building when it is ready.';
+    // The camera keeps circling while the measuring pass samples the surface and draws.
+    if (!local && result === 'framed') measure3d();
   }
   function cancel() {
     serial++; clearTimeout(timeout);
@@ -204,7 +239,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
   function clear() {
-    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; sync3d(); syncMap();
+    cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = null; loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; sync3d(); syncMap();
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
     images.replaceChildren(); marker.setAttribute('hidden', ''); tools.hidden = true; byId('aerial-retry').hidden = true;
@@ -269,10 +304,15 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
       status.textContent = 'Address matched. Aerial imagery for Alaska, Hawaii and U.S. territories is not connected.';
     }
     // The 3D view leads and circles the building; the aerial photo loads only if 3D is closed or fails,
-    // or when this visitor chose the photo before.
-    if (view3d.hasLocal(location) || has3d) open3d({ reload: covered, orbit: true });
-    else if (viewMap.available && prefers3d()) openMap({ initialMode: '3d', reload: covered, orbit: true });
-    else if (covered) load();
+    // or when this visitor chose the photo before. A saved address can match before the 3D check
+    // answers, so wait briefly for it rather than settling for the key-free view.
+    const choose = () => {
+      if (match !== location) return;
+      if (view3d.hasLocal(location) || has3d) open3d({ reload: covered, orbit: true });
+      else if (viewMap.available && prefers3d()) openMap({ initialMode: '3d', reload: covered, orbit: true });
+      else if (covered) load();
+    };
+    Promise.race([view3d.available, new Promise(resolve => setTimeout(resolve, AVAILABLE_WAIT))]).then(ok => { if (ok) has3d = true; choose(); });
   }
   function pan(x, y) {
     if (!loaded || !view) return;
@@ -298,7 +338,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
   byId('map-zoom-in').addEventListener('click', () => viewMap.zoomBy(1));
   byId('map-zoom-out').addEventListener('click', () => viewMap.zoomBy(-1));
   byId('map-north').addEventListener('click', () => viewMap.north());
-  byId('measure-replay').addEventListener('click', () => { if (viewMap.isOpen) viewMap.measure(); else drawAerialMeasure(); });
+  byId('measure-replay').addEventListener('click', () => { if (viewMap.isOpen) viewMap.measure(); else if (view3d.isOpen) measure3d(); else drawAerialMeasure(); });
   toggleMap.addEventListener('click', () => { if (viewMap.isOpen) { viewMap.close(); restore2d(); } else if (match) openMap(); });
   for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.addEventListener('click', () => { viewMap.setMode(button.dataset.mapMode); syncMap(); sync3d(); });
   byId('map-recenter').addEventListener('click', () => viewMap.recenter());
@@ -327,7 +367,10 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}) }) {
     if (Math.hypot(dx, dy) < 6) pan((event.clientX - left) / shownW - .5, (event.clientY - top) / shownH - .5);
     else if (event.pointerType === 'mouse') pan(-dx / shownW, -dy / shownH);
   });
-  /** New dimensions (for example from the public building outline) redraw the photo's measuring pass. */
-  const remeasure = () => { if (loaded && !viewMap.isOpen && !view3d.isOpen) drawAerialMeasure(); };
+  /** New dimensions (for example from the public building outline) redraw the measuring pass in view. */
+  const remeasure = () => {
+    if (view3d.isOpen) { if (!view3d.isExterior) measure3d(); }
+    else if (loaded && !viewMap.isOpen) drawAerialMeasure();
+  };
   clear(); return { clear, searching, failed, show, remeasure };
 }

@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import { createAppServer } from '../lib/web.mjs';
 import { createMap3DHandler } from '../api/map3d.js';
 import { EXTERIOR_EXAMPLE } from '../exterior-catalog.js';
+import { syntheticTileset } from './fixtures/tiles3d.mjs';
 
 const server = createAppServer({ mapHandler: createMap3DHandler({ env: {} }), dimensionsHandler: async (req, res) => { res.setHeader('Cache-Control', 'no-store'); return res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }); } });
 server.listen(0, '127.0.0.1'); await once(server, 'listening');
@@ -76,6 +77,46 @@ try {
   assert.equal(await page.locator('#exterior-model').isVisible(), false);
   modelBehavior = 'normal'; await page.locator('#aerial-3d-toggle').click(); await ready();
   checks.push('A failed model load falls back to aerial imagery and the exterior can be retried');
+
+  // Google's view, with a synthetic tileset in place of Google's: one box-shaped house 12 m north of the address point.
+  const point = { lat: 38.84, lon: -76.9 }, fixture = syntheticTileset(point), cors = { 'Access-Control-Allow-Origin': '*' };
+  const google = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  google.on('pageerror', error => errors.push(error.message));
+  google.on('console', message => { if (message.type() === 'error' && /Content Security Policy|unsafe-eval/i.test(message.text())) errors.push(message.text()); });
+  await google.route('**/api/map3d', route => route.fulfill({ json: { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyQA-synthetic-key_0123456789' } }));
+  await google.route('https://tile.googleapis.com/**', route => {
+    const url = route.request().url();
+    if (url.includes('/v1/3dtiles/root.json')) return route.fulfill({ headers: cors, json: fixture.tileset });
+    if (url.includes('/v1/3dtiles/house.glb')) return route.fulfill({ headers: cors, contentType: 'model/gltf-binary', body: fixture.content });
+    return route.fulfill({ status: 404, headers: cors, body: 'Not in the synthetic tileset' });
+  });
+  await google.route('**/api/geocode?**', route => route.fulfill({ json: { matchedAddress: '4600 SILVER HILL RD, WASHINGTON, DC, 20233', coordinates: point, source: 'Synthetic test address' } }));
+  await google.route('**/api/footprint', route => route.fulfill({ json: { polygon: { type: 'Polygon', coordinates: [fixture.outline] }, areaSqFt: 1722, perimeterFt: 171, lengthFt: 52.5, widthFt: 32.8, stories: 2, source: { provider: 'OpenStreetMap / Overpass (ODbL)', license: 'ODbL-1.0', retrievedAt: '2026-10-23T12:00:00Z', approximate: true } } }));
+  await google.route('https://imagery.nationalmap.gov/**', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600"><rect width="960" height="600" fill="#ddd"/></svg>' }));
+  await google.goto(base);
+  await google.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
+  await google.locator('#verify-address').click();
+  await google.waitForFunction(() => /height from the 3D view/.test(document.querySelector('#measure-note')?.textContent || ''), null, { timeout: 45000 });
+  await google.waitForTimeout(3200);
+  const labels = () => google.locator('.measure-3d .measure-label').evaluateAll(els => els.map(el => ({ text: el.textContent, shown: el.classList.contains('is-shown') && !el.hidden, box: el.getBoundingClientRect().toJSON() })));
+  const shown = await labels();
+  assert.equal(await google.locator('#aerial-width').textContent(), 'Google 3D · display only');
+  assert.deepEqual([...shown.slice(0, 2).map(label => label.text).sort(), shown[2]?.text], ['≈ 33 ft', '≈ 52 ft', '≈ 28 ft'], 'sides from the mapped outline, height from the 3D surface');
+  assert.ok(shown.every(label => label.shown), 'every label is on screen');
+  const stage = await google.locator('#aerial-stage').boundingBox();
+  assert.ok(shown.every(({ box }) => box.left >= stage.x && box.right <= stage.x + stage.width && box.top >= stage.y && box.bottom <= stage.y + stage.height), 'labels stay inside the view');
+  assert.equal(await google.locator('#aerial-3d-orbit').getAttribute('aria-pressed'), 'true');
+  await google.waitForTimeout(800);
+  const turned = await labels();
+  assert.ok(turned.some((label, i) => Math.hypot(label.box.x - shown[i].box.x, label.box.y - shown[i].box.y) > 2), 'the labels follow the circling camera');
+  await google.locator('#aerial-stage').screenshot({ path: 'qa-output/google3d-measure.png' });
+  const googleCanvas = await google.locator('.aerial-3d canvas').boundingBox();
+  await google.mouse.move(googleCanvas.x + googleCanvas.width * .8, googleCanvas.y + googleCanvas.height * .3); await google.mouse.down(); await google.mouse.up();
+  assert.equal(await google.locator('#aerial-3d-orbit').getAttribute('aria-pressed'), 'false');
+  const still = await labels(); await google.waitForTimeout(600);
+  assert.deepEqual((await labels()).map(label => label.box), still.map(label => label.box), 'touching the view stops the circling');
+  await google.close();
+  checks.push('Google 3D frames the mapped building, draws the measuring pass with its height from the 3D surface, and circles until touched');
   assert.deepEqual(errors, []);
   await writeFile('qa-output/exterior-checks.json', JSON.stringify({ checks, errors }, null, 2));
   console.log(JSON.stringify({ checks, errors }, null, 2));

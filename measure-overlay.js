@@ -147,3 +147,79 @@ export function setupMapMeasure(map, api) {
   map.on('move', placeHeight);
   return { play, clear };
 }
+
+const SVG = 'http://www.w3.org/2000/svg';
+const node = (name, className, parent) => { const el = document.createElementNS(SVG, name); el.setAttribute('class', className); parent.append(el); return el; };
+const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+
+/**
+ * The same measuring pass drawn over a 3D scene that has no layers of its own (Google tiles in
+ * CesiumJS): the outline at ground level, walls rising to the eaves, dimension lines with counting
+ * labels and a height line, all projected to the screen on every frame so they follow the camera.
+ * `project([lon, lat, metres])` returns screen pixels or null when the point is off camera.
+ */
+export function setupScreenMeasure(layer) {
+  const svg = node('svg', 'measure-3d-lines', layer);
+  const glow = node('path', 'measure-3d-glow', svg), base = node('path', 'measure-3d-outline', svg), walls = node('path', 'measure-3d-walls', svg);
+  const dims = node('path', 'measure-3d-dims', svg), ticks = node('path', 'measure-3d-ticks', svg), rise = node('path', 'measure-3d-rise', svg);
+  for (const path of [glow, base]) path.setAttribute('pathLength', '1');
+  let model = null, project = null, labels = [], heightLabel = null, corners = [], start = 0, frameId = 0;
+  const toPath = rings => rings.map(points => {
+    let d = '', open = false;
+    for (const p of points) { if (!p) { open = false; continue; } d += `${open ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`; open = true; }
+    return d;
+  }).join('');
+  const place = (el, p) => { el.hidden = !p; if (p) el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -50%)`; };
+  function draw(now = performance.now()) {
+    if (!model || !project) return;
+    const t = reducedMotion() ? Infinity : now - start, at = h => p => project([p[0], p[1], h]);
+    const { ring, ground, eave, peak } = model, ringAt = h => ring.map(at(h));
+    const drawn = span(t, 250, 1100), rising = span(t, 900, 900), reach = span(t, 1250, 650), count = span(t, 1500, 700), lift = span(t, 2000, 800);
+    const outline = toPath([ringAt(ground)]);
+    for (const path of [glow, base]) { path.setAttribute('d', outline); path.style.strokeDashoffset = String(1 - drawn); }
+    const top = ground + (eave - ground) * rising;
+    walls.setAttribute('d', rising > 0 ? toPath([ringAt(top), ...ring.slice(0, -1).map(p => [at(ground)(p), at(top)(p)])]) : '');
+    corners.forEach((dot, i) => { const p = t >= i * 90 ? at(ground)(ring[i]) : null; dot.style.display = p ? '' : 'none'; if (p) { dot.setAttribute('cx', p.x.toFixed(1)); dot.setAttribute('cy', p.y.toFixed(1)); } });
+    const grown = model.sides.map(side => { const m = lerp(side.line[0], side.line[1], .5); return [lerp(m, side.line[0], reach), lerp(m, side.line[1], reach)].map(at(ground)); });
+    dims.setAttribute('d', reach > 0 ? toPath(grown) : '');
+    ticks.setAttribute('d', reach >= 1 ? toPath(model.sides.flatMap(side => side.ticks.map(tick => tick.map(at(ground))))) : '');
+    labels.forEach((label, i) => {
+      label.el.classList.toggle('is-shown', count > 0); label.el.textContent = feetText(label.feet * count);
+      place(label.el, at(ground)(lerp(model.sides[i].line[0], model.sides[i].line[1], .5)));
+    });
+    if (heightLabel) {
+      const height = ground + (peak - ground) * lift, foot = at(ground)(model.centre), head = at(height)(model.centre);
+      rise.setAttribute('d', lift > 0 ? toPath([[foot, head]]) : '');
+      heightLabel.el.classList.toggle('is-shown', lift > 0); heightLabel.el.textContent = feetText(heightLabel.feet * lift);
+      place(heightLabel.el, head && { x: head.x, y: head.y - 16 });
+    }
+    frameId = t < 2900 ? requestAnimationFrame(draw) : 0;
+  }
+  function clear() {
+    cancelAnimationFrame(frameId); frameId = 0; model = null;
+    for (const el of [...labels.map(label => label.el), heightLabel?.el, ...corners]) el?.remove();
+    labels = []; heightLabel = null; corners = [];
+    for (const path of [glow, base, walls, dims, ticks, rise]) path.setAttribute('d', '');
+  }
+  /**
+   * `shape` from measureOutline(); heights in metres above the ellipsoid: `ground`, `eave` (top of the
+   * walls) and `peak` (top of the roof). Returns the rounded sides and height in feet.
+   */
+  function play(shape, { ground, eave, peak }, projector) {
+    clear();
+    if (!shape) return null;
+    const first = shape.outline[0], last = shape.outline.at(-1);
+    model = { ring: first[0] === last[0] && first[1] === last[1] ? shape.outline : [...shape.outline, first], sides: shape.sides, centre: shape.centre, ground, eave, peak };
+    project = projector;
+    corners = model.ring.slice(0, -1).map(() => node('circle', 'measure-3d-corner', svg));
+    corners.forEach(dot => dot.setAttribute('r', '4.5'));
+    labels = shape.sides.map(side => { const el = label('measure-label', '≈ 0 ft'); layer.append(el); return { el, feet: side.feet }; });
+    const heightFt = (peak - ground) * FEET_PER_METER;
+    if (heightFt > 6 && heightFt < 140) { const el = label('measure-label', '≈ 0 ft'); layer.append(el); heightLabel = { el, feet: heightFt }; }
+    start = performance.now(); cancelAnimationFrame(frameId); frameId = requestAnimationFrame(draw);
+    return { sides: shape.sides.map(side => Math.round(side.feet)), heightFt: heightLabel ? Math.round(heightFt) : null };
+  }
+  /** Re-projects after the camera moves; cheap enough to call on every rendered frame. */
+  const redraw = () => { if (model && !frameId) draw(); };
+  return { play, clear, redraw };
+}

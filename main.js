@@ -60,9 +60,10 @@ const wizard = setupWizard({
 const propertyPreview = setupPropertyPreview({
   onPhoto: () => { wizard.show(5); showStudioTab('photo'); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus(); },
   // The measuring pass shows the size this page is using; height is stories × story height plus the roof rise.
+  // The 3D view also traces the mapped building outline when the open-data lookup found one.
   getDimensions: () => {
-    const value = id => Number(byId(id).value) || 0;
-    return { lengthFt: value('lengthFt'), widthFt: value('widthFt'), heightFt: value('stories') * (value('storyHeightFt') || 9) + value('gableRiseFt'), fromPublicData: Boolean(footprintData) };
+    const value = id => Number(byId(id).value) || 0, wallFt = value('stories') * (value('storyHeightFt') || 9);
+    return { lengthFt: value('lengthFt'), widthFt: value('widthFt'), wallFt, heightFt: wallFt + value('gableRiseFt'), fromPublicData: Boolean(footprintData), outline: footprintData?.polygon?.coordinates?.[0] ?? null };
   }
 });
 const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });

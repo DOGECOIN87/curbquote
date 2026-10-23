@@ -16,6 +16,7 @@ import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, styleSilhoue
 import { fetchPublicFootprint } from './footprint-client.js';
 import { setupLeadForm } from './lead-form.js';
 import { parseChangeRequest, describeChange } from './intent.js';
+import { setupAddressSuggestions } from './address-suggest.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -618,6 +619,8 @@ function addressChanged() {
   addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. Your property view will load automatically.' : 'Your property view loads as you type a complete U.S. address. Location is approximate.';
   refreshReport(); scheduleAddressLookup();
 }
+// Suggestions first: Enter on a highlighted suggestion picks it before the lookup below runs.
+setupAddressSuggestions({ input: addressEl, panel: byId('address-suggest'), list: byId('address-suggestions'), onPick: text => { addressEl.value = text; addressChanged(); clearTimeout(lookupTimer); lookupAddress(); } });
 addressEl.addEventListener('input', addressChanged);
 addressEl.addEventListener('compositionstart', () => { addressComposing = true; cancelAddressLookup(); });
 addressEl.addEventListener('compositionend', () => { addressComposing = false; addressChanged(); });

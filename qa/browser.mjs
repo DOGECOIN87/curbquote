@@ -695,6 +695,36 @@ try {
     checks.push('Without WebGL2 the configured 3D toggle stays hidden');
   }
   await page3d.close();
+  // Address suggestions from Google Places with the public Maps key; picking one runs the usual lookup.
+  const suggest = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }); await suggest.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
+  suggest.on('pageerror', error => errors.push(error.message));
+  const placesBodies = [];
+  await suggest.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+  await suggest.route('**/api/map3d', route => route.fulfill({ json: { configured: false, mapsKey: syntheticKey } }));
+  await suggest.route('https://places.googleapis.com/v1/places:autocomplete', route => {
+    assert.equal(route.request().headers()['x-goog-api-key'], syntheticKey); placesBodies.push(route.request().postDataJSON());
+    return route.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, json: { suggestions: [
+      { placePrediction: { text: { text: '4600 Silver Hill Rd, Suitland, MD 20746, USA' }, structuredFormat: { mainText: { text: '4600 Silver Hill Rd' }, secondaryText: { text: 'Suitland, MD 20746, USA' } } } },
+      { placePrediction: { text: { text: '4600 Silver Hill Rd, Washington, DC 20233, USA' }, structuredFormat: { mainText: { text: '4600 Silver Hill Rd' }, secondaryText: { text: 'Washington, DC 20233, USA' } } } }
+    ] } });
+  });
+  await suggest.goto(base);
+  await suggest.locator('#property-address').pressSequentially('4600 Silv', { delay: 20 });
+  await suggest.waitForFunction(() => document.querySelectorAll('#address-suggestions [role=option]').length === 2);
+  assert.equal(await suggest.locator('#property-address').getAttribute('aria-expanded'), 'true');
+  assert.equal(await suggest.locator('.suggest-credit').textContent(), 'Google Maps');
+  assert.deepEqual({ ...placesBodies.at(-1), sessionToken: typeof placesBodies.at(-1).sessionToken }, { input: '4600 Silv', sessionToken: 'string', includedRegionCodes: ['us'], languageCode: 'en' });
+  await suggest.keyboard.press('ArrowDown'); await suggest.keyboard.press('ArrowDown');
+  assert.equal(await suggest.locator('#property-address').getAttribute('aria-activedescendant'), 'address-suggestions-1');
+  await suggest.keyboard.press('Enter');
+  assert.equal(await suggest.locator('#property-address').inputValue(), '4600 Silver Hill Rd, Washington, DC 20233');
+  assert.equal(await suggest.locator('#address-suggest').isHidden(), true);
+  await suggest.waitForFunction(() => document.querySelector('#aerial-address').textContent.includes('SILVER HILL RD'));
+  await suggest.locator('#property-address').fill(''); await suggest.locator('#property-address').pressSequentially('4600 Silv', { delay: 20 });
+  await suggest.waitForFunction(() => !document.querySelector('#address-suggest').hidden);
+  await suggest.keyboard.press('Escape'); assert.equal(await suggest.locator('#address-suggest').isHidden(), true);
+  await suggest.close();
+  checks.push('Address suggestions (Google Places, public key) work as a keyboard combobox with Google attribution, and a picked suggestion runs the usual address lookup');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({media:'print'});
   await page.screenshot({path:join(outputDir,'print-report.png'),fullPage:true});

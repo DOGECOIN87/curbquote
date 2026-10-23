@@ -10,11 +10,20 @@ export function map3dConfig(env = process.env) {
   if (/^[\w-]+\.[\w-]+\.[\w-]+$/.test(ionToken) && ionToken.length <= 2000) return { configured: true, provider: 'Google Photorealistic 3D Tiles via Cesium ion', ionToken };
   return { configured: false };
 }
+/**
+ * The Google Maps Platform key for address suggestions, Street View, the Solar API and Aerial View.
+ * Public by design like the Map Tiles key: restrict it to this site's domains and those four APIs.
+ * Without GOOGLE_MAPS_KEY the Map Tiles key is tried, so one key with all five APIs is enough.
+ */
+export function mapsConfig(env = process.env) {
+  const key = [env.GOOGLE_MAPS_KEY, env.GOOGLE_MAP_TILES_KEY].map(value => String(value ?? '').trim()).find(value => /^[\w-]{20,120}$/.test(value));
+  return { key: key || null };
+}
 export function createMap3DHandler({ env = process.env } = {}) {
   return (req, res) => {
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('X-Content-Type-Options', 'nosniff');
     if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return res.status(405).json({ error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' }); }
-    return res.status(200).json(map3dConfig(env));
+    return res.status(200).json({ ...map3dConfig(env), mapsKey: mapsConfig(env).key });
   };
 }
 export default createMap3DHandler();

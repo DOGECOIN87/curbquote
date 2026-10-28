@@ -407,6 +407,9 @@ form.addEventListener('submit', event => {
   calculate({ scroll: true, focus: true });
 });
 form.addEventListener('input', event => {
+  // The address box has its own handler; recalculating the whole estimate per keystroke
+  // makes typing lag on phones, and the price never depends on the raw address text.
+  if (event.target === addressEl) return;
   if (event.target.matches('#lengthFt,#widthFt,#stories')) measurementsTouched = true;
   propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
@@ -639,13 +642,23 @@ byId('clear-footprint')?.addEventListener('click', () => {
   refreshReport();
 });
 
+let addressResetTimer = 0;
 function addressChanged() {
   const undoAuto = footprintData?.automatic === true && !measurementsTouched;
-  cancelAddressLookup(); resetFootprintState({ restoreManual: undoAuto }); propertyLookup?.clear({ restoreInputs: true }); assistant?.changed('property-address');
-  if (undoAuto) { syncProjectControls(); if (hasCalculated) calculate(); }
+  cancelAddressLookup(); assistant?.changed('property-address');
   addressEl.removeAttribute('aria-invalid'); addressStatus.className = 'field-help';
   addressStatus.textContent = addressEl.value.trim() ? 'Keep typing your street, city and state or ZIP. Your property view will load automatically.' : 'Your property view loads as you type a complete U.S. address. Location is approximate.';
-  refreshReport(); scheduleAddressLookup();
+  // The reset below rebuilds the footprint state, the property inputs and the report. Running it
+  // on every keystroke made typing stutter and glitch on phones (worst mid-word, while the
+  // keyboard is up), so it now runs once, shortly after typing pauses — still before the
+  // automatic lookup fires, so the order the rest of the flow expects is unchanged.
+  clearTimeout(addressResetTimer);
+  addressResetTimer = setTimeout(() => {
+    resetFootprintState({ restoreManual: undoAuto }); propertyLookup?.clear({ restoreInputs: true });
+    if (undoAuto) { syncProjectControls(); if (hasCalculated) calculate(); }
+    refreshReport();
+  }, 350);
+  scheduleAddressLookup();
 }
 // Suggestions first: Enter on a highlighted suggestion picks it before the lookup below runs.
 setupAddressSuggestions({ input: addressEl, panel: byId('address-suggest'), list: byId('address-suggestions'), onPick: text => { addressEl.value = text; addressChanged(); clearTimeout(lookupTimer); lookupAddress(); } });

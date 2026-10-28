@@ -12,7 +12,10 @@ import { webgl2Available } from './cesium-runtime.js';
  * (OpenStreetMap heights) → USGS aerial photo → street map → the homeowner's own photo.
  * The stage's data-view (empty, busy, error, matched) lets the Step 1 canvas show its welcome state.
  * After a match the 3D view leads and circles the building (not with reduced motion); choosing the
- * aerial photo is remembered on this device, so later matches open the photo instead.
+ * aerial photo is remembered on this device, so later matches open the photo instead. When Google
+ * already has an Aerial View flyover of the address, it plays first as a lead-in over the loading
+ * 3D view and hands over to the interactive view when it ends or is tapped away (never with
+ * reduced motion, and never over a reviewed local exterior).
  */
 const VIEW_KEY = 'curbquote.property.view';
 // How long a match waits for the 3D credential check before choosing a view without it.
@@ -107,17 +110,30 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   byId('measure-undo').addEventListener('click', () => { onUndoSize?.(); confirmed = null; if (offered) confirmState('ask'); else confirmState(''); });
   // Google's pre-rendered Aerial View flyover, when one already exists for the address.
   const flyover = byId('flyover'), flyoverToggle = byId('flyover-toggle');
-  let flyoverId = null;
-  function closeFlyover() { flyover.pause(); flyover.removeAttribute('src'); flyover.hidden = true; flyoverToggle.setAttribute('aria-pressed', 'false'); flyoverToggle.textContent = 'Flyover'; }
-  async function openFlyover() {
+  let flyoverId = null, flyoverLead = false, flyoverSearch = null;
+  function closeFlyover() { flyoverLead = false; flyover.classList.remove('flyover-out'); flyover.pause(); flyover.removeAttribute('src'); flyover.hidden = true; flyoverToggle.setAttribute('aria-pressed', 'false'); flyoverToggle.textContent = 'Flyover'; }
+  /** The lead-in ends: fade the video out over the interactive 3D view that loaded beneath it. */
+  function finishFlyoverLead() {
+    if (!flyoverLead) return;
+    flyoverLead = false; flyover.pause(); flyover.classList.add('flyover-out');
+    setTimeout(() => { if (flyover.classList.contains('flyover-out')) closeFlyover(); }, 550);
+    if (view3d.isOpen) status.textContent = GOOGLE_READY;
+  }
+  async function openFlyover({ lead = false } = {}) {
     const location = match, url = await flyoverVideo(flyoverId, { portrait: innerHeight > innerWidth });
-    if (!url || match !== location) { status.textContent = 'The flyover video is unavailable right now.'; return; }
+    if (!url || match !== location) { if (!lead) status.textContent = 'The flyover video is unavailable right now.'; return; }
     flyover.setAttribute('aria-label', `Photorealistic aerial flyover of ${location.matchedAddress}, provided by Google Maps.`);
     // Reduced motion: the video waits for the homeowner to press play.
     flyover.controls = matchMedia('(prefers-reduced-motion: reduce)').matches; flyover.autoplay = !flyover.controls;
-    flyover.src = url; flyover.hidden = false; flyoverToggle.setAttribute('aria-pressed', 'true'); flyoverToggle.textContent = 'Close flyover';
-    status.textContent = 'Flyover video from Google Maps. Display only; it is not measured.';
+    // A lead-in plays once, so its end can hand over to the 3D view; a manual open loops.
+    flyover.loop = !lead; flyoverLead = lead; flyover.classList.remove('flyover-out');
+    flyover.src = url; flyover.hidden = false; flyoverToggle.setAttribute('aria-pressed', 'true'); flyoverToggle.textContent = lead ? 'Skip flyover' : 'Close flyover';
+    status.textContent = lead
+      ? 'A flyover of your place, from Google Maps. The interactive 3D view opens when it finishes — tap the video to skip ahead.'
+      : 'Flyover video from Google Maps. Display only; it is not measured.';
   }
+  flyover.addEventListener('ended', finishFlyoverLead);
+  flyover.addEventListener('click', () => { if (flyoverLead) finishFlyoverLead(); });
   // On phones the view options fold behind one button in the 3D stack; picking one folds them again.
   const viewMore = byId('view-more'), viewFoot = byId('view-foot');
   const foldViews = open => { viewFoot.toggleAttribute('data-open', open); viewMore.setAttribute('aria-expanded', String(open)); };
@@ -126,10 +142,11 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   flyoverToggle.addEventListener('click', () => { if (!flyover.hidden) closeFlyover(); else if (flyoverId) openFlyover(); });
   async function findFlyover(location) {
     const found = await flyoverAvailable(location.matchedAddress);
-    if (!found || match !== location) return;
+    if (!found || match !== location) return null;
     flyoverId = found.videoId; flyoverToggle.hidden = false;
     // Without WebGL there is no live 3D view, so the flyover leads.
     if (!webgl2Available()) openFlyover();
+    return found;
   }
   const toggleMap = byId('aerial-map-toggle'), mapControls = byId('map-mode-controls'), mapCredit = byId('map-attribution'), mapOrbit = byId('map-orbit');
   const housenumbersWrap = byId('map-housenumbers'), housenumberListEl = byId('map-housenumber-list');
@@ -237,7 +254,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   /** Google 3D failed (denied key, quota, network): try the key-free 3D buildings before the aerial photo. */
   function unavailable3d(error) {
     const location = match, note = refusalNote(error);
-    view3d.close(); restore2d(); status.dataset.tone = 'warn';
+    view3d.close(); closeFlyover(); restore2d(); status.dataset.tone = 'warn';
     if (viewMap.available && location && !view3d.hasLocal(location)) {
       fallbackNote = `${note} Showing the key-free 3D view.`;
       openMap({ initialMode: '3d', fallback: true }); status.textContent = `${note} Loading open 3D buildings instead…`; return;
@@ -329,7 +346,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;
   }
   function clear() {
-    closeFlyover(); flyoverId = null; flyoverToggle.hidden = true;
+    closeFlyover(); flyoverId = null; flyoverSearch = null; flyoverToggle.hidden = true;
     cancel(); view3d.close(); viewMap.close(); saved = null; match = view = center = pointer = photoFor = null; photo.hidden = true; photoImage.removeAttribute('src'); loaded = false; width = DEFAULT_VIEW_METERS; fallbackNote = ''; delete status.dataset.tone; offered = confirmed = null; confirmState(''); sync3d(); syncMap();
     if (housenumbersWrap) housenumbersWrap.hidden = true;
     if (housenumberListEl) housenumberListEl.replaceChildren();
@@ -387,7 +404,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   }
   function show(location) {
     if (!isAddressMatch(location)) { failed(); return; }
-    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap(); findFlyover(location);
+    clear(); match = location; stage.dataset.view = 'matched'; byId('aerial-address').textContent = location.matchedAddress; sync3d(); syncMap(); flyoverSearch = findFlyover(location);
     const covered = hasAerialCoverage(location.coordinates);
     if (covered) center = framed(location.coordinates);
     else {
@@ -397,9 +414,19 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     // The 3D view leads and circles the building; the aerial photo loads only if 3D is closed or fails,
     // or when this visitor chose the photo before. A saved address can match before the 3D check
     // answers, so wait briefly for it rather than settling for the key-free view.
-    const choose = () => {
+    const choose = async () => {
       if (match !== location) return;
-      if (view3d.hasLocal(location) || has3d) open3d({ reload: covered, orbit: true });
+      if (view3d.hasLocal(location) || has3d) {
+        // When Google already has a flyover of this address, it leads: the 3D view loads
+        // underneath and the video hands over to it when it ends or is tapped away. The
+        // flyover lookup gets a short grace period so a slow answer never delays the 3D view.
+        const lead = !view3d.hasLocal(location) && !matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? await Promise.race([flyoverSearch, new Promise(resolve => setTimeout(() => resolve(null), 2500))]).catch(() => null)
+          : null;
+        if (match !== location) return;
+        open3d({ reload: covered, orbit: true });
+        if (lead) openFlyover({ lead: true });
+      }
       else if (viewMap.available && prefers3d()) openMap({ initialMode: '3d', reload: covered, orbit: true });
       else if (covered) load();
     };
@@ -420,8 +447,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   byId('aerial-retry').addEventListener('click', load);
   byId('aerial-photo').addEventListener('click', onPhoto);
   toggle3d.addEventListener('click', () => {
-    if (view3d.isOpen) { rememberView('photo'); view3d.close(); restore2d(); }
-    else if (open3dShown()) { rememberView('photo'); viewMap.close(); restore2d(); }
+    if (view3d.isOpen) { rememberView('photo'); view3d.close(); closeFlyover(); restore2d(); }
+    else if (open3dShown()) { rememberView('photo'); viewMap.close(); closeFlyover(); restore2d(); }
     else if (match && (has3d || view3d.hasLocal(match))) { rememberView('3d'); open3d({ orbit: true }); }
     else if (match) { rememberView('3d'); openMap({ initialMode: '3d', orbit: true }); }
   });
@@ -430,7 +457,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   byId('map-zoom-out').addEventListener('click', () => viewMap.zoomBy(-1));
   byId('map-north').addEventListener('click', () => viewMap.north());
   byId('measure-replay').addEventListener('click', () => { if (viewMap.isOpen) viewMap.measure(); else if (view3d.isOpen) measure3d(); else drawAerialMeasure(); });
-  toggleMap.addEventListener('click', () => { if (viewMap.isOpen) { viewMap.close(); restore2d(); } else if (match) openMap(); });
+  toggleMap.addEventListener('click', () => { if (viewMap.isOpen) { viewMap.close(); restore2d(); } else if (match) { closeFlyover(); openMap(); } });
   for (const button of mapControls.querySelectorAll('[data-map-mode]')) button.addEventListener('click', () => { viewMap.setMode(button.dataset.mapMode); syncMap(); sync3d(); });
   byId('map-recenter').addEventListener('click', () => viewMap.recenter());
   byId('map-clear-selection').addEventListener('click', () => viewMap.clearSelection());

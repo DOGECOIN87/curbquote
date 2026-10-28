@@ -134,7 +134,9 @@ async function findFlyover(address, { signal } = {}) {
     const response = await fetch(`https://aerialview.googleapis.com/v1/videos:lookupVideoMetadata?${new URLSearchParams({ address, key })}`, { signal });
     if (!response.ok) return null;
     const body = await response.json();
-    return body?.state === 'ACTIVE' && body.metadata?.videoId ? { videoId: body.metadata.videoId, captureDate: body.metadata.captureDate || null } : null;
+    // The API answers flat: { videoId, state, captureDate, duration } (no metadata wrapper).
+    const videoId = body?.videoId || body?.metadata?.videoId;
+    return body?.state === 'ACTIVE' && videoId ? { videoId, captureDate: body.captureDate || body.metadata?.captureDate || null } : null;
   } catch { return null; }
 }
 /** The flyover's short-lived MP4 address for this view (landscape or portrait), or null. Billed per call. */

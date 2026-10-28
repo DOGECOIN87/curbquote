@@ -2,7 +2,7 @@ import { isAddressMatch } from './address.js';
 import { hasAerialCoverage } from './property-view.js';
 import { propertyMapStyle, buildingHighlight, emptySelection } from './map-style.js';
 import { webgl2Available } from './property-3d.js';
-import { setupMapMeasure, measureOutline, illustrativeOutline, FEET_PER_METER } from './measure-overlay.js';
+import { setupMapMeasure, measureOutline, FEET_PER_METER } from './measure-overlay.js';
 
 const VENDOR = new URL('./vendor/maplibre/', import.meta.url).href;
 const LOAD_TIMEOUT = 20000;
@@ -30,7 +30,7 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
   const available = webgl2Available();
   // The orbit waits for the first measuring pass (it needs a still map), then circles the building.
   let orbitFrame = 0, orbitWanted = false, settled = false, measurer = null;
-  /** Measures the mapped building under a screen point, or an illustrative outline at the address. */
+  /** Measures the mapped building under a screen point. No mapped building, no drawing — a default rectangle on a real property would read as a measurement that never happened. */
   function measureAt(point = null) {
     if (!map || !measurer || !location) return null;
     const { lon, lat } = location.coordinates, at = point || map.project([lon, lat]);
@@ -39,7 +39,8 @@ export function setupPropertyMap({ stage, onStatus, onSelection, onHousenumbers,
     try { raw = map.getLayer(layer) ? map.queryRenderedFeatures([[at.x - 10, at.y - 10], [at.x + 10, at.y + 10]], { layers: [layer] }).find(f => buildingHighlight(f)) : null; } catch {}
     const geometry = raw?.geometry, ring = geometry?.type === 'Polygon' ? geometry.coordinates[0] : geometry?.type === 'MultiPolygon' ? geometry.coordinates[0][0] : null;
     const fallback = getDimensions?.() || {}, mapped = ring ? measureOutline(ring) : null;
-    const shape = mapped || measureOutline(illustrativeOutline([lon, lat], fallback.lengthFt || 48, fallback.widthFt || 34));
+    const shape = mapped;
+    if (!shape) { onMeasure?.(null); return null; }
     // Only a plausible mapped height is used; the rest falls back to the stories on this page.
     const mappedHeight = Number(raw?.properties?.render_height);
     const heightFt = mapped && mappedHeight > 3 && mappedHeight < 40 ? mappedHeight * FEET_PER_METER : fallback.heightFt;

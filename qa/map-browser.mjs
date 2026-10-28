@@ -132,10 +132,11 @@ try {
   await auto.waitForFunction(() => document.querySelector('#map-orbit').getAttribute('aria-pressed') === 'false');
   checks.push('After a match the key-free 3D view opens, measures the mapped outline, then circles the building until touched');
   await auto.locator('#aerial-3d-toggle').click();
-  await auto.waitForFunction(() => document.querySelectorAll('#aerial-measure .measure-tag').length === 2, undefined, { timeout: 15000 });
+  await auto.waitForFunction(() => document.querySelector('#aerial-images img')?.complete, undefined, { timeout: 15000 });
+  assert.equal(await auto.evaluate(() => document.querySelectorAll('#aerial-measure .measure-tag').length), 0, 'no measurement is drawn on the photo without building data');
   assert.equal(await auto.evaluate(() => localStorage.getItem('curbquote.property.view')), 'photo');
   await live.close();
-  checks.push('Choosing the aerial photo is remembered on this device, and the photo shows an illustrative measuring pass');
+  checks.push('Choosing the aerial photo is remembered on this device, and the photo draws no measurement without building data');
   const noGL = await browser.newPage(); await noGL.addInitScript(() => { const original = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function(type, ...args) { return type === 'webgl2' ? null : original.call(this, type, ...args); }; });
   await noGL.route('https://imagery.nationalmap.gov/**', route => route.fulfill({ contentType: 'image/png', body: mapImageryPng }));
   await noGL.goto(base); await noGL.locator('#property-address').fill('123 Test St, Washington, DC 20233'); await noGL.locator('#verify-address').click();

@@ -516,7 +516,7 @@ byId('fetch-footprint')?.addEventListener('click', async () => {
   footprintController = controller;
   button.disabled = true;
   statusEl.className = 'field-help';
-  statusEl.textContent = 'Checking authorized & public ODbL building footprints…';
+  statusEl.textContent = 'Checking Google Solar and public building footprints…';
   try {
     const result = await fetchPublicFootprint({
       address: addressEl.value.trim(),
@@ -603,8 +603,8 @@ async function autoFootprint(location) {
   footprintController?.abort();
   const controller = new AbortController(), statusEl = byId('footprint-status');
   footprintController = controller;
-  statusEl.className = 'field-help'; statusEl.textContent = 'Looking up the public building outline for this address…';
-  paintInstant('Sizing your home from public building outlines…');
+  statusEl.className = 'field-help'; statusEl.textContent = 'Looking up building measurements for this address…';
+  paintInstant('Sizing your home from building data…');
   try {
     const result = await fetchPublicFootprint({ coordinates: location.coordinates, styleId: selectedHomeStyle, openOnly: true, signal: controller.signal });
     // A size the homeowner already confirmed in the 3D view stays.

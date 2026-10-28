@@ -7,6 +7,7 @@ import { STATIC_SITE } from './config.js';
 import { hasAerialCoverage } from './property-view.js';
 import { DEFAULT_HOME_STYLE, resolveHomeStyle, suggestStyleFromFootprint } from './home-styles.js';
 import { nearbyBuildings } from './osm-tiles.js';
+import { solarOutline } from './google-maps.js';
 
 export const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
 const EARTH_RADIUS_M = 6378137;
@@ -201,16 +202,52 @@ export async function fromMapTiles(coordinates, styleId, signal, fetchImpl) {
   };
 }
 
+const SOLAR_WARNINGS = Object.freeze([
+  'Derived from Google Solar API building data — approximate, not your surveyed footprint.',
+  'Porch, dormer and shutter previews are visual only and are not priced.'
+]);
 /**
- * Fetches building dimensions on demand with zero caching, `credentials: 'omit'` and
- * `referrerPolicy: 'strict-origin'`. Uses relative `api/footprint` when hosted, with a direct
- * Overpass open-data lookup on static GitHub Pages builds. Overpass is often busy or throttled, so
- * when either answer fails the same OpenStreetMap outlines are read from OpenFreeMap's map tiles.
+ * The building at this point from Google's Solar API, as a footprint result, or null. Solar is the
+ * primary source: its imagery-derived building (a rectangle turned to the roof's main direction)
+ * is usually tighter and far more consistently available than the volunteer-mapped outline.
+ */
+export async function fromSolar(coordinates, styleId = DEFAULT_HOME_STYLE, signal) {
+  const ring = await solarOutline([coordinates.lat, coordinates.lon], { signal }).catch(() => null);
+  const measured = ring ? measurePolygonRing(ring) : null;
+  if (!measured || measured.areaSqFt < 120) return null;
+  const result = {
+    polygon: measured.polygon,
+    areaSqFt: measured.areaSqFt,
+    perimeterFt: measured.perimeterFt,
+    lengthFt: measured.lengthFt,
+    widthFt: measured.widthFt,
+    heightFt: null,
+    stories: null,
+    roofPitch: null,
+    roofShape: null,
+    architecture: null,
+    source: { provider: 'Google Solar API', license: 'Google Maps Platform', retrievedAt: new Date().toISOString(), approximate: true },
+    warnings: [...SOLAR_WARNINGS]
+  };
+  result.suggestedStyle = suggestStyleFromFootprint(result) || resolveHomeStyle(styleId).id;
+  return result;
+}
+
+/**
+ * Fetches building dimensions on demand. Google's Solar API answers first (it needs the Maps
+ * key, so on builds without one this step is a no-op); OpenStreetMap is the fallback — relative
+ * `api/footprint` when hosted, a direct Overpass lookup on static GitHub Pages builds, and the
+ * same outlines read from OpenFreeMap's map tiles when either of those fails.
  */
 export async function fetchPublicFootprint(options = {}) {
+  const { coordinates, styleId = DEFAULT_HOME_STYLE, signal } = options;
+  if (coordinates && hasAerialCoverage(coordinates)) {
+    const solar = await fromSolar(coordinates, styleId, signal).catch(() => null);
+    if (solar) return solar;
+  }
   // Hosted, the server already falls back to the map tiles; the static site has no server.
   if (!STATIC_SITE) return lookupFootprint(options);
-  const { coordinates, styleId = DEFAULT_HOME_STYLE, signal, fetchImpl = fetch } = options;
+  const { fetchImpl = fetch } = options;
   try { return await lookupFootprint(options); }
   catch (error) {
     if (signal?.aborted || error?.consent) throw error;

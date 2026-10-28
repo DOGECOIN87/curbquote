@@ -8,7 +8,7 @@ import { loadCesium, webgl2Available } from './cesium-runtime.js';
 import { exteriorForLocation } from './exterior-catalog.js';
 import { setupExterior3D } from './property-exterior.js';
 import { solarOutline } from './google-maps.js';
-import { FEET_PER_METER, findRoof, illustrativeOutline, measureOutline, setupScreenMeasure } from './measure-overlay.js';
+import { FEET_PER_METER, findRoof, measureOutline, setupScreenMeasure } from './measure-overlay.js';
 export { webgl2Available } from './cesium-runtime.js';
 
 const HEIGHT_TIMEOUT = 15000;
@@ -141,10 +141,12 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     return roof && { ring: [...roof.corners, roof.corners[0]].map(([x, y]) => [lon + x / kx, lat + y / ky]), ground: roof.ground, peak: roof.peak };
   }
   /**
-   * Measures a building and plays the measuring pass. The outline is, in order: the mapped building
-   * (OpenStreetMap), Google's Solar API building, the roof found in Google's 3D surface nearest the address point (or under a tap,
-   * `at`), or an illustrative rectangle of the estimate's size. Heights come from the 3D surface when
-   * it answers in time. All of it is approximate and never becomes an estimate input.
+   * Measures a building and plays the measuring pass. The outline is, in order: the estimate's
+   * footprint (Google Solar first, OpenStreetMap fallback), Google's Solar API building, or the
+   * roof found in Google's 3D surface nearest the address point (or under a tap, `at`). When none
+   * of those finds a building, nothing is drawn — there is no default rectangle, because a made-up
+   * measurement on a real property misleads. Heights come from the 3D surface when it answers in
+   * time. All of it is approximate and never becomes an estimate input.
    */
   async function measure({ outline = null, lengthFt = 48, widthFt = 34, wallFt = 18, heightFt = 26 } = {}, { at = null } = {}) {
     if (!widget || !target || !place) return null;
@@ -156,7 +158,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     const traced = found && measureOutline(found.ring);
     // A tap that finds no roof (a lawn, a street, a tree) leaves the current measurement as it is.
     if (at && !traced) return null;
-    const shape = mapped || traced || measureOutline(illustrativeOutline(at || [place.lon, place.lat], lengthFt, widthFt));
+    const shape = mapped || traced;
     if (!shape) return null;
     const { Cartesian3, Cartographic } = Cesium, [cx, cy] = shape.centre;
     const around = k => shape.outline.map(([lon, lat]) => [cx + (lon - cx) * k, cy + (lat - cy) * k]);
@@ -186,7 +188,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     layer.hidden = false;
     const result = measurer.play(shape, { ground, eave, peak }, project);
     if (resume) orbit();
-    return result && { ...result, centre: shape.centre, source: osm ? 'outline' : solar ? 'solar' : traced ? 'surface' : 'illustrative', measuredHeight: measured };
+    return result && { ...result, centre: shape.centre, source: osm ? 'outline' : solar ? 'solar' : 'surface', measuredHeight: measured };
   }
   /** The surface height at a point once its most detailed tiles load (null if unsupported or failed). */
   function surfaceHeight(lon, lat) {

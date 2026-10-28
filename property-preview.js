@@ -58,10 +58,9 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     showMeasure({ note: {
       outline: result.measuredHeight ? 'Approximate, from the mapped outline and the 3D view' : 'Approximate, from the mapped outline',
       surface: 'Approximate, measured in the 3D view. Not your home? Tap its roof.',
-      solar: 'Approximate, from Google’s roof data and the 3D view. Not your home? Tap its roof.',
-      illustrative: 'Illustrative size. Tap your roof to measure it.'
+      solar: 'Approximate, from Google’s roof data and the 3D view. Not your home? Tap its roof.'
     }[result.source] });
-    offerSize(result.source === 'illustrative' ? null : result);
+    offerSize(result);
   }
   // "Is this your home?": a measured building sizes the estimate only once the homeowner confirms it.
   const confirmCard = byId('measure-confirm'), confirmText = byId('measure-confirm-text');
@@ -176,7 +175,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   const viewMap = setupPropertyMap({
     stage, onFailure: unavailableMap, getPadding: overlayPadding, onOrbitChange: () => syncMap(), getDimensions,
     onMeasure: result => {
-      showMeasure(result && { ...result, note: result.approximate ? 'Approximate, from the mapped building outline. Not your home? Tap it on the map.' : 'Illustrative dimensions' });
+      showMeasure(result && { ...result, note: 'Approximate, from the mapped building outline. Not your home? Tap it on the map.' });
       offerSize(result?.approximate ? { ...result, source: 'map' } : null);
     },
     onBearing: bearing => byId('map-north').style.setProperty('--bearing', `${-bearing}deg`),
@@ -320,11 +319,17 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     if (result) measureNote.textContent = result.note;
   }
   function clearAerialMeasure() { measureGroup.replaceChildren(); }
-  /** The top-down photo has no outline to trace, so the home's size is drawn as an illustrative footprint. */
+  /**
+   * Draws the measured size on the top-down photo — only when the size came from real building
+   * data. Without it nothing is drawn: a default rectangle on someone's actual property reads as
+   * a measurement that never happened.
+   */
   function drawAerialMeasure() {
     clearAerialMeasure();
     if (!loaded || !view || !match) return;
-    const dims = getDimensions() || {}, lengthFt = dims.lengthFt || 48, widthFt = dims.widthFt || 34;
+    const dims = getDimensions() || {};
+    if (!dims.fromPublicData) return;
+    const lengthFt = dims.lengthFt || 48, widthFt = dims.widthFt || 34;
     const perFoot = 960 / (width * 3.28084), p = pointInView(view, match.coordinates);
     const w = lengthFt * perFoot, h = widthFt * perFoot, x0 = p.x - w / 2, y0 = p.y - h / 2, gap = 14, svg = 'http://www.w3.org/2000/svg';
     const path = (d, className) => { const el = document.createElementNS(svg, 'path'); el.setAttribute('d', d); el.setAttribute('class', className); el.setAttribute('pathLength', '1'); el.setAttribute('vector-effect', 'non-scaling-stroke'); measureGroup.append(el); };
@@ -343,7 +348,7 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
       words.setAttribute('text-anchor', 'middle'); words.setAttribute('dy', '4.5'); words.textContent = text;
       tag.append(box, words); measureGroup.append(tag);
     }
-    showMeasure({ note: dims.fromPublicData ? 'Size from public data; placement is illustrative' : 'Illustrative dimensions' });
+    showMeasure({ note: 'Size from public data; placement is illustrative' });
   }
   function placeholder(title, text) {
     overlay.hidden = false; byId('aerial-placeholder-title').textContent = title; byId('aerial-placeholder-text').textContent = text;

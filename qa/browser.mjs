@@ -641,8 +641,9 @@ try {
   assert.equal(await chat.locator('#change-request').isVisible(), false, 'the change bar waits for a home');
   await chat.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233'); await chat.locator('#property-address').press('Enter');
   await chat.waitForFunction(() => document.querySelector('.hero').dataset.dock === 'top' && document.activeElement?.id === 'change-request', undefined, { timeout: 15000 });
-  await chat.waitForFunction(() => document.querySelectorAll('#aerial-measure .measure-tag').length === 2, undefined, { timeout: 15000 });
-  assert.match(await chat.locator('#measure-note').textContent(), /Illustrative/);
+  await chat.waitForFunction(() => document.querySelector('#aerial-images img')?.complete, undefined, { timeout: 15000 });
+  assert.equal(await chat.evaluate(() => document.querySelectorAll('#aerial-measure .measure-tag').length), 0, 'no measurement is drawn on the photo when no building data exists');
+  assert.equal(await chat.evaluate(() => document.querySelector('#measure-chip').hidden), true);
   await chat.locator('#change-request').fill('Navy siding and new windows, under $30k'); await chat.locator('#change-request').press('Enter');
   assert.deepEqual(await chat.locator('#scope-siding, #scope-windows, #scope-doors').evaluateAll(els => els.map(el => el.checked)), [true, true, false]);
   assert.equal(await chat.locator('#color-picker [data-color="navy"]').getAttribute('aria-pressed'), 'true');
@@ -658,7 +659,7 @@ try {
   assert.match(await chat.locator('#change-status').textContent(), /^Here I can change/);
   await chat.locator('#proposal-exit').click(); assert.equal(await chat.locator('.hero').getAttribute('data-mode'), null);
   await chat.close();
-  checks.push('"What would you like to change?" applies plain requests to the estimate controls, opens an Original / Proposed preview and says what it cannot do; the photo shows an illustrative measuring pass');
+  checks.push('"What would you like to change?" applies plain requests to the estimate controls, opens an Original / Proposed preview and says what it cannot do; the photo draws no measurement when no building data exists');
   const page3d = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }); await page3d.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
   const googleRequests = [], syntheticKey = 'SYNTHETIC-TEST-KEY-NOT-REAL-0000';
   page3d.on('pageerror', error => errors.push(error.message));

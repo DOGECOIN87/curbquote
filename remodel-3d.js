@@ -575,6 +575,189 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     }
   }
 
+  /** panel() faces along its winding's normal; flip the winding when that faces the given inside point. */
+  function panelOut(parent, pts, mat, inside) {
+    const basis = planeBasis(pts);
+    const c = pts.reduce((s, p) => s.add(p), V(0, 0, 0)).multiplyScalar(1 / pts.length);
+    if (basis.n.dot(c.clone().sub(inside)) < 0) pts = [...pts].reverse();
+    return panel(parent, pts, mat);
+  }
+  /** The measured plan's usable edges, each with its outward normal (pointing away from the centre). */
+  function outlineEdges(spec) {
+    const pts = spec.outline.points, edges = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 2.5) continue;
+      let nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len;
+      const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+      if (nx * mx + nz * mz < 0) { nx = -nx; nz = -nz; }
+      edges.push({ a, b, len, mx, mz, nx, nz });
+    }
+    return edges;
+  }
+  function edgeSide(e, spec) {
+    const nx = e.mx / (spec.outline.lengthFt / 2), nz = e.mz / (spec.outline.widthFt / 2);
+    return Math.abs(nz) >= Math.abs(nx) ? (nz > 0 ? 'front' : 'back') : (nx > 0 ? 'right' : 'left');
+  }
+  const planArea = pts => { let a = 0; for (let i = 0; i < pts.length; i++) { const [x1, z1] = pts[i], [x2, z2] = pts[(i + 1) % pts.length]; a += x1 * z2 - x2 * z1; } return a / 2; };
+  const pointInPlan = (pts, x, z) => {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, zi] = pts[i], [xj, zj] = pts[j];
+      if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  const pointOnPlanEdge = (pts, x, z, tol = .1) => {
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, z1] = pts[i], [x2, z2] = pts[(i + 1) % pts.length];
+      const dx = x2 - x1, dz = z2 - z1, len2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / len2));
+      if (Math.hypot(x - (x1 + dx * t), z - (z1 + dz * t)) <= tol) return true;
+    }
+    return false;
+  };
+  /**
+   * An axis-aligned L plan (a hexagon with one reflex corner) splits into two rectangles at
+   * that corner: a full-length strip and a full-depth strip. Roofing each strip with its own
+   * gable gives the cross-gable real L-shaped houses wear, instead of one roof floating over
+   * the notch. Returns the two bars, or null for any other plan shape.
+   */
+  function decomposeL(pts) {
+    if (pts.length !== 6) return null;
+    for (let i = 0; i < 6; i++) {
+      const [x1, z1] = pts[i], [x2, z2] = pts[(i + 1) % 6];
+      if (Math.abs(x2 - x1) > .35 && Math.abs(z2 - z1) > .35) return null;
+    }
+    const crosses = pts.map((p, i) => {
+      const a = pts[(i + 5) % 6], b = pts[(i + 1) % 6];
+      return (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]);
+    });
+    const majority = crosses.filter(c => c > 0).length >= 3 ? 1 : -1;
+    const reflex = crosses.findIndex(c => Math.sign(c) !== majority && Math.abs(c) > .01);
+    if (reflex < 0) return null;
+    const [rx, rz] = pts[reflex];
+    const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+    const area = Math.abs(planArea(pts));
+    const rect = (ax0, ax1, az0, az1) => ({ x0: ax0, x1: ax1, z0: az0, z1: az1 });
+    const combos = [
+      [rect(x0, x1, z0, rz), rect(rx, x1, z0, z1)], [rect(x0, x1, z0, rz), rect(x0, rx, z0, z1)],
+      [rect(x0, x1, rz, z1), rect(rx, x1, z0, z1)], [rect(x0, x1, rz, z1), rect(x0, rx, z0, z1)]
+    ];
+    for (const [a, b] of combos) {
+      const overlap = Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0));
+      const union = (a.x1 - a.x0) * (a.z1 - a.z0) + (b.x1 - b.x0) * (b.z1 - b.z0) - overlap;
+      if (Math.abs(union - area) > Math.max(2, area * .02)) continue;
+      const inside = r => [[r.x0, r.z0], [r.x1, r.z0], [r.x1, r.z1], [r.x0, r.z1], [(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2]]
+        .every(([x, z]) => pointInPlan(pts, x, z) || pointOnPlanEdge(pts, x, z));
+      if (!inside(a) || !inside(b)) continue;
+      const bars = [a, b].map(r => {
+        const sx = r.x1 - r.x0, sz = r.z1 - r.z0, alongX = sx >= sz;
+        return { cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, len: Math.max(sx, sz), wid: Math.min(sx, sz), alongX };
+      });
+      if (bars.some(bar => bar.wid < 6 || bar.len < 8)) return null;
+      return bars;
+    }
+    return null;
+  }
+  /**
+   * The measured shell: walls on the real footprint plan; the roof follows the plan too — a
+   * cross-gable over the two bars of an L plan, otherwise one plain gable over the containing
+   * rectangle at the measured rise, with gable infill fitted to the plan's actual ends.
+   * Returns the roof chain plus a chimney anchor seated on the primary roof bar.
+   */
+  function measuredBody(building, { spec, m, base, y0, rise, storyH, overhang }) {
+    const pts = spec.outline.points, oL = spec.outline.lengthFt, oW = spec.outline.widthFt;
+    panelOut(building, pts.map(([x, z]) => V(x, base + .14, z)), m.concrete, V(0, base - 1, 0));
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, z1] = pts[i], [x2, z2] = pts[(i + 1) % pts.length];
+      if (Math.hypot(x2 - x1, z2 - z1) < .5) continue;
+      panelOut(building, [V(x1, base, z1), V(x2, base, z2), V(x2, y0, z2), V(x1, y0, z1)], m.siding, V(0, (base + y0) / 2, 0));
+    }
+    const chain = profile('gable', oW, y0, rise, storyH, spec.stories);
+    const bars = decomposeL(pts);
+    if (!bars) {
+      prism(building, { x0: -oL / 2, x1: oL / 2, chain, base, overhang, m, caps: [false, false], frontWall: false, backWall: false });
+      for (const s of [-1, 1]) {
+        const end = pts.filter(([x]) => Math.abs(x - s * oL / 2) < 2.5).map(([, z]) => z);
+        const zs = end.length ? end : [-oW / 2, oW / 2];
+        panelOut(building, [V(s * oL / 2, y0, Math.min(...zs)), V(s * oL / 2, y0 + rise, 0), V(s * oL / 2, y0, Math.max(...zs))], m.siding, V(0, y0, 0));
+      }
+      return { chain, chimney: { x: oL * .27, z: -1.8, ridgeY: y0 + rise } };
+    }
+    const slope = rise / (oW / 2);
+    let primary = null;
+    for (const bar of bars) {
+      const barRise = slope * bar.wid / 2, barChain = profile('gable', bar.wid, y0, barRise, storyH, spec.stories);
+      if (bar.alongX) {
+        prism(building, { x0: bar.cx - bar.len / 2, x1: bar.cx + bar.len / 2, chain: barChain.map(([z, y]) => [z + bar.cz, y]), base, overhang, m, caps: [false, false], frontWall: false, backWall: false });
+      } else {
+        const sub = new Three.Group();
+        sub.position.set(bar.cx, 0, bar.cz); sub.rotation.y = Math.PI / 2; building.add(sub);
+        prism(sub, { x0: -bar.len / 2, x1: bar.len / 2, chain: barChain, base, overhang, m, caps: [false, false], frontWall: false, backWall: false });
+      }
+      for (const s of [-1, 1]) {
+        const corners = bar.alongX
+          ? [[bar.cx + s * bar.len / 2, bar.cz - bar.wid / 2], [bar.cx + s * bar.len / 2, bar.cz + bar.wid / 2]]
+          : [[bar.cx - bar.wid / 2, bar.cz + s * bar.len / 2], [bar.cx + bar.wid / 2, bar.cz + s * bar.len / 2]];
+        if (!corners.every(([x, z]) => pointOnPlanEdge(pts, x, z))) continue;
+        if (bar.alongX) {
+          const x = bar.cx + s * bar.len / 2;
+          panelOut(building, [V(x, y0, bar.cz - bar.wid / 2), V(x, y0 + barRise, bar.cz), V(x, y0, bar.cz + bar.wid / 2)], m.siding, V(bar.cx, y0, bar.cz));
+        } else {
+          const z = bar.cz + s * bar.len / 2;
+          panelOut(building, [V(bar.cx - bar.wid / 2, y0, z), V(bar.cx, y0 + barRise, z), V(bar.cx + bar.wid / 2, y0, z)], m.siding, V(bar.cx, y0, bar.cz));
+        }
+      }
+      if (!primary || bar.len * bar.wid > primary.len * primary.wid) primary = { ...bar, barRise };
+    }
+    const off = spec.accent === 'center-chimney' ? 0 : primary.len * .27;
+    const chimney = primary.alongX
+      ? { x: primary.cx + off, z: primary.cz - 1.8, ridgeY: y0 + primary.barRise }
+      : { x: primary.cx - 1.8, z: primary.cz + off, ridgeY: y0 + primary.barRise };
+    return { chain, chimney };
+  }
+  /** Windows redistributed onto the plan's real edges, longest edge per face and floor. */
+  function measuredOpenings(building, { spec, m, frame, base, y0, storyH, grid, shutterMat }) {
+    const edges = outlineEdges(spec);
+    const groups = new Map();
+    for (const win of spec.windows) {
+      const key = `${win.face}|${win.floor}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(win);
+    }
+    for (const [key, wins] of groups) {
+      const [face, floorRaw] = key.split('|'), floor = Number(floorRaw);
+      const candidates = edges.filter(e => edgeSide(e, spec) === face).sort((a, b) => b.len - a.len);
+      if (!candidates.length) continue;
+      const e = candidates[0];
+      const winH = Math.min(4.6, storyH * .5), y = base + floor * storyH + storyH * .55;
+      if (y + winH / 2 > y0 - .6) continue;
+      wins.forEach((win, i) => {
+        const t = Math.min(1, Math.max(0, (1.5 + (i + .5) / wins.length * (e.len - 3)) / e.len));
+        const u = windowUnit({ w: 3, h: winH, frame, glassMat: m.glass, m, grid, shutters: face !== 'back' ? shutterMat : null });
+        u.position.set(e.a[0] + (e.b[0] - e.a[0]) * t + e.nx * .08, y, e.a[1] + (e.b[1] - e.a[1]) * t + e.nz * .08);
+        u.rotation.y = Math.atan2(e.nx, e.nz);
+        building.add(u);
+      });
+    }
+  }
+  /** The entry door on the plan's longest front edge, turned to face out of that edge. */
+  function measuredEntry(building, { spec, m, base, glassMat, lamp, light }) {
+    const front = outlineEdges(spec).filter(e => edgeSide(e, spec) === 'front').sort((a, b) => b.len - a.len)[0];
+    if (!front) return;
+    const sub = new Three.Group();
+    sub.position.set(front.mx, 0, front.mz);
+    sub.rotation.y = Math.atan2(front.nx, front.nz);
+    building.add(sub);
+    box(sub, 6.4, .5, 3.4, m.concrete, 0, .25, 1.7);
+    box(sub, 5.4, .5, 2, m.concrete, 0, .75, 1);
+    doorUnit(sub, { x: 0, z: 0, base, spec, m, glassMat, light: lamp });
+    if (light.glow > .5) { const p = new Three.PointLight('#ffc070', 22 * light.glow, 22, 1.6); p.position.set(0, base + 7, 3); sub.add(p); }
+  }
+
   function buildVariant(variantSpec) {
     const group = new Three.Group(), building = new Three.Group(); group.add(building);
     const { lengthFt: L, widthFt: W, wallHeightFt: H, gableRiseFt: rise, storyHeightFt: storyH, stories } = variantSpec;
@@ -609,9 +792,15 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     const skirtH = variantSpec.masonryPercent >= 10 ? Math.min(4.8, 1.5 + variantSpec.masonryPercent / 20) : 0;
     box(building, L + .7, base + .25, W + .7, m.concrete, 0, (base + .25) / 2 - .12, 0);
 
-    // Body and roof.
-    let chain = profile('gable', W, y0, rise, storyH, stories), wing = null, leftWingTop = y0, faces = { front: y0, back: y0 };
-    if (form === 'hip' || form === 'hip-low') {
+    // Body and roof. A measured outline (from a confirmed public footprint) replaces the plain
+    // rectangle for plain-gable homes: walls follow the real plan and the roof keeps the
+    // measured rise. Porches, dormers and other additions stay with the standard model.
+    const measured = form === 'gable' && variantSpec.outline?.points?.length >= 4 && variantSpec.outline.coverage >= .55 ? variantSpec.outline : null;
+    let chain = profile('gable', W, y0, rise, storyH, stories), wing = null, leftWingTop = y0, faces = { front: y0, back: y0 }, measuredChimney = null;
+    if (measured) {
+      const built = measuredBody(building, { spec: variantSpec, m, base, y0, rise, storyH, overhang });
+      chain = built.chain; measuredChimney = built.chimney;
+    } else if (form === 'hip' || form === 'hip-low') {
       walls(building, { x0: -L / 2, x1: L / 2, z0: -W / 2, z1: W / 2, base, top: y0, m });
       chain = hipRoof(building, { x0: -L / 2, x1: L / 2, z0: -W / 2, z1: W / 2, y0, rise, overhang, m }).chain;
     } else if (form === 'flat') {
@@ -649,22 +838,26 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
         }
       }
     }
-    if (form === 'hip' || form === 'hip-low' || form === 'flat') skirt(building, { x0: -L / 2, x1: L / 2, z0: -W / 2, z1: W / 2, h: skirtH, m });
-    else skirt(building, { x0: -L / 2, x1: L / 2, z0: -W / 2, z1: W / 2, h: form === 'split' ? Math.min(skirtH, leftWingTop - base - 1) : skirtH, m });
-    for (const z of [W / 2, -W / 2]) if (form !== 'split') box(building, L - .4, .45, .2, m.trim, 0, (z > 0 ? faces.front : faces.back) - .3, z + Math.sign(z) * .1, { shadow: false });
-    if (accent === 'banded' && stories > 1) for (const z of [W / 2, -W / 2]) box(building, L + .4, .55, .3, m.timber, 0, base + storyH, z + Math.sign(z) * .15, { shadow: false });
+    if (!measured && (form === 'hip' || form === 'hip-low' || form === 'flat')) skirt(building, { x0: -L / 2, x1: L / 2, z0: -W / 2, z1: W / 2, h: skirtH, m });
+    else if (!measured) skirt(building, { x0: -L / 2, x1: L / 2, z0: -W / 2, z1: W / 2, h: form === 'split' ? Math.min(skirtH, leftWingTop - base - 1) : skirtH, m });
+    for (const z of [W / 2, -W / 2]) if (!measured && form !== 'split') box(building, L - .4, .45, .2, m.trim, 0, (z > 0 ? faces.front : faces.back) - .3, z + Math.sign(z) * .1, { shadow: false });
+    if (!measured && accent === 'banded' && stories > 1) for (const z of [W / 2, -W / 2]) box(building, L + .4, .55, .3, m.timber, 0, base + storyH, z + Math.sign(z) * .15, { shadow: false });
     // Craftsman knee braces under the gable rakes.
-    if (accent === 'rafters' && !['hip', 'hip-low', 'flat'].includes(form)) for (const sx of [-1, 1]) for (const z of [-W * .3, 0, W * .3]) {
+    if (!measured && accent === 'rafters' && !['hip', 'hip-low', 'flat'].includes(form)) for (const sx of [-1, 1]) for (const z of [-W * .3, 0, W * .3]) {
       const yRoof = roofY(chain, z) - .55;
       beam(building, V(sx * (L / 2 + .15), yRoof - 2.6, z), V(sx * (L / 2 + overhang * .85), yRoof, z), .3, .3, m.timber, false);
       box(building, overhang * .9, .3, .3, m.timber, sx * (L / 2 + overhang * .45), yRoof, z, { shadow: false });
     }
 
-    const turretInfo = accent === 'gingerbread' ? turret(building, { x: L / 2 - 2.6, z: W / 2 - .6, base, H, m, spec: variantSpec, frame, glassMat: m.glass, storyH }) : null;
+    const turretInfo = !measured && accent === 'gingerbread' ? turret(building, { x: L / 2 - 2.6, z: W / 2 - .6, base, H, m, spec: variantSpec, frame, glassMat: m.glass, storyH }) : null;
     if (turretInfo) turretInfo.r += .2;
 
     // Chimney seated behind the ridge, rising above it.
-    if (form === 'flat' || form === 'shed-modern') {
+    if (measuredChimney) {
+      const size = accent === 'center-chimney' ? 3.4 : 2.5, topY = measuredChimney.ridgeY + 2.8;
+      box(building, size, topY - (y0 - 2), size, m.masonry, measuredChimney.x, (topY + y0 - 2) / 2, measuredChimney.z);
+      box(building, size + .5, .45, size + .5, m.concrete, measuredChimney.x, topY + .2, measuredChimney.z);
+    } else if (form === 'flat' || form === 'shed-modern') {
       const flue = add(building, new Three.CylinderGeometry(.5, .55, 4, 12), material('flue', '#8d9196', null, { rough: .35, metal: .7 }));
       flue.position.set(L * .26, (form === 'flat' ? y0 + 2.6 : chain[2][1] + 1.2), -W * .25);
     } else {
@@ -676,7 +869,7 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     }
 
     // Dormers.
-    if (variantSpec.dormers && form !== 'flat' && form !== 'shed-modern') {
+    if (!measured && variantSpec.dormers && form !== 'flat' && form !== 'shed-modern') {
       if (form === 'gambrel') shedDormer(building, { x0: -L * .3, x1: L * .3, chain, m, frame, glassMat: m.glass });
       else {
         const dChain = form === 'split' ? profile('gable', W, y0, rise) : chain;
@@ -685,6 +878,10 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
       }
     }
 
+    if (measured) {
+      measuredOpenings(building, { spec: variantSpec, m, frame, base, y0, storyH, grid, shutterMat });
+      measuredEntry(building, { spec: variantSpec, m, base, glassMat: m.glass, lamp, light });
+    } else {
     // Windows placed by `windowLayout()` so the count follows Step 3.
     const span = face => face === 'front' || face === 'back' ? L : W;
     for (const win of variantSpec.windows) {
@@ -710,10 +907,11 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     box(building, 5.4, .5, 2, m.concrete, 0, .75, W / 2 + 1);
     doorUnit(building, { x: 0, z: W / 2, base, spec: variantSpec, m, glassMat: m.glass, light: lamp });
     if (light.glow > .5) { const p = new Three.PointLight('#ffc070', 22 * light.glow, 22, 1.6); p.position.set(0, base + 7, W / 2 + 3); building.add(p); }
+    }
 
     const frontEave = (form === 'hip' || form === 'hip-low') ? y0 - overhang * rise / (W / 2) : form === 'flat' ? y0 + .1 : faces.front - overhang * Math.abs(roofY(chain, W / 2 - 1) - faces.front);
-    if (variantSpec.porch) porch(building, { spec: variantSpec, L, W, base, storyH: Math.min(storyH, leftWingTop - base), frontEave, front2: stories > 1 ? base + storyH * 1.55 - Math.min(4.6, storyH * .5) / 2 : 99, m, turret: turretInfo });
-    const drive = variantSpec.garage ? garage(building, { L, W, base, rise, m, spec: variantSpec, glassMat: m.glass }) : null;
+    if (variantSpec.porch && !measured) porch(building, { spec: variantSpec, L, W, base, storyH: Math.min(storyH, leftWingTop - base), frontEave, front2: stories > 1 ? base + storyH * 1.55 - Math.min(4.6, storyH * .5) / 2 : 99, m, turret: turretInfo });
+    const drive = variantSpec.garage && !measured ? garage(building, { L, W, base, rise, m, spec: variantSpec, glassMat: m.glass }) : null;
     site(group, { spec: variantSpec, L, W, m, drive });
     group.userData.building = building;
     return group;

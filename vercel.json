@@ -23,6 +23,9 @@
     },
     "api/visualize.js": {
       "maxDuration": 60
+    },
+    "api/render.js": {
+      "maxDuration": 60
     }
   },
   "headers": [

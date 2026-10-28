@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bearing, distanceMetres, outlineFromInsights } from '../google-maps.js';
+import { bearing, distanceMetres, outlineFromInsights, roofFromInsights } from '../google-maps.js';
 
 const lat0 = 29.4565, lon0 = -98.4972, kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110540;
 const toLocal = ([lon, lat]) => [(lon - lon0) * kx, (lat - lat0) * ky];
@@ -40,4 +40,17 @@ test('Street View bearings point from the panorama to the house', () => {
   assert.equal(Math.round(bearing([lat0, lon0], [lat0, lon0 + .001])), 90);
   assert.equal(Math.round(bearing([lat0, lon0], [lat0 - .001, lon0 - .001 * ky / kx])), 225);
   assert.ok(Math.abs(distanceMetres([lat0, lon0], [lat0 + .001, lon0]) - 110.54) < .01);
+});
+
+test('roof stats: area-weighted pitch and segment count; flat roofs give nothing', () => {
+  const roof = roofFromInsights(insights(16, 10, 0, { pitch: 30 }));
+  assert.equal(roof.pitchDeg, 30); assert.equal(roof.segments, 2); assert.ok(Number.isFinite(roof.azimuthDeg));
+  const mixed = roofFromInsights({ solarPotential: { roofSegmentStats: [
+    { pitchDegrees: 20, azimuthDegrees: 180, stats: { areaMeters2: 30 } },
+    { pitchDegrees: 40, azimuthDegrees: 180, stats: { areaMeters2: 10 } },
+    { pitchDegrees: 2, azimuthDegrees: 90, stats: { areaMeters2: 50 } }
+  ] } });
+  assert.equal(mixed.pitchDeg, 25); assert.equal(mixed.segments, 2);
+  assert.equal(roofFromInsights({ solarPotential: { roofSegmentStats: [{ pitchDegrees: 3, azimuthDegrees: 0, stats: { areaMeters2: 10 } }] } }), null);
+  assert.equal(roofFromInsights({}), null);
 });

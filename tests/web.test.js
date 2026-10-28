@@ -110,6 +110,7 @@ test('vercel.json static cache rules and function budgets match the development 
   for (const file of ['geocode', 'map3d', 'property', 'footprint', 'assistant', 'lead']) assert.ok(vercel.functions[`api/${file}.js`].maxDuration <= 30, file);
   // Image models take longer: the photo concept stops itself at 50 seconds.
   assert.equal(vercel.functions['api/visualize.js'].maxDuration, 60);
+  assert.equal(vercel.functions['api/render.js'].maxDuration, 60);
   assert.ok(vercel.functions['api/assistant.js'].maxDuration * 1000 > 25000, 'the assistant budget covers its 25-second agent deadline');
   assert.equal(cacheControl('/assets/fonts/poppins-latin-400-normal.woff2'), 'public, max-age=31536000, immutable');
   assert.equal(cacheControl('/main.js'), 'no-cache');

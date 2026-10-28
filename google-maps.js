@@ -68,11 +68,20 @@ export async function streetView([lat, lon], { signal, width = 640, height = 400
  * (a rectangle turned to the roof's main direction), or null when there is none within `reach` metres.
  */
 const solarCache = new Map();
-export function solarOutline([lat, lon], options = {}) {
-  // One request per building per visit: measuring again (a replay, a re-frame) reuses the answer.
+function solarInsights([lat, lon], options = {}) {
+  // One request per building per visit: the outline and the roof stats share the same answer.
   const id = `${lat.toFixed(6)},${lon.toFixed(6)}`;
   if (!solarCache.has(id)) solarCache.set(id, findSolar([lat, lon], options));
   return solarCache.get(id);
+}
+export async function solarOutline(coordinates, options = {}) {
+  const insights = await solarInsights(coordinates, options);
+  return insights ? outlineFromInsights(insights) : null;
+}
+/** The roof's measured pitch and main direction from Solar, or null. Pitch is in degrees. */
+export async function solarRoof(coordinates, options = {}) {
+  const insights = await solarInsights(coordinates, options);
+  return insights ? roofFromInsights(insights) : null;
 }
 async function findSolar([lat, lon], { signal, reach = 35 } = {}) {
   const key = await mapsKey();
@@ -83,8 +92,29 @@ async function findSolar([lat, lon], { signal, reach = 35 } = {}) {
     if (!response.ok) return null;
     const insights = await response.json(), centre = insights?.center;
     if (!centre || distanceMetres([lat, lon], [centre.latitude, centre.longitude]) > reach) return null;
-    return outlineFromInsights(insights);
+    return insights;
   } catch { return null; }
+}
+/**
+ * The sloped roof segments of a Solar buildingInsights answer, reduced to the numbers a model
+ * needs: the area-weighted pitch (degrees), the main segment direction (degrees, the azimuth a
+ * roof face looks toward), and how many segments were counted. Flat or segment-less roofs → null.
+ */
+export function roofFromInsights(insights) {
+  let area = 0, pitchSum = 0, sx = 0, sy = 0, segments = 0;
+  for (const segment of insights?.solarPotential?.roofSegmentStats || []) {
+    const a = segment?.stats?.areaMeters2, pitch = segment?.pitchDegrees, azimuth = segment?.azimuthDegrees;
+    if (!(pitch > 5) || !Number.isFinite(a) || a <= 0 || !Number.isFinite(azimuth)) continue;
+    area += a; pitchSum += a * pitch; segments++;
+    sx += a * Math.cos(azimuth * Math.PI / 45); sy += a * Math.sin(azimuth * Math.PI / 45);
+  }
+  if (!segments || !(area > 0)) return null;
+  const turn = sx || sy ? Math.atan2(sy, sx) / 4 : 0;
+  return {
+    pitchDeg: Math.round(pitchSum / area * 2) / 2,
+    azimuthDeg: Math.round(((turn * 180 / Math.PI) % 360 + 360) % 360),
+    segments
+  };
 }
 /**
  * A rectangle from Solar buildingInsights: the roof's main direction from its sloped segments

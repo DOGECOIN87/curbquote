@@ -9,6 +9,7 @@ import {
   normalizeHomeStyle,
   resolveHomeStyle,
   dimensionsFromFootprint,
+  outlineFromFootprint,
   suggestStyleFromFootprint,
   modelGuardrailLabel,
   houseSpecFromStyle,
@@ -121,4 +122,22 @@ test('homeStyle option never alters estimateProject dollar math when measurement
     const candidate = estimateProject(DEFAULT_INPUT, { ...DEFAULT_PROJECT, homeStyle: styleId });
     assert.deepEqual(candidate.total, baseline.total, `${styleId} must not silently alter pricing`);
   }
+});
+
+test('outlineFromFootprint: the measured plan in feet, turned to its long side, with coverage', () => {
+  const latC = 29.4565, lonC = -98.4972, kxC = 111320 * Math.cos(latC * Math.PI / 180), kyC = 110540;
+  const ringOf = pts => { const ring = pts.map(([x, y]) => [lonC + x / kxC, latC + y / kyC]); ring.push(ring[0]); return { type: 'Polygon', coordinates: [ring] }; };
+  const rect = outlineFromFootprint({ polygon: ringOf([[-6, -4.5], [6, -4.5], [6, 4.5], [-6, 4.5]]) });
+  assert.ok(rect); assert.equal(rect.points.length, 4);
+  assert.ok(Math.abs(rect.lengthFt - 39.4) < .3 && Math.abs(rect.widthFt - 29.5) < .3, `${rect.lengthFt} x ${rect.widthFt}`);
+  assert.ok(rect.coverage > .97, `coverage ${rect.coverage}`);
+  const ell = outlineFromFootprint({ polygon: ringOf([[-6, -4.5], [6, -4.5], [6, 0], [0, 0], [0, 4.5], [-6, 4.5]]) });
+  assert.ok(ell); assert.ok(ell.points.length >= 6, `L points ${ell.points.length}`);
+  assert.ok(Math.abs(ell.coverage - .75) < .04, `L coverage ${ell.coverage}`);
+  assert.equal(outlineFromFootprint(null), null);
+  assert.equal(outlineFromFootprint({ polygon: { type: 'Polygon', coordinates: [[[0, 0], [1, 1]]] } }), null);
+  // The spec carries the plan only while the size itself comes from the footprint.
+  const footprint = { polygon: ringOf([[-6, -4.5], [6, -4.5], [6, 4.5], [-6, 4.5]]), lengthFt: 39.5, widthFt: 29.5, areaSqFt: 1160, source: { provider: 'Test' } };
+  assert.ok(houseSpecFromStyle({}, 'ranch-1story', footprint).outline);
+  assert.equal(houseSpecFromStyle({ lengthFt: 50 }, 'ranch-1story', footprint).outline, undefined);
 });

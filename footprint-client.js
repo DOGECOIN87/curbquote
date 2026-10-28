@@ -7,7 +7,7 @@ import { STATIC_SITE } from './config.js';
 import { hasAerialCoverage } from './property-view.js';
 import { DEFAULT_HOME_STYLE, resolveHomeStyle, suggestStyleFromFootprint } from './home-styles.js';
 import { nearbyBuildings } from './osm-tiles.js';
-import { solarOutline } from './google-maps.js';
+import { solarOutline, solarRoof } from './google-maps.js';
 
 export const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
 const EARTH_RADIUS_M = 6378137;
@@ -215,6 +215,9 @@ export async function fromSolar(coordinates, styleId = DEFAULT_HOME_STYLE, signa
   const ring = await solarOutline([coordinates.lat, coordinates.lon], { signal }).catch(() => null);
   const measured = ring ? measurePolygonRing(ring) : null;
   if (!measured || measured.areaSqFt < 120) return null;
+  // Same cached buildingInsights answer as the outline: the measured roof pitch (degrees) feeds
+  // the remodel model's gable rise through the usual pitch parsing, at no extra request.
+  const roof = await solarRoof([coordinates.lat, coordinates.lon], { signal }).catch(() => null);
   const result = {
     polygon: measured.polygon,
     areaSqFt: measured.areaSqFt,
@@ -223,7 +226,8 @@ export async function fromSolar(coordinates, styleId = DEFAULT_HOME_STYLE, signa
     widthFt: measured.widthFt,
     heightFt: null,
     stories: null,
-    roofPitch: null,
+    roofPitch: roof?.pitchDeg ?? null,
+    roofAzimuthDeg: roof?.azimuthDeg ?? null,
     roofShape: null,
     architecture: null,
     source: { provider: 'Google Solar API', license: 'Google Maps Platform', retrievedAt: new Date().toISOString(), approximate: true },

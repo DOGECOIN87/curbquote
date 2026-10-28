@@ -526,6 +526,72 @@ export function parseRoofPitchRatio(pitch) {
   return null;
 }
 
+const METRES_TO_FEET = 3.28084;
+/**
+ * The measured footprint as a flat plan for the remodel model: [x, z] points in feet, centred,
+ * turned so the long side of the smallest containing rectangle runs along x (the model's front
+ * faces +z). Returns null without a usable polygon. `coverage` is the plan's area against its
+ * containing rectangle — 1 for a rectangle, less for L- and T-shaped homes.
+ */
+export function outlineFromFootprint(footprintData) {
+  const ring = footprintData?.polygon?.coordinates?.[0];
+  if (!Array.isArray(ring) || ring.length < 4) return null;
+  const raw = ring.filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if (raw.length < 4) return null;
+  const open = raw[0][0] === raw.at(-1)[0] && raw[0][1] === raw.at(-1)[1] ? raw.slice(0, -1) : raw;
+  if (open.length < 3) return null;
+  const lon0 = open.reduce((s, p) => s + p[0], 0) / open.length, lat0 = open.reduce((s, p) => s + p[1], 0) / open.length;
+  const kx = 111320 * Math.cos(lat0 * Math.PI / 180), ky = 110540;
+  const local = open.map(([lon, lat]) => [(lon - lon0) * kx, (lat - lat0) * ky]);
+  let best = null;
+  for (let i = 0; i < local.length; i++) {
+    const [x1, y1] = local[i], [x2, y2] = local[(i + 1) % local.length];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len < 1e-4) continue;
+    const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    for (const [px, py] of local) {
+      const u = px * ux + py * uy, v = -px * uy + py * ux;
+      if (u < minU) minU = u; if (u > maxU) maxU = u;
+      if (v < minV) minV = v; if (v > maxV) maxV = v;
+    }
+    const area = (maxU - minU) * (maxV - minV);
+    if (!best || area < best.area) best = { area, ux, uy, minU, maxU, minV, maxV };
+  }
+  if (!best) return null;
+  const lengthFt = (best.maxU - best.minU) * METRES_TO_FEET, widthFt = (best.maxV - best.minV) * METRES_TO_FEET;
+  if (!(lengthFt >= 10 && widthFt >= 8)) return null;
+  const cu = (best.minU + best.maxU) / 2, cv = (best.minV + best.maxV) / 2;
+  let points = local.map(([px, py]) => {
+    const u = px * best.ux + py * best.uy - cu, v = -px * best.uy + py * best.ux - cv;
+    return [Math.round(u * METRES_TO_FEET * 100) / 100, Math.round(-v * METRES_TO_FEET * 100) / 100];
+  });
+  // Simplify: drop points closer than ~9 inches to their neighbour, then near-collinear ones.
+  const simplify = (pts, minDist, collinear) => {
+    const kept = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) >= minDist);
+    if (kept.length < 3) return kept;
+    return kept.filter((p, i) => {
+      const a = kept[(i - 1 + kept.length) % kept.length], b = kept[(i + 1) % kept.length];
+      return Math.abs((p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])) / Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1])) >= collinear;
+    });
+  };
+  points = simplify(points, .75, .35);
+  if (points.length > 20) points = simplify(points, 1.5, .75);
+  if (points.length < 3 || points.length > 24) return null;
+  let twiceArea = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [x1, z1] = points[i], [x2, z2] = points[(i + 1) % points.length];
+    twiceArea += x1 * z2 - x2 * z1;
+  }
+  const areaSqFt = Math.abs(twiceArea) / 2;
+  return {
+    points,
+    lengthFt: Math.round(lengthFt * 10) / 10,
+    widthFt: Math.round(widthFt * 10) / 10,
+    coverage: Math.round(areaSqFt / (lengthFt * widthFt) * 100) / 100
+  };
+}
+
 /**
  * Derives bounded rectangular home dimensions from public or licensed footprint metadata.
  * Never mutates inputs; clamps cleanly to `houseSpec()` / `estimate.js` visual bounds.
@@ -641,6 +707,12 @@ export function houseSpecFromStyle(inputs = {}, styleId = DEFAULT_HOME_STYLE, fo
   spec.accent = style.accent;
   spec.modelBadge = modelGuardrailLabel(footprintData);
   spec.footprintSource = footprintData?.source?.provider || footprintData?.provider || null;
+  // The measured plan rides along when the homeowner has not overridden the size by hand, so
+  // the remodel can build its shell on the real outline instead of the plain rectangle.
+  if (footprintData && !hasExplicit(inputs, 'lengthFt') && !hasExplicit(inputs, 'widthFt')) {
+    const outline = outlineFromFootprint(footprintData);
+    if (outline) spec.outline = outline;
+  }
   spec.label = `${style.name} · ${Math.round(spec.lengthFt)} × ${Math.round(spec.widthFt)} ft · ${spec.stories} ${spec.stories === 1 ? 'story' : 'stories'} · ${spec.windows.length} windows shown`;
   return spec;
 }

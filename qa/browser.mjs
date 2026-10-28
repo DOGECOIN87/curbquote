@@ -560,6 +560,9 @@ try {
   await page.screenshot({ path: join(outputDir, 'property-source-phone.png'), fullPage: true });
   checks.push('Original source facts and homeowner corrections survive automatic drafts, named project reload and contractor brief export');
   await go('#property-address'); await page.locator('#property-address').fill('999 Other St, Austin, TX 78701');
+  // The footprint/property reset is debounced 350 ms after typing pauses (the phone typing fix);
+  // advance past it, but stay ahead of the 700 ms automatic lookup.
+  await page.clock.runFor(400);
   assert.equal(await page.locator('#property-applied').isVisible(), false);
   assert.equal(await page.locator('#stories').inputValue(), '2'); assert.equal(await page.locator('#yearBuilt').inputValue(), '1998');
   assert.doesNotMatch(await page.locator('#print-report-content').textContent(), /Synthetic test provider/);
@@ -614,7 +617,9 @@ try {
   const typicalRange = await quick.locator('#instant-estimate [data-live-range]').textContent();
   assert.match(typicalRange, /^\$/, 'a typical-home range shows before any input');
   await quick.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
-  await quick.waitForFunction(() => document.querySelector('#footprint-status').textContent.startsWith('Sized automatically'), null, { timeout: 15000 });
+  // Software-rendered CI needs the same patience as the welcome canvas: the sizing chain is
+  // two localhost calls, but a busy renderer starves it well past 15 s.
+  await quick.waitForFunction(() => document.querySelector('#footprint-status').textContent.startsWith('Sized automatically'), null, { timeout: 45000 });
   assert.deepEqual([await quick.locator('#lengthFt').inputValue(), await quick.locator('#widthFt').inputValue()], ['54', '35.5']);
   assert.equal(footprintBodies.length, 1);
   assert.deepEqual(footprintBodies[0], { coordinates: { lat: 38.84, lon: -76.9 }, styleId: 'colonial-2story', consented: false, openOnly: true }, 'the automatic lookup sends open-data mode and the coordinate only, never the street address');

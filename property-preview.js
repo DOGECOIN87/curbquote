@@ -297,9 +297,12 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     catch (error) { if (match === location && saved) unavailable3d(error); return; }
     if (!result || !view3d.isOpen) return;
     tools3d.hidden = result !== 'framed'; sync3d();
-    if (orbit && (local || result === 'framed') && !view3d.isOrbiting && !matchMedia('(prefers-reduced-motion: reduce)').matches) view3d.orbit();
+    // Circling starts on any successful open, framed or overview: gating it on 'framed' meant
+    // phones (where the height sample often lands late) never saw the Earth-style rotation.
+    if (orbit && !view3d.isOrbiting && !matchMedia('(prefers-reduced-motion: reduce)').matches) view3d.orbit();
     status.textContent = local
       ? 'Roof surface from USGS laser surveys, with simplified walls. Drag to orbit; pinch or scroll to zoom. Openings and finishes are not captured. Preview only; no estimate measurements.'
+      : view3d.isOrbiting ? 'Circling the building in 3D. Drag, scroll or press 3D again to stop.'
       : result === 'framed' ? GOOGLE_READY
       : 'Google 3D view from above while the detailed view loads. It moves in on the building when it is ready.';
     // The camera keeps circling while the measuring pass samples the surface and draws.

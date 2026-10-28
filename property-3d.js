@@ -241,7 +241,10 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
       widget.scene.requestRender();
       orbitFrame = requestAnimationFrame(tick);
     };
-    orbitFrame = requestAnimationFrame(tick);
+    const begin = () => { if (orbiting && open && widget) { last = performance.now(); orbitFrame = requestAnimationFrame(tick); } };
+    // From the high overview, fly in first (the Google Earth move) instead of jump-cutting to circling range.
+    const distance = target ? widget.scene.camera.positionWC.distanceTo?.(target) ?? Cesium.Cartesian3.distance(widget.scene.camera.positionWC, target) : 0;
+    if (distance > range * 2.5) frame(1.4).then(begin); else begin();
   }
   /** The loading note stays until the tiles around the building have arrived (or 25 s have passed). */
   function loaded() { clearTimeout(loading); delete container.dataset.loading; }
@@ -263,11 +266,16 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     if (request !== serial) return null;
     if (height !== null) { point(height); frame(); clearTimeout(loading); loading = setTimeout(loaded, 25000); }
     // Slow connections can take longer than the deadline to load the detailed tiles: keep the overview,
-    // then fly in and hand back to the page once the height arrives.
-    else sampled.then(late => {
-      if (late === null || request !== serial || !open || target) return;
-      point(late); frame(1.2); clearTimeout(loading); loading = setTimeout(loaded, 25000); onFramed?.();
-    });
+    // then fly in and hand back to the page once the height arrives. The overview still gets a ground
+    // target right away, so the Earth-style circling can start without waiting for the height — the
+    // late answer replaces that target only if nothing else (a tap, a measurement) has claimed it.
+    else {
+      point(0); const overviewTarget = target;
+      sampled.then(late => {
+        if (late === null || request !== serial || !open || target !== overviewTarget) return;
+        point(late); frame(1.2); clearTimeout(loading); loading = setTimeout(loaded, 25000); onFramed?.();
+      });
+    }
     widget.scene.requestRender();
     return height === null ? 'overview' : 'framed';
   }

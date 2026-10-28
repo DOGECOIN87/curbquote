@@ -470,11 +470,15 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
         // When Google already has a flyover of this address, it leads: the 3D view loads
         // underneath and the video hands over to it when it ends or is tapped away. The
         // flyover lookup gets a short grace period so a slow answer never delays the 3D view.
-        const lead = !view3d.hasLocal(location) && !matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? await Promise.race([flyoverSearch, new Promise(resolve => setTimeout(() => resolve(null), 2500))]).catch(() => null)
+        const leadSearch = !view3d.hasLocal(location) && !matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? Promise.race([flyoverSearch, new Promise(resolve => setTimeout(() => resolve(null), 2500))]).catch(() => null)
           : null;
         if (match !== location) return;
+        // Start the 3D session while the optional flyover lookup resolves. The video still leads
+        // whenever it is available, but its metadata can no longer hold up tile startup by 2.5 s.
         open3d({ reload: covered, orbit: true });
+        const lead = leadSearch ? await leadSearch : null;
+        if (match !== location) return;
         if (lead) openFlyover({ lead: true });
       }
       else if (viewMap.available && prefers3d()) openMap({ initialMode: '3d', reload: covered, orbit: true });

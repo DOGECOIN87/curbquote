@@ -34,8 +34,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
   const view3d = setupProperty3D({ stage, getPadding: overlayPadding,
     onFailure: error => { if (saved) unavailable3d(error); },
     onViewChange: () => sync3d(),
-    // A tap on a roof in Google's view measures that building.
-    onPick: at => measure3d({ at }),
+    // A tap on a roof in Google's view asks first; measuring runs only after a yes.
+    onPick: at => askMeasurePick(at),
     // The detailed tiles arrived after the overview was shown: offer the view tools and start circling.
     onFramed: () => {
       if (!view3d.isOpen) return;
@@ -51,16 +51,49 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
       sync3d();
     }
   });
-  /** Measures the building in Google's view (or the one tapped); the chip says where the numbers came from. */
+  /** Measures the building in Google's view; the chip says where the numbers came from. */
   async function measure3d(options) {
     const location = match, result = await view3d.measure(getDimensions() || {}, options);
     if (!result || match !== location || !view3d.isOpen) return;
+    applyMeasure(result);
+  }
+  function applyMeasure(result) {
     showMeasure({ note: {
       outline: result.measuredHeight ? 'Approximate, from the mapped outline and the 3D view' : 'Approximate, from the mapped outline',
       surface: 'Approximate, measured in the 3D view. Not your home? Tap its roof.',
       solar: 'Approximate, from Google’s roof data and the 3D view. Not your home? Tap its roof.'
     }[result.source] });
     offerSize(result);
+  }
+  let pendingPick = null;
+  /**
+   * A tap in the 3D view used to measure whatever was tapped, immediately — slow enough to feel
+   * like a freeze, and a stray tap silently re-measured the wrong house. Now the tap only drops
+   * the pin and asks; the measuring pass runs after an explicit yes.
+   */
+  function askMeasurePick(at) {
+    if (!at || confirmCard.dataset.state === 'busy') return;
+    pendingPick = at; view3d.mark(at); confirmState('switch');
+  }
+  function restoreConfirm() {
+    if (confirmed) confirmState('done', 'Your estimate still uses the size you confirmed.');
+    else if (offered) confirmState('ask');
+    else confirmState('');
+  }
+  function cancelPick() { pendingPick = null; view3d.unmark(); restoreConfirm(); }
+  async function measurePick() {
+    const at = pendingPick, location = match;
+    if (!at) return;
+    confirmState('busy');
+    // Let the busy note paint before the measuring pass takes the main thread.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const result = await view3d.measure(getDimensions() || {}, { at });
+    pendingPick = null; view3d.unmark();
+    if (!result || match !== location || !view3d.isOpen) {
+      if (match === location && view3d.isOpen) status.textContent = 'No roof could be measured there. Tap your own home’s roof instead.';
+      restoreConfirm(); return;
+    }
+    applyMeasure(result);
   }
   // "Is this your home?": a measured building sizes the estimate only once the homeowner confirms it.
   const confirmCard = byId('measure-confirm'), confirmText = byId('measure-confirm-text');
@@ -71,13 +104,18 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     if (state !== 'ask') photo.hidden = true;
     // The card changes the open area above it, so the house is framed again once it has laid out.
     requestAnimationFrame(() => view3d.refit());
-    byId('measure-yes').hidden = byId('measure-no').hidden = state !== 'ask';
+    const yesButton = byId('measure-yes'), noButton = byId('measure-no');
+    yesButton.hidden = noButton.hidden = !(state === 'ask' || state === 'switch');
+    yesButton.textContent = state === 'switch' ? 'Measure this house' : 'Yes, use this size';
+    noButton.textContent = state === 'switch' ? 'Keep mine' : 'Not my home';
     byId('measure-undo').hidden = state !== 'done';
     if (state === 'ask') {
       const [short, long] = [...offered.sides].sort((a, b) => a - b), tall = offered.measuredHeight && offered.heightFt ? `, ${Math.round(offered.heightFt)} ft tall` : '';
       confirmText.textContent = `Is this your home? About ${long} × ${short} ft${tall}.`;
       showFront(offered);
     } else if (state === 'pick') confirmText.textContent = view3d.isOpen ? 'Tap your home’s roof in the 3D view to measure it.' : 'Tap your home on the map to measure it.';
+    else if (state === 'switch') confirmText.textContent = 'Measure this house instead? Nothing changes until you confirm its size.';
+    else if (state === 'busy') confirmText.textContent = 'Measuring that house…';
     else if (text) confirmText.textContent = text;
   }
   /** A new measurement asks again, unless it is the building already confirmed (a replay or a re-frame). */
@@ -101,11 +139,15 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     confirmState('ask');
   }
   byId('measure-yes').addEventListener('click', () => {
+    if (confirmCard.dataset.state === 'switch') { measurePick(); return; }
     if (!offered) return;
     const applied = onConfirmSize?.(offered); confirmed = offered;
     confirmState('done', applied ? `Your estimate now uses ${applied}.` : 'Your estimate now uses this size.');
   });
-  byId('measure-no').addEventListener('click', () => confirmState('pick'));
+  byId('measure-no').addEventListener('click', () => {
+    if (confirmCard.dataset.state === 'switch') { cancelPick(); return; }
+    confirmState('pick');
+  });
   byId('measure-undo').addEventListener('click', () => { onUndoSize?.(); confirmed = null; if (offered) confirmState('ask'); else confirmState(''); });
   // Google's pre-rendered Aerial View flyover, when one already exists for the address.
   const flyover = byId('flyover'), flyoverToggle = byId('flyover-toggle');

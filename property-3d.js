@@ -14,7 +14,7 @@ export { webgl2Available } from './cesium-runtime.js';
 const HEIGHT_TIMEOUT = 15000;
 const MEASURE_TIMEOUT = 12000;
 // The roof search samples Google's surface every 1.25 m over a 50 m square around the point.
-const ROOF_STEP = 1.25, ROOF_SAMPLES = 41;
+const ROOF_STEP = 1.6, ROOF_SAMPLES = 31;
 const TILE_FAILURES = 6;
 // Degrees per second for the turn around the building; the free 3D map turns at the same pace.
 const ORBIT_SPEED = 7;
@@ -41,6 +41,8 @@ export function setupProperty3D(options) {
     zoomBy: step => current.zoomBy?.(step), refit: () => current.refit?.(),
     // The reviewed exterior is already a measured model; only Google's view gets the measuring pass.
     measure: (dims, options) => current === google ? google.measure(dims, options) : Promise.resolve(null),
+    mark: spot => current === google ? google.mark(spot) : undefined,
+    unmark: () => current === google ? google.unmark() : undefined,
     get isOpen() { return current.isOpen; }, get isTop() { return current.isTop; }, get isExterior() { return current === exterior; }, get isOrbiting() { return Boolean(current.isOrbiting); }
   };
 }
@@ -106,7 +108,8 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
       widget.canvas.addEventListener('pointerdown', cancelOrbit);
       widget.canvas.addEventListener('wheel', cancelOrbit, { passive: true });
       widget.canvas.addEventListener('keydown', cancelOrbit);
-      // A tap (not a drag) on a roof measures that building instead.
+      // A tap (not a drag) marks that spot and asks; the measuring pass runs only on confirmation,
+      // because it is slow enough to feel like a freeze and the tap is not always the right house.
       let press = null;
       widget.canvas.addEventListener('pointerdown', event => { press = event.isPrimary ? { x: event.clientX, y: event.clientY } : null; });
       widget.canvas.addEventListener('pointerup', event => {
@@ -115,7 +118,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
         const box = widget.canvas.getBoundingClientRect(), world = widget.scene.pickPosition(new Cesium.Cartesian2(event.clientX - box.left, event.clientY - box.top));
         if (!world) return;
         const spot = Cesium.Cartographic.fromCartesian(world);
-        onPick?.([Cesium.Math.toDegrees(spot.longitude), Cesium.Math.toDegrees(spot.latitude)]);
+        onPick?.([Cesium.Math.toDegrees(spot.longitude), Cesium.Math.toDegrees(spot.latitude), spot.height]);
       });
       // The measuring pass is drawn over the canvas and follows every rendered frame.
       container.append(layer); measurer = setupScreenMeasure(layer, { obstacles: () => [...stage.parentElement.querySelectorAll(PANELS)].filter(el => el.offsetParent).map(el => el.getBoundingClientRect()) });
@@ -285,13 +288,20 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     widget.scene.requestRender();
     return height === null ? 'overview' : 'framed';
   }
+  /** Drops the pin on a tapped spot while the visitor decides whether to measure it. */
+  function mark([lon, lat, height]) {
+    if (!widget || !marker) return;
+    marker.position = Cesium.Cartesian3.fromDegrees(lon, lat, Number.isFinite(height) ? height : 0);
+    marker.show = true; widget.scene.requestRender();
+  }
+  function unmark() { if (marker) marker.show = false; widget?.scene.requestRender(); }
   function close() {
     cancelOrbit(); measurer?.clear(); layer.hidden = true;
     serial++; open = false; container.hidden = true; loaded();
     if (widget) widget.useDefaultRenderLoop = false;
   }
   return {
-    available, show, close, measure,
+    available, show, close, measure, mark, unmark,
     setTop(value) { cancelOrbit(); top = value; frame(0.8); },
     rotate() { cancelOrbit(); heading = (heading + Math.PI / 2) % (2 * Math.PI); frame(0.8); },
     recenter() { cancelOrbit(); heading = 0; frame(0.8); },

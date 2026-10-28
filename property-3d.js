@@ -271,6 +271,10 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     // late answer replaces that target only if nothing else (a tap, a measurement) has claimed it.
     else {
       point(0); const overviewTarget = target;
+      // Settle into the proper viewpoint right away — angled, house framed — instead of sitting
+      // in the high top-down overview. This is also the fallback view when the circling is
+      // unavailable (reduced motion) or stopped: the visitor still lands on a good shot.
+      frame(1.6);
       sampled.then(late => {
         if (late === null || request !== serial || !open || target !== overviewTarget) return;
         point(late); frame(1.2); clearTimeout(loading); loading = setTimeout(loaded, 25000); onFramed?.();

@@ -663,6 +663,12 @@ function addressChanged() {
 // Suggestions first: Enter on a highlighted suggestion picks it before the lookup below runs.
 setupAddressSuggestions({ input: addressEl, panel: byId('address-suggest'), list: byId('address-suggestions'), onPick: text => { addressEl.value = text; addressChanged(); clearTimeout(lookupTimer); lookupAddress(); } });
 addressEl.addEventListener('input', addressChanged);
+// Warm the 3D runtime while the visitor types: it is megabytes of script, and a match usually
+// follows, so by the time the property loads the engine is already parsed and ready.
+addressEl.addEventListener('focus', () => {
+  if (navigator.connection?.saveData) return;
+  import('./cesium-runtime.js').then(module => module.loadCesium()).catch(() => {});
+}, { once: true });
 addressEl.addEventListener('compositionstart', () => { addressComposing = true; cancelAddressLookup(); });
 addressEl.addEventListener('compositionend', () => { addressComposing = false; addressChanged(); });
 addressEl.addEventListener('keydown', event => {

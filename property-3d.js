@@ -78,7 +78,10 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
   function start() {
     ready ??= (async () => {
       Cesium ??= await loadCesium();
-      widget = new Cesium.CesiumWidget(container, { baseLayer: false, globe: false, skyBox: false, requestRenderMode: true, showRenderLoopErrors: false });
+      widget = new Cesium.CesiumWidget(container, { baseLayer: false, globe: false, skyBox: false, requestRenderMode: true, showRenderLoopErrors: false, contextOptions: { webgl: { powerPreference: 'high-performance' } } });
+      // Phone GPUs drown at full device resolution (a Fold renders ~2.6x its CSS pixels). Capping
+      // the render scale is the single biggest frame-rate win and is invisible at arm's length.
+      widget.resolutionScale = Math.min(devicePixelRatio || 1, innerWidth < 760 ? 1.5 : 2);
       widget.useDefaultRenderLoop = open;
       widget.scene.renderError.addEventListener((_, error) => {
         const active = open; destroy(); close();
@@ -90,7 +93,10 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
       // The refusal's source and HTTP status let the page say what to fix (allowed URLs, asset access).
       const refused = status => Object.assign(new Error('Google 3D tiles were refused.'), { via: key ? 'google' : 'ion', status });
       let tiles;
-      try { tiles = await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES }); }
+      // maximumScreenSpaceError 24 (default 16) settles for slightly coarser tiles: far fewer
+      // downloads and draw calls while flying/orbiting. Measuring still samples the most
+      // detailed tiles explicitly, so the numbers do not soften with the picture.
+      try { tiles = await Cesium.createGooglePhotorealistic3DTileset(key ? { key } : {}, { showCreditsOnScreen: true, cacheBytes: CACHE_BYTES, maximumCacheOverflowBytes: CACHE_BYTES, maximumScreenSpaceError: 24 }); }
       catch (error) { throw refused(error?.statusCode); }
       tileset = widget.scene.primitives.add(tiles);
       // A key that runs out of quota or is revoked mid-visit fails tile by tile; hand over to the next tier.

@@ -1,7 +1,10 @@
-/** Local photo color concept tool. Walls are selected by the homeowner, never inferred. */
+/**
+ * Local photo color concept tool. Walls are selected by the homeowner, never inferred. `onDraw` runs
+ * after every repaint and after the photo is removed, so another view can mirror the canvas.
+ */
 export class PhotoEditor {
-  constructor({ canvas, input, status, finish, undo, clear, download, remove }) {
-    Object.assign(this, { canvas, input, status, finish, undo, clear, download, remove });
+  constructor({ canvas, input, status, finish, undo, clear, download, remove, onDraw }) {
+    Object.assign(this, { canvas, input, status, finish, undo, clear, download, remove, onDraw });
     this.context = canvas.getContext('2d');
     this.areas = []; this.points = []; this.color = '#829581'; this.serial = 0;
     this.cursor = { x: .5, y: .5 };
@@ -56,7 +59,7 @@ export class PhotoEditor {
   }
   reset() {
     this.serial++; this.bitmap?.close(); this.bitmap = null; this.file = null;
-    this.areas = []; this.points = []; this.canvas.hidden = true; this.update();
+    this.areas = []; this.points = []; this.canvas.hidden = true; this.update(); this.onDraw?.();
   }
   setColor(color) { this.color = color; this.draw(); }
   addPoint(point) {
@@ -92,6 +95,7 @@ export class PhotoEditor {
       for (const p of this.points) { ctx.beginPath(); ctx.arc(p.x * width, p.y * height, Math.max(4, width / 200), 0, Math.PI * 2); ctx.fill(); }
     }
     if (cursor) { ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(this.cursor.x * width, this.cursor.y * height, Math.max(6, width / 100), 0, Math.PI * 2); ctx.stroke(); }
+    this.onDraw?.();
   }
   update() {
     this.finish.disabled = this.points.length < 3;

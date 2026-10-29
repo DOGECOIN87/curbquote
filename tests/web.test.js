@@ -77,6 +77,8 @@ test('public build serves browser modules while keeping backend, research and pr
   for (const file of ['maplibre-gl.mjs', 'maplibre-gl-shared.mjs', 'maplibre-gl-worker.mjs', 'maplibre-gl.css', 'LICENSE.txt']) assert.equal((await fetch(`${base}/vendor/maplibre/${file}`)).status, 200);
   for (const file of ['three.module.js', 'three.core.js', 'LICENSE.txt']) assert.equal((await fetch(`${base}/vendor/three/${file}`)).status, 200);
   assert.equal((await fetch(`${base}/vendor/three/three.webgpu.js`)).status, 404);
+  // The header logo is a WebP with a PNG fallback; an unknown type used to fail as a 500.
+  assert.equal((await fetch(`${base}/assets/brand/alco-logo.webp`)).headers.get('content-type'), 'image/webp');
   for (const path of ['/lib/geocode.mjs', '/docs/01-data-sources.md', '/.env', '/.git/config', '/package.json', '/vendor/cesium/Cesium.js', '/node_modules/cesium/package.json']) {
     assert.equal((await fetch(base + path)).status, 404, path);
   }

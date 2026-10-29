@@ -12,7 +12,7 @@ import { STATIC_SITE } from './config.js';
 import { lookupCensus } from './census-jsonp.js';
 import { setupWizard } from './wizard.js';
 import { setupRemodel3D } from './remodel-3d.js';
-import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, styleSilhouette, ROOF_COLORS, ROOF_MATERIALS, TRIM_COLORS, MASONRY_FINISHES, SCENES, DEFAULT_DESIGN } from './house-spec.js';
+import { houseSpecFromStyle, resolveHomeStyle, modelGuardrailLabel, styleSilhouette, ROOF_COLORS, ROOF_MATERIALS, TRIM_COLORS, MASONRY_FINISHES, SCENES, DEFAULT_DESIGN, DOOR_HEX } from './house-spec.js';
 import { fetchPublicFootprint } from './footprint-client.js';
 import { setupLeadForm } from './lead-form.js';
 import { parseChangeRequest, describeChange } from './intent.js';
@@ -54,10 +54,13 @@ let propertyLookup;
 let remodel;
 const wizard = setupWizard({
   onChange: step => {
-    // Step 1 is a full-screen map; the stylesheet keys its layout off data-active-step (data-step marks the step panels).
+    // The stylesheet keys each step's frame off data-active-step (data-step marks the step panels).
     document.body.dataset.activeStep = String(step);
+    paintStepContext(step);
+    setSheet(false);
+    paintPanel();
     if (!remodel) return;
-    if ((step === 3 || step === 4) && byId('step3-3d-stage')) remodel.attach(byId('step3-3d-stage'));
+    if (step >= 2 && step <= 4) remodel.attach(byId('step3-3d-stage'));
     else if (step === 5) remodel.attach(byId('remodel-stage'));
   }
 });
@@ -72,7 +75,7 @@ const propertyPreview = setupPropertyPreview({
   onConfirmSize: measured => confirmMeasuredSize(measured),
   onUndoSize: () => undoMeasuredSize()
 });
-const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo') });
+const editor = new PhotoEditor({ canvas: byId('photo-canvas'), input: byId('photo-upload'), status: byId('photo-status'), finish: byId('finish-area'), undo: byId('undo-area'), clear: byId('clear-areas'), download: byId('download-preview'), remove: byId('remove-photo'), onDraw: () => mirrorPhoto() });
 let remodelDesign = { ...DEFAULT_DESIGN, split: 100 };
 const ADDITIONS = [['add-porch', 'porch'], ['add-dormers', 'dormers'], ['add-shutters', 'shutters'], ['add-garage', 'garage'], ['add-fence', 'fence']];
 const DESIGN_PICKERS = [['roof', 'roof', ROOF_COLORS], ['roof-material', 'roofMaterial', ROOF_MATERIALS], ['trim', 'trim', TRIM_COLORS], ['masonry', 'masonry', MASONRY_FINISHES], ['scene', 'scene', SCENES]];
@@ -105,8 +108,10 @@ remodel = setupRemodel3D({
     if (byId('step3-3d-status')) byId('step3-3d-status').textContent = message;
   },
   onSplitChange: (split, state) => reflectCanvasSplit(split, state),
+  onAnchors: anchors => placeHotspots(anchors),
   onOrbitChange: on => {
     byId('remodel-orbit')?.setAttribute('aria-pressed', String(on));
+    byId('studio-rotate').setAttribute('aria-pressed', String(on));
     // The Step 1 turntable's pause control appears once the house starts turning (never with reduced motion).
     const toggle = byId('turntable-toggle');
     if (toggle) { if (on) toggle.hidden = false; toggle.textContent = on ? 'Pause rotation' : 'Rotate house'; }
@@ -153,6 +158,293 @@ conceptButton.addEventListener('click', async () => {
 byId('photo-upload').addEventListener('change', () => { conceptResult.hidden = true; setTimeout(() => { conceptButton.disabled = !editor.file; }, 300); });
 const projectDialog = byId('projects-dialog');
 byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
+
+/**
+ * Exterior Studio (Steps 2–4). The rail holds each step's controls; the canvas shows the concept house
+ * (or the homeowner's photo) with hotspots and camera controls; the material bar edits the chosen
+ * surface through the same Step 4 controls; "Your project" summarises the live estimate. On phones the
+ * studio is a bottom sheet and "Your project" opens as a second sheet over it.
+ */
+const STEP_NAMES = ['Address', 'Project', 'Home', 'Choices', 'Estimate'];
+const SURFACES = { siding: { label: 'Siding', select: 'sidingProduct' }, windows: { label: 'Windows', select: 'windowProduct' }, doors: { label: 'Doors', select: 'doorProduct' } };
+// The bar offers five siding colours; the full palette stays in Step 4, and a colour picked there takes the fifth place.
+const FEATURED_COLORS = ['sage', 'white', 'greige', 'charcoal', 'cream'];
+const CALLOUTS = { 2: 'Confirm your home details to refine this range.', 3: 'Your measurements and home style refine this range as you type.', 4: 'Your materials and quality move this range.' };
+const ROW_FIELDS = { siding: 'lengthFt', windows: 'replaceWindows', doors: 'replaceDoors' };
+const compactQuery = matchMedia('(max-width: 1023.98px), (max-height: 599.98px)');
+const studioCanvas = byId('studio-canvas'), studioPanel = byId('project-panel');
+let surface = 'siding', projectName = '', photoFromStudio = false, sheetOpener = null;
+const displayName = () => projectName || 'Example home';
+function paintStepContext(step) {
+  for (const node of document.querySelectorAll('[data-step-number]')) node.textContent = String(step);
+  for (const node of document.querySelectorAll('[data-step-name]')) node.textContent = STEP_NAMES[step - 1];
+}
+/** The address card's two lines, in title case when the text is Census capitals. */
+function addressLines() {
+  const text = (matched?.matchedAddress || addressEl.value).trim();
+  if (!text) return ['No address yet', 'Add yours to size the estimate'];
+  const [street, ...rest] = text.split(',').map(part => part.trim()).filter(Boolean);
+  if (text !== text.toUpperCase()) return [street, rest.join(', ')];
+  const title = (part, keep) => part.split(/\s+/).map(word => keep.test(word) || /\d/.test(word) ? word : word[0] + word.slice(1).toLowerCase()).join(' ');
+  return [title(street, /^(N|S|E|W|NE|NW|SE|SW)$/), rest.map(part => title(part, /^[A-Z]{2}$/)).join(', ').replace(/, (\d{5}(-\d{4})?)$/, ' $1')];
+}
+function paintPanel() {
+  const p = projectOptions(), result = lastResult, count = key => Number(result?.inputs?.[key] ?? byId(key).value) || 0;
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const details = {
+    siding: !p.siding ? 'Not selected' : result?.project.siding ? `${number.format(result.geometry.sidingNetSqFt)} sq ft (estimated)` : '—',
+    windows: !p.windows ? 'Not selected' : `${plural(count('replaceWindows'), 'window')} (estimated)`,
+    doors: !p.doors ? 'Not selected' : plural(count('replaceDoors'), 'door')
+  };
+  for (const [kind, text] of Object.entries(details)) {
+    byId(`scope-detail-${kind}`).textContent = text;
+    document.querySelector(`[data-scope-row="${kind}"]`).classList.toggle('is-off', !p[kind]);
+  }
+  const [line1, line2] = addressLines();
+  byId('panel-address-line1').textContent = line1; byId('panel-address-line2').textContent = line2;
+  byId('panel-home-name').textContent = byId('project-title-text').textContent = displayName();
+  byId('estimate-callout-text').textContent = CALLOUTS[wizard.current] || CALLOUTS[2];
+}
+/** What the bar's swatches set for each surface: siding colour, trim colour, or the entry door (its finish). */
+function surfaceSwatches(kind) {
+  if (kind === 'windows') return { label: 'Trim colour', selected: remodelDesign.trim, options: Object.entries(TRIM_COLORS).map(([key, { name, hex }]) => ({ key, name: `${name} trim`, hex })) };
+  if (kind === 'doors') return { label: 'Entry door', selected: byId('doorProduct').value, options: Object.entries(DOOR_HEX).map(([key, hex]) => ({ key, name: PRODUCTS.doors[key].name, hex })) };
+  const keys = FEATURED_COLORS.includes(selectedColor) ? FEATURED_COLORS : [...FEATURED_COLORS.slice(0, 4), selectedColor];
+  return { label: 'Siding colour', selected: selectedColor, options: keys.map(key => ({ key, name: COLORS[key].name, hex: COLORS[key].hex })) };
+}
+function paintSwatches() {
+  const group = byId('material-swatches'), { label, selected, options } = surfaceSwatches(surface), keys = `${surface}:${options.map(option => option.key)}`;
+  group.setAttribute('aria-label', label);
+  // Rebuilt only when the set changes, so arrow keys keep focus on the same buttons.
+  if (group.dataset.keys !== keys) {
+    group.dataset.keys = keys;
+    group.replaceChildren(...options.map(({ key, name, hex }) => {
+      const swatch = document.createElement('button');
+      swatch.type = 'button'; swatch.className = 'material-swatch'; swatch.dataset.swatch = key; swatch.title = name;
+      swatch.setAttribute('role', 'radio'); swatch.setAttribute('aria-label', name);
+      if (hex) swatch.style.setProperty('--swatch', hex); else swatch.classList.add('is-style-default');
+      return swatch;
+    }));
+  }
+  for (const swatch of group.children) {
+    const on = swatch.dataset.swatch === selected;
+    swatch.setAttribute('aria-checked', String(on)); swatch.tabIndex = on ? 0 : -1;
+  }
+}
+function paintMaterialBar() {
+  const p = projectOptions(), { label, select } = SURFACES[surface], included = p[surface], panel = byId('material-panel');
+  for (const tab of document.querySelectorAll('[data-surface-tab]')) {
+    const active = tab.dataset.surfaceTab === surface;
+    tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
+  }
+  for (const spot of document.querySelectorAll('[data-hotspot]')) spot.setAttribute('aria-pressed', String(spot.dataset.hotspot === surface));
+  panel.setAttribute('aria-labelledby', `surface-tab-${surface}`);
+  panel.toggleAttribute('data-off', !included);
+  byId('material-off').hidden = included;
+  byId('material-off-text').textContent = `${label} ${surface === 'siding' ? 'isn’t' : 'aren’t'} part of your project yet.`;
+  byId('material-add').textContent = `Add ${label.toLowerCase()}`;
+  paintSwatches();
+  const proxy = byId('material-select'), source = byId(select);
+  if (proxy.dataset.surface !== surface) {
+    proxy.dataset.surface = surface; proxy.setAttribute('aria-label', `${label} material`);
+    proxy.replaceChildren(...[...source.options].map(option => new Option(option.textContent, option.value)));
+  }
+  proxy.value = source.value;
+  byId('material-colour').textContent = surface === 'siding' ? COLORS[selectedColor].name : `${TRIM_COLORS[remodelDesign.trim].name} trim`;
+  byId('material-colour').parentElement.hidden = surface === 'doors';
+}
+function paintMaterialCard() {
+  const p = projectOptions(), swatch = byId('material-card-swatch'), product = PRODUCTS[surface][p[SURFACES[surface].select]].name;
+  const [hex, shown] = surface === 'windows' ? [TRIM_COLORS[remodelDesign.trim].hex, `Trim shown: ${TRIM_COLORS[remodelDesign.trim].name}`]
+    : surface === 'doors' ? [DOOR_HEX[p.doorProduct], 'Shown on the 3D house'] : [COLORS[selectedColor].hex, `Shown: ${COLORS[selectedColor].name}`];
+  swatch.classList.toggle('is-style-default', !hex);
+  if (hex) swatch.style.setProperty('--swatch', hex);
+  byId('material-card-trade').textContent = SURFACES[surface].label;
+  byId('material-card-product').textContent = p[surface] ? product : `${product} · not in your project`;
+  byId('material-card-shown').textContent = shown;
+}
+function paintStudio() { paintPanel(); paintMaterialBar(); paintMaterialCard(); }
+function setSurface(kind) { surface = kind; paintMaterialBar(); paintMaterialCard(); }
+/** Floats each hotspot over the surface the 3D view found for it, or hides it when that surface faces away. */
+function placeHotspots(anchors) {
+  for (const { surface: kind, x, y, visible } of anchors) {
+    const spot = document.querySelector(`[data-hotspot="${kind}"]`);
+    spot.hidden = !visible;
+    if (visible) spot.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+  }
+}
+/** Bar choices go through the real Step 4 controls, so the estimate, saved projects and drafts see them as usual. */
+function setControl(id, value) {
+  const control = byId(id);
+  if (control.value === value || control.disabled) return;
+  control.value = value; control.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function chooseSwatch(key) {
+  if (surface === 'siding') chooseColor(key);
+  else if (surface === 'doors') setControl('doorProduct', key);
+  else { remodelDesign.trim = key; syncRemodelControls(); remodel.refresh({ microResponse: true }); paintStudio(); }
+}
+for (const spot of document.querySelectorAll('[data-hotspot]')) spot.addEventListener('click', () => setSurface(spot.dataset.hotspot));
+const surfaceTabs = [...document.querySelectorAll('[data-surface-tab]')];
+for (const tab of surfaceTabs) {
+  tab.addEventListener('click', () => setSurface(tab.dataset.surfaceTab));
+  tab.addEventListener('keydown', event => {
+    const index = surfaceTabs.indexOf(tab), next = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: surfaceTabs.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    const target = surfaceTabs[(next + surfaceTabs.length) % surfaceTabs.length];
+    setSurface(target.dataset.surfaceTab); target.focus();
+  });
+}
+byId('material-swatches').addEventListener('click', event => { const swatch = event.target.closest('[data-swatch]'); if (swatch) chooseSwatch(swatch.dataset.swatch); });
+byId('material-swatches').addEventListener('keydown', event => {
+  const swatches = [...byId('material-swatches').children], index = swatches.indexOf(document.activeElement);
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+  const next = step ? (index + step + swatches.length) % swatches.length : event.key === 'Home' ? 0 : event.key === 'End' ? swatches.length - 1 : -1;
+  if (index < 0 || next < 0) return;
+  event.preventDefault();
+  chooseSwatch(swatches[next].dataset.swatch);
+  byId('material-swatches').children[next]?.focus();
+});
+byId('material-select').addEventListener('change', event => setControl(SURFACES[surface].select, event.target.value));
+byId('material-add').addEventListener('click', () => {
+  const box = byId(`scope-${surface}`);
+  if (!box.checked) { box.checked = true; box.dispatchEvent(new Event('input', { bubbles: true })); }
+});
+// The camera controls sit just above the material bar, whatever height it wraps to.
+new ResizeObserver(() => {
+  const bar = byId('material-bar');
+  if (!compactQuery.matches && bar.offsetHeight) studioCanvas.style.setProperty('--controls-bottom', `${bar.offsetHeight + 30}px`);
+  else studioCanvas.style.removeProperty('--controls-bottom');
+}).observe(byId('material-bar'));
+byId('studio-reset').addEventListener('click', () => remodel.reset());
+byId('studio-rotate-left').addEventListener('click', () => remodel.rotate(-Math.PI / 6));
+byId('studio-rotate-right').addEventListener('click', () => remodel.rotate(Math.PI / 6));
+byId('studio-rotate').addEventListener('click', () => byId('studio-rotate').setAttribute('aria-pressed', String(remodel.orbit())));
+byId('studio-zoom-in').addEventListener('click', () => remodel.zoom(1.25));
+byId('studio-zoom-out').addEventListener('click', () => remodel.zoom(1 / 1.25));
+if (document.fullscreenEnabled) {
+  const button = byId('studio-fullscreen');
+  button.hidden = false;
+  button.addEventListener('click', () => (document.fullscreenElement ? document.exitFullscreen() : studioCanvas.requestFullscreen()).catch(() => {}));
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement === studioCanvas;
+    button.setAttribute('aria-pressed', String(on)); button.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+  });
+}
+/** 3D view or Photo: the homeowner's photo with their marked walls, else the aerial photo of the address, else an upload prompt. */
+function setStudioView(view) {
+  studioCanvas.dataset.view = view;
+  byId('view-3d').setAttribute('aria-pressed', String(view === '3d'));
+  byId('view-photo').setAttribute('aria-pressed', String(view === 'photo'));
+  byId('step3-3d-stage').hidden = view !== '3d';
+  byId('studio-photo').hidden = view !== 'photo';
+  paintPhotoView();
+}
+function paintPhotoView() {
+  const photo = Boolean(editor.bitmap), aerial = document.querySelector('#aerial-images img'), studioAerial = byId('studio-aerial');
+  const aerialSrc = !photo && aerial?.complete && aerial.naturalWidth ? aerial.currentSrc || aerial.src : '';
+  byId('studio-photo-canvas').hidden = !photo;
+  studioAerial.hidden = !aerialSrc;
+  if (aerialSrc && studioAerial.src !== aerialSrc) studioAerial.src = aerialSrc;
+  byId('studio-photo-empty').hidden = photo || Boolean(aerialSrc);
+  const note = photo ? (editor.areas.length ? 'Your marked walls show your siding colour.' : 'Mark the walls on your photo to try your colours on it.') : aerialSrc ? 'Aerial photo of your address. Upload your own photo to see your choices on it.' : '';
+  byId('studio-photo-note').hidden = !note;
+  byId('studio-photo-note-text').textContent = note;
+  byId('studio-mark-walls').hidden = !photo;
+}
+function mirrorPhoto() {
+  if (editor.bitmap) {
+    const source = byId('photo-canvas'), mirror = byId('studio-photo-canvas'), context = mirror.getContext('2d');
+    if (mirror.width !== source.width || mirror.height !== source.height) { mirror.width = source.width; mirror.height = source.height; }
+    context.clearRect(0, 0, mirror.width, mirror.height); context.drawImage(source, 0, 0);
+  }
+  // A photo chosen from the studio opens straight into the Photo view.
+  if (photoFromStudio && editor.bitmap) { photoFromStudio = false; setStudioView('photo'); } else paintPhotoView();
+}
+byId('view-3d').addEventListener('click', () => setStudioView('3d'));
+byId('view-photo').addEventListener('click', () => setStudioView('photo'));
+// One hidden file picker serves every "Upload home photo" button; the buttons are what keyboards and screen readers reach.
+for (const button of document.querySelectorAll('[data-photo-upload]')) button.addEventListener('click', () => {
+  photoFromStudio = Boolean(button.closest('#estimate-form'));
+  setSheet(false);
+  byId('photo-upload').click();
+});
+byId('photo-upload').addEventListener('cancel', () => { photoFromStudio = false; });
+byId('studio-mark-walls').addEventListener('click', () => { wizard.show(5); showStudioTab('photo'); byId('photo-panel').scrollIntoView({ block: 'start', behavior: 'instant' }); byId('photo-canvas').focus(); });
+byId('estimate-info').addEventListener('click', () => {
+  const open = byId('estimate-breakdown').hidden;
+  byId('estimate-breakdown').hidden = !open; byId('estimate-info').setAttribute('aria-expanded', String(open));
+});
+// A scope row opens what its number comes from: the measurements, or the scope choice when it is off.
+for (const row of document.querySelectorAll('[data-scope-row]')) row.addEventListener('click', () => {
+  const kind = row.dataset.scopeRow, field = byId(projectOptions()[kind] ? ROW_FIELDS[kind] : `scope-${kind}`);
+  setSheet(false); wizard.reveal(field); field.focus();
+});
+/** Phones: "Your project" opens from the estimate strip, the folder button or a swipe up on the handle. */
+function setSheet(open, opener = null) {
+  if (open && !compactQuery.matches) return;
+  if (open === (form.dataset.sheet === 'open')) return;
+  if (open) form.dataset.sheet = 'open'; else delete form.dataset.sheet;
+  for (const control of document.querySelectorAll('[data-open-sheet]')) control.setAttribute('aria-expanded', String(open));
+  for (const part of form.children) if (part !== studioPanel && !part.classList.contains('sheet-scrim')) part.inert = open;
+  if (open) { sheetOpener = opener; studioPanel.scrollTop = 0; byId('panel-title').focus({ preventScroll: true }); }
+  else if (sheetOpener?.getClientRects().length) { sheetOpener.focus({ preventScroll: true }); sheetOpener = null; }
+}
+document.addEventListener('click', event => {
+  const opener = event.target.closest('[data-open-sheet]');
+  if (opener) setSheet(opener.id !== 'open-project-sheet' || form.dataset.sheet !== 'open', opener);
+  else if (event.target.closest('[data-close-sheet]')) setSheet(false);
+});
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && form.dataset.sheet === 'open') { event.preventDefault(); setSheet(false); } });
+compactQuery.addEventListener('change', () => { if (!compactQuery.matches) setSheet(false); });
+function onSwipe(element, direction, action) {
+  let start = null;
+  element.addEventListener('pointerdown', event => {
+    if (event.button > 0 || (event.target !== element && event.target.closest('button'))) return;
+    start = { id: event.pointerId, y: event.clientY }; element.setPointerCapture(event.pointerId);
+  });
+  element.addEventListener('pointerup', event => { if (start?.id === event.pointerId && (event.clientY - start.y) * direction > 24) action(); start = null; });
+  element.addEventListener('pointercancel', () => { start = null; });
+}
+onSwipe(document.querySelector('.sheet-grab'), -1, () => setSheet(true, document.querySelector('.sheet-grab')));
+onSwipe(document.querySelector('.panel-head'), 1, () => setSheet(false));
+/** There are no accounts: the account button says so and offers saved projects and a call. */
+const accountButton = byId('account-button'), accountMenu = byId('account-menu');
+function setAccountMenu(open) { accountMenu.hidden = !open; accountButton.setAttribute('aria-expanded', String(open)); }
+accountButton.addEventListener('click', () => setAccountMenu(accountMenu.hidden));
+accountButton.parentElement.addEventListener('focusout', event => { if (!accountButton.parentElement.contains(event.relatedTarget)) setAccountMenu(false); });
+accountButton.parentElement.addEventListener('keydown', event => { if (event.key === 'Escape' && !accountMenu.hidden) { setAccountMenu(false); accountButton.focus(); } });
+document.addEventListener('click', event => { if (!accountMenu.hidden && !event.target.closest('.account')) setAccountMenu(false); });
+for (const item of document.querySelectorAll('[data-open-projects]')) item.addEventListener('click', () => { setAccountMenu(false); try { openProjectDialog(); } catch (error) { notify(error.message); } });
+/** The project name in the top bar renames the project; a saved project is renamed on this device straight away. */
+const titleText = byId('project-title-text'), titleInput = byId('project-title-input'), renameButton = byId('rename-project');
+renameButton.addEventListener('click', () => {
+  titleInput.value = projectName; titleInput.placeholder = 'Example home';
+  titleText.hidden = renameButton.hidden = true; titleInput.hidden = false; titleInput.focus(); titleInput.select();
+});
+function finishRename(commit, { refocus = true } = {}) {
+  if (titleInput.hidden) return;
+  titleInput.hidden = true; titleText.hidden = renameButton.hidden = false;
+  const name = titleInput.value.trim().slice(0, 80);
+  if (commit && name && name !== projectName) renameProject(name);
+  if (refocus) renameButton.focus({ preventScroll: true });
+}
+function renameProject(name) {
+  projectName = name;
+  let message = `Named “${name}”. Save the project on step 5 to keep it on this device.`;
+  try {
+    const saved = activeProjectId && readProjects(window.localStorage).find(project => project.id === activeProjectId);
+    if (saved) { saveProject(window.localStorage, { ...saved, name, updatedAt: new Date().toISOString() }); renderSavedProjects(); message = `Renamed to “${name}”.`; }
+  } catch (error) { message = error.message; }
+  paintPanel(); notify(message);
+}
+titleInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); finishRename(true); }
+  else if (event.key === 'Escape') { event.preventDefault(); finishRename(false); }
+});
+// Clicking elsewhere keeps the new name and leaves focus where the click put it.
+titleInput.addEventListener('blur', () => finishRename(true, { refocus: false }));
 function projectOptions() {
   return {
     siding: byId('scope-siding').checked, windows: byId('scope-windows').checked, doors: byId('scope-doors').checked,
@@ -213,18 +505,9 @@ function syncProjectControls({ microResponse = false } = {}) {
   editor.setColor(COLORS[selectedColor].hex);
   const currentSpec = houseSpecFromStyle(readInputs(), selectedHomeStyle, footprintData, p, remodelDesign);
   if (byId('step3-3d-status') && !remodel.isOpen) byId('step3-3d-status').textContent = `${currentSpec.label}. Updates live as you type.`;
-  byId('dock-pill-siding')?.classList.toggle('is-active', p.siding);
-  byId('dock-pill-windows')?.classList.toggle('is-active', p.windows);
-  byId('dock-pill-doors')?.classList.toggle('is-active', p.doors);
-  if (byId('dock-scope-summary')) {
-    const active = [['siding', 'Siding'], ['windows', 'windows'], ['doors', 'doors']].filter(([k]) => p[k]).map(([, label]) => label);
-    byId('dock-scope-summary').textContent = active.length ? `${active.join(', ')} included` : 'Choose at least one trade';
-  }
-  if (byId('dock-choice-readout')) {
-    byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`;
-  }
   syncRemodelControls();
   paintInstant();
+  paintStudio();
   remodel.refresh({ microResponse });
 }
 function syncRemodelControls() {
@@ -250,9 +533,6 @@ function syncRemodelControls() {
   const additions = [['porch', 'covered porch'], ['dormers', 'dormers'], ['shutters', 'shutters'], ['garage', 'garage'], ['fence', 'picket fence']]
     .filter(([key]) => remodelDesign[key]).map(([, label]) => label);
   const p = projectOptions();
-  if (byId('dock-choice-readout')) {
-    byId('dock-choice-readout').textContent = `${resolveHomeStyle(selectedHomeStyle).name} · ${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()} · ${TIERS[p.tier].name} tier · ${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`;
-  }
   const afterDesc = `${p.siding ? `${COLORS[selectedColor].name} ${PRODUCTS.siding[p.sidingProduct].name.toLowerCase()}` : 'your siding choices'}, ${`${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name.toLowerCase()}`.toLowerCase()} roof, ${p.windows ? PRODUCTS.windows[p.windowProduct].name.toLowerCase() : 'existing windows'}, ${p.doors ? PRODUCTS.doors[p.doorProduct].name.toLowerCase() : 'existing doors'}${additions.length ? `, ${additions.join(', ')}` : ', no additions'}`;
   byId('remodel-compare-note').textContent = split === 0
     ? `Before: the same house in a dated palette, with no porch, dormers, shutters, garage or fence.`
@@ -291,6 +571,7 @@ function refreshReport() {
   byId('send-lead').disabled = !lastResult;
   byId('save-project').disabled = !lastResult;
   byId('result-address').textContent = addressEl.value.trim() || 'No address provided — manual estimate';
+  paintStudio();
 }
 let lastRangeText = '';
 let pulseTimer = null;
@@ -409,7 +690,8 @@ form.addEventListener('submit', event => {
 form.addEventListener('input', event => {
   // The address box has its own handler; recalculating the whole estimate per keystroke
   // makes typing lag on phones, and the price never depends on the raw address text.
-  if (event.target === addressEl) return;
+  // The material bar's select only forwards to the real Step 4 control, which reports its own change.
+  if (event.target === addressEl || event.target.closest('[data-proxy]')) return;
   if (event.target.matches('#lengthFt,#widthFt,#stories')) measurementsTouched = true;
   propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
@@ -781,13 +1063,15 @@ setupLeadForm({
 // Browser-menu printing must also validate the current fields and never expose stale costs.
 window.addEventListener('beforeprint', () => { if (hasCalculated) calculate(); else refreshReport(); });
 // Color changes update the illustration, marked photo areas and saved estimate context.
-byId('color-picker').addEventListener('click', event => {
-  const button = event.target.closest('[data-color]');
-  if (!button) return;
-  selectedColor = button.dataset.color;
+function chooseColor(color) {
+  selectedColor = color;
   syncProjectControls({ microResponse: true });
   if (hasCalculated) calculate();
   assistant?.changed('color');
+}
+byId('color-picker').addEventListener('click', event => {
+  const button = event.target.closest('[data-color]');
+  if (button) chooseColor(button.dataset.color);
 });
 const STUDIO_TABS = [['remodel', 'remodel-tab', 'remodel-panel'], ['illustration', 'illustration-tab', 'illustration-panel'], ['photo', 'photo-tab', 'photo-panel']];
 function showStudioTab(tab) {
@@ -855,6 +1139,7 @@ for (const [attr, key, catalog] of DESIGN_PICKERS) {
     const button = event.target.closest(`[data-${attr}]`);
     if (!button || !Object.hasOwn(catalog, button.dataset[dataKey])) return;
     remodelDesign[key] = button.dataset[dataKey]; syncRemodelControls(); remodel.refresh({ microResponse: key !== 'scene' });
+    if (key === 'trim') paintStudio();
   });
 }
 for (const [id, key] of ADDITIONS) byId(id).addEventListener('change', () => {
@@ -894,7 +1179,7 @@ function renderSavedProjects() {
   }
 }
 function openProjectDialog() {
-  byId('project-name').value = activeProjectId ? readProjects(window.localStorage).find(p => p.id === activeProjectId)?.name || '' : addressEl.value.trim().slice(0,80) || 'My exterior refresh';
+  byId('project-name').value = activeProjectId ? readProjects(window.localStorage).find(p => p.id === activeProjectId)?.name || '' : projectName || addressEl.value.trim().slice(0,80) || 'My exterior refresh';
   byId('saved-project-status').textContent = '';
   renderSavedProjects();
   if (!projectDialog.open) projectDialog.showModal();
@@ -910,7 +1195,7 @@ byId('save-project-form').addEventListener('submit', async event => {
   const button = event.submitter; button.disabled = true;
   try {
     const project = { id: activeProjectId || crypto.randomUUID(), name, address: addressEl.value.trim(), updatedAt:new Date().toISOString(), inputs:readInputs(), options:projectOptions(), planning: assistant?.metadata(), propertyData: propertyLookup?.context(), footprintData };
-    saveProject(window.localStorage, project); activeProjectId = project.id;
+    saveProject(window.localStorage, project); activeProjectId = project.id; projectName = name; paintPanel();
     let photoMessage = '';
     try { const photo = editor.snapshot(); if (photo) await savePhoto(project.id, photo); else await deletePhoto(project.id); }
     catch { photoMessage = ' The estimate is saved, but photo storage is unavailable.'; }
@@ -929,7 +1214,7 @@ async function restoreProject(project) {
   selectedHomeStyle = resolveHomeStyle(project.options.homeStyle).id;
   footprintData = project.footprintData || null;
   manualInputsBackup = null;
-  addressEl.value = project.address; activeProjectId = project.id;
+  addressEl.value = project.address; activeProjectId = project.id; projectName = project.name;
   propertyLookup?.restore(project.propertyData);
   addressStatus.textContent = 'Saved address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
   scheduleAddressLookup();
@@ -940,7 +1225,7 @@ async function restoreProject(project) {
   if (serial === projectLoadSerial) notify(`“${project.name}” restored.`);
 }
 byId('new-project').addEventListener('click', () => {
-  projectLoadSerial++; cancelAddressLookup(); activeProjectId = null;
+  projectLoadSerial++; cancelAddressLookup(); activeProjectId = null; projectName = '';
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   form.reset(); measurementsTouched = false; selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset();

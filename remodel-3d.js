@@ -27,12 +27,14 @@ const LIGHTS = Object.freeze({
  * distant ground. `proposalStage` shows the full scene on Step 1 while a design is previewed. A stage
  * marked data-turntable turns slowly until paused, and any stage can set its framing with
  * --frame-shift (moves the house down the view; negative moves it up) and --frame-zoom (smaller).
+ * While the preview stage shows, `onAnchors` receives the on-screen position of a clear patch of
+ * siding, one window and the entry door on every frame, for the page's hotspots.
  */
-export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null, proposalStage = null, getSpec, onStatus, onReady, onError, onSplitChange, onOrbitChange }) {
+export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null, proposalStage = null, getSpec, onStatus, onReady, onError, onSplitChange, onOrbitChange, onAnchors }) {
   const stages = [stage, previewStage, welcomeStage, proposalStage].filter(Boolean);
   let activeStage = stage;
   let Three, renderer, scene, camera, sun, hemi, house, beforeHouse, afterHouse, spec, beforeSpec, resizer, observer, starting, pmrem, welcomeLawn;
-  let skyBefore, skyAfter, sceneName = '', lights = LIGHTS.day;
+  let skyBefore, skyAfter, sceneName = '', lights = LIGHTS.day, anchors = null, anchorTimer = 0, raycaster = null;
   let open = false, splitPercent = 100, splitPointerId = null, animFrame = 0, orbitFrame = 0, mountedMode = null, turntablePaused = false;
   const isWelcome = () => Boolean(welcomeStage) && activeStage === welcomeStage;
   const isTurntable = () => activeStage?.dataset.turntable === 'true';
@@ -383,7 +385,10 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     if (shutters) for (const s of [-1, 1]) box(g, Math.min(1.25, w * .4), h + .3, .16, shutters, s * (w / 2 + .3 + Math.min(1.25, w * .4) / 2 + .18), 0, .02);
     return g;
   }
-  function doorUnit(g, { x, z, base, spec, m, glassMat, light }) {
+  function doorUnit(parent, { x, z, base, spec, m, glassMat, light }) {
+    // One group per entry door, so the page can float its hotspot over the door it really drew.
+    const g = new Three.Group(); parent.add(g);
+    g.userData.anchorPoint = V(x, base + 3.45, z + .45);
     const doorMat = material(`door-${spec.doorHex}`, spec.doorHex, 'deck', { tile: 6, rough: .45 });
     const panelMat = material(`door-panel-${spec.doorHex}`, new Three.Color(spec.doorHex).multiplyScalar(.82), null, { rough: .5 });
     const wide = !spec.before && spec.doorProduct === 'wood';
@@ -399,6 +404,7 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     } else for (const py of [1.7, 3.8, 5.8]) for (const px of [-.72, .72]) box(g, 1.05, py === 3.8 ? 1.7 : 1.5, .06, panelMat, x + px, base + py, z + .31);
     box(g, .16, .42, .18, material('brass', '#c9a23a', null, { rough: .25, metal: .85 }), x + 1.25, base + 3.3, z + .38, { shadow: false });
     for (const s of wide ? [-1, 1] : [-1]) box(g, .5, .75, .5, light, x + s * (wide ? 4.3 : 2.95), base + 5.8, z + .45, { shadow: false });
+    return g;
   }
   function railing(g, a, b, y, m, mat = m.trim, gaps = []) {
     const len = a.distanceTo(b), dir = b.clone().sub(a).normalize(), count = Math.floor(len / .62);
@@ -740,7 +746,7 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
         const u = windowUnit({ w: 3, h: winH, frame, glassMat: m.glass, m, grid, shutters: face !== 'back' ? shutterMat : null });
         u.position.set(e.a[0] + (e.b[0] - e.a[0]) * t + e.nx * .08, y, e.a[1] + (e.b[1] - e.a[1]) * t + e.nz * .08);
         u.rotation.y = Math.atan2(e.nx, e.nz);
-        building.add(u);
+        building.add(u); building.userData.windows.push(u);
       });
     }
   }
@@ -754,12 +760,13 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     building.add(sub);
     box(sub, 6.4, .5, 3.4, m.concrete, 0, .25, 1.7);
     box(sub, 5.4, .5, 2, m.concrete, 0, .75, 1);
-    doorUnit(sub, { x: 0, z: 0, base, spec, m, glassMat, light: lamp });
+    building.userData.door = doorUnit(sub, { x: 0, z: 0, base, spec, m, glassMat, light: lamp });
     if (light.glow > .5) { const p = new Three.PointLight('#ffc070', 22 * light.glow, 22, 1.6); p.position.set(0, base + 7, 3); sub.add(p); }
   }
 
   function buildVariant(variantSpec) {
     const group = new Three.Group(), building = new Three.Group(); group.add(building);
+    building.userData.windows = [];
     const { lengthFt: L, widthFt: W, wallHeightFt: H, gableRiseFt: rise, storyHeightFt: storyH, stories } = variantSpec;
     const form = variantSpec.roofForm || 'gable', accent = variantSpec.accent || '', before = variantSpec.before;
     const overhang = variantSpec.overhangFt || 1.35, base = 1, y0 = base + H;
@@ -899,13 +906,13 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
       else if (win.face === 'back') { u.position.set(offset, y, -W / 2 - .08); u.rotation.y = Math.PI; }
       else if (win.face === 'left') { u.position.set(-L / 2 - .08, y, offset); u.rotation.y = -Math.PI / 2; }
       else { u.position.set(L / 2 + .08, y, offset); u.rotation.y = Math.PI / 2; }
-      building.add(u);
+      building.add(u); building.userData.windows.push(u);
     }
 
     // Entry: steps, door, lanterns.
     box(building, 6.4, .5, 3.4, m.concrete, 0, .25, W / 2 + 1.7);
     box(building, 5.4, .5, 2, m.concrete, 0, .75, W / 2 + 1);
-    doorUnit(building, { x: 0, z: W / 2, base, spec: variantSpec, m, glassMat: m.glass, light: lamp });
+    building.userData.door = doorUnit(building, { x: 0, z: W / 2, base, spec: variantSpec, m, glassMat: m.glass, light: lamp });
     if (light.glow > .5) { const p = new Three.PointLight('#ffc070', 22 * light.glow, 22, 1.6); p.position.set(0, base + 7, W / 2 + 3); building.add(p); }
     }
 
@@ -914,6 +921,7 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     const drive = variantSpec.garage && !measured ? garage(building, { L, W, base, rise, m, spec: variantSpec, glassMat: m.glass }) : null;
     site(group, { spec: variantSpec, L, W, m, drive });
     group.userData.building = building;
+    building.userData.siding = m.siding;
     return group;
   }
 
@@ -970,8 +978,86 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     }
   }
 
+  // ---------- Hotspot anchors ----------
+  const showsAnchors = () => Boolean(onAnchors) && activeStage === previewStage && open;
+  const facesCamera = (point, normal) => normal.dot(camera.position.clone().sub(point)) > .05;
+  /**
+   * Finds what the hotspots sit on: the upper-left visible window, the entry door and a clear patch of
+   * siding toward the right, each a world point with the outward normal of its surface. Rays from the
+   * camera decide what is really visible, so a porch roof or a tree never hides a hotspot's surface.
+   */
+  function findAnchors() {
+    const building = afterHouse?.userData.building, w = activeStage.clientWidth, h = activeStage.clientHeight;
+    if (!building || !w || !h) return null;
+    house.updateMatrixWorld(true);
+    raycaster ??= new Three.Raycaster();
+    const eye = camera.position, inside = (object, root) => { for (let o = object; o; o = o.parent) if (o === root) return true; return false; };
+    const screen = point => { const v = point.clone().project(camera); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; };
+    const firstHit = point => {
+      const direction = point.clone().sub(eye), distance = direction.length();
+      raycaster.set(eye, direction.normalize()); raycaster.far = distance + 1;
+      return raycaster.intersectObject(afterHouse, true)[0];
+    };
+    // A surface counts as seen when a ray from the camera reaches it first; a door tries a few points across
+    // its face, since a porch column often hides its middle.
+    const seen = (object, offsets = [[0, 0]]) => {
+      const normal = V(0, 0, 1).applyQuaternion(object.getWorldQuaternion(new Three.Quaternion()));
+      for (const [dx, dy] of offsets) {
+        const point = object.localToWorld((object.userData.anchorPoint || V(0, 0, .2)).clone().add(V(dx, dy, 0)));
+        if (facesCamera(point, normal) && inside(firstHit(point)?.object, object)) return { point, normal, ...screen(point) };
+      }
+      return null;
+    };
+    const pane = building.userData.windows.map(win => seen(win)).filter(Boolean).sort((a, b) => (a.x + a.y * .6) - (b.x + b.y * .6))[0] || null;
+    const door = building.userData.door ? seen(building.userData.door, [[0, 0], [-.9, .8], [.9, .8], [-.9, -1], [.9, -1], [0, 2]]) : null;
+    // Siding: sample the building's screen extent and keep the best-placed hit whose neighbours are siding
+    // too (a clear patch, not the edge of a window), away from the other two hotspots.
+    const bounds = new Three.Box3().setFromObject(building), extent = [];
+    for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) extent.push(screen(V(x, y, z)));
+    const x0 = Math.max(0, Math.min(...extent.map(p => p.x))), x1 = Math.min(w, Math.max(...extent.map(p => p.x)));
+    const y0 = Math.max(0, Math.min(...extent.map(p => p.y))), y1 = Math.min(h, Math.max(...extent.map(p => p.y)));
+    const at = (x, y) => { raycaster.far = Infinity; raycaster.setFromCamera(new Three.Vector2(x / w * 2 - 1, 1 - y / h * 2), camera); return raycaster.intersectObject(building, true)[0]; };
+    const isSiding = hit => Boolean(hit) && hit.object.material === building.userData.siding;
+    // Clearances scale with the view, so a phone-sized canvas still finds a patch of wall.
+    const near = Math.max(10, Math.min(20, Math.min(w, h) * .035)), apart = Math.max(40, Math.min(64, w * .1));
+    let wall = null, best = -Infinity;
+    for (let i = 1; i < 14; i++) for (let j = 1; j < 10; j++) {
+      const x = x0 + (x1 - x0) * i / 14, y = y0 + (y1 - y0) * j / 10, score = x / w - Math.abs(y / h - .45) * 1.2;
+      if (score <= best || [pane, door].some(other => other && Math.hypot(other.x - x, other.y - y) < apart)) continue;
+      const hit = at(x, y);
+      if (!isSiding(hit) || !hit.face) continue;
+      const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+      if (!facesCamera(hit.point, normal) || ![[-near, 0], [near, 0], [0, -near], [0, near]].every(([dx, dy]) => isSiding(at(x + dx, y + dy)))) continue;
+      best = score; wall = { point: hit.point.clone(), normal, x, y };
+    }
+    return { siding: wall, windows: pane, doors: door };
+  }
+  function emitAnchors() {
+    const w = activeStage.clientWidth, h = activeStage.clientHeight;
+    onAnchors(['siding', 'windows', 'doors'].map(surface => {
+      const anchor = anchors?.[surface];
+      if (!anchor || !w || !h) return { surface, visible: false };
+      const v = anchor.point.clone().project(camera), x = (v.x + 1) / 2 * w, y = (1 - v.y) / 2 * h;
+      return { surface, x, y, visible: v.z < 1 && x > 16 && x < w - 16 && y > 16 && y < h - 16 && facesCamera(anchor.point, anchor.normal) };
+    }));
+  }
+  /**
+   * Moves the hotspots with the camera on every frame, then looks for fresh surfaces once the camera
+   * and the house have settled. Anchors are world points, so a rebuilt house keeps them until then.
+   */
+  function trackAnchors() {
+    if (!showsAnchors()) return;
+    emitAnchors();
+    clearTimeout(anchorTimer);
+    anchorTimer = setTimeout(() => { if (showsAnchors() && afterHouse) { anchors = findAnchors(); emitAnchors(); } }, 180);
+  }
+
   function renderScene() {
     if (!renderer || !scene || !camera || !afterHouse) return;
+    paintScene();
+    trackAnchors();
+  }
+  function paintScene() {
     const effectiveSplit = splitPercent;
     const splitActive = effectiveSplit > 0 && effectiveSplit < 100;
     for (const currentStage of stages) {
@@ -1313,7 +1399,7 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     return true;
   }
   function closeView() {
-    cancelTransition(); stopOrbit(); open = false; renderer?.setAnimationLoop(null);
+    cancelTransition(); stopOrbit(); clearTimeout(anchorTimer); open = false; renderer?.setAnimationLoop(null);
     pointers.clear(); splitPointerId = null;
     renderer?.domElement.classList.remove('is-orbiting', 'is-split-hit', 'is-split-dragging');
     for (const currentStage of stages) { delete currentStage.dataset.interacting; delete currentStage.dataset.splitDragging; }
@@ -1339,6 +1425,19 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
   }
   return {
     open: openView, close: closeView, setView, orbit,
+    /** Turns the camera around the house by `angle` radians, eased unless reduced motion is requested. */
+    rotate(angle = Math.PI / 6) {
+      stopOrbit();
+      const start = azimuth;
+      animateValues(360, t => { azimuth = start + angle * t; frameCamera(); renderScene(); });
+    },
+    /** Moves the camera closer (`factor` above 1) or farther, within the same limits as scrolling. */
+    zoom(factor = 1.25) {
+      stopOrbit();
+      const start = radius, end = Math.max(fitRadius * .35, Math.min(fitRadius * 2.6, radius / factor));
+      animateValues(240, t => { radius = start + (end - start) * t; frameCamera(); renderScene(); });
+    },
+    reset() { setView('corner'); },
     /** Pauses or resumes a turntable stage's turn; returns whether it is turning. */
     toggleTurntable() {
       if (orbitFrame) { turntablePaused = true; stopOrbit(); return false; }

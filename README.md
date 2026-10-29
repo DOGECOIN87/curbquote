@@ -2,9 +2,21 @@
 
 **See your home, then see what new siding, windows and doors could cost, with every number explained.**
 
-Status: **v0.15 UI/UX prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
+Status: **v0.17 UI/UX prototype** (October 2026). CurbQuote is a homeowner planning tool. It doesn't
 measure buildings from an address and doesn't give binding contractor quotes. Prices are editable
 examples, and accuracy hasn't been checked against completed jobs yet.
+
+## The Exterior Studio
+
+Steps 2–4 are one studio: the steps and each step's controls in the rail, the house in the middle
+with hotspots and a material bar, and "Your project" with the live estimate on the right. On phones
+the studio is a bottom sheet, and "Your project" opens over it. Details: [docs/22](docs/22-v017-exterior-studio.md).
+
+![The Exterior Studio on desktop: steps and project cards in a green rail, the 3D concept house with hotspots and a material bar, and "Your project" with the estimate](docs/assets/ui-review/v017-step2-after-1280.png)
+
+| Phone: the studio | Phone: your project |
+|---|---|
+| ![The studio on a phone: dark header with step dots, the 3D house, and a sheet with project tiles, swatches and the estimate](docs/assets/ui-review/v017-step2-after-390.png) | ![The project sheet on a phone: address, project scope, selected material and Continue to home details](docs/assets/ui-review/v017-project-sheet-after-390.png) |
 
 ## What the MVP does
 
@@ -25,9 +37,9 @@ examples, and accuracy hasn't been checked against completed jobs yet.
    a measured roof surface and simplified walls. This covers one reviewed property;
    it does not supply estimate measurements. See [the prototype guide](docs/15-lidar-exterior-prototype.md).
 3. **Build the budget.** Pick siding, windows and doors, then a material and a Standard, Enhanced or
-   Premium tier, and enter the home's measurements. Steps 3 and 4 keep a running estimate visible
-   (with a "Preview in 3D" route into the studio), and each product shows its example installed
-   price for the tier you picked. You get an itemized range and see how each number was calculated.
+   Premium tier, and enter the home's measurements. Steps 2–4 show the 3D concept house with your
+   choices and keep the running estimate in "Your project", and each product shows its example
+   installed price for the tier you picked. You get an itemized range and see how each number was calculated.
 4. **Plan and visualize.**
    - Compare plans against a budget, or let the assistant suggest one.
    - Pick one of 16 North-American home styles, then walk around your home in the **3D remodel**
@@ -48,8 +60,8 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 116 Node tests, public build
-npm run test:browser   # 64 Chromium checks with fixture data (needs Playwright's Chromium)
+npm run check          # syntax checks, 119 Node tests, public build
+npm run test:browser   # 65 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, Google 3D measuring pass, controls and fallback
 ```
 
@@ -116,6 +128,8 @@ Address lookup, 3D, estimates and saving work; the AI assistant and licensed pro
 | 18 | [Inline Step 3 3D preview & split UX](docs/18-3d-preview-and-split-ux.md) | The v0.12 review: Step 3 inline 3D preview, Before/After split wipe, Step 4 rate summary/reset, Step 5 caveats card |
 | 19 | [v0.14 visual and interaction pass](docs/19-v014-ui-ux.md) | On-canvas split dragging, cost-share visuals, proportional framing, and responsive screenshot review |
 | 20 | [v0.15 redesign, 3D and fallbacks](docs/20-v015-redesign-3d-and-fallbacks.md) | One design system, rebuilt roof geometry for 16 home styles, studio finishes and lighting, the key-free property-view fallback chain, and backend caching and limits |
+| 21 | [v0.16 Step 1 mock-up pass](docs/21-v016-step1-mockup-pass.md) | The full-bleed Step 1 3D view, one measuring card, Google Maps extras and photo concepts |
+| 22 | [v0.17 Exterior Studio](docs/22-v017-exterior-studio.md) | Steps 2–4 as one studio: steps in a rail, the house with hotspots and a material bar, "Your project" on the right, phone sheets |
 
 **Research**
 

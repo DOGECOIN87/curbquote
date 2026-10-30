@@ -78,3 +78,14 @@ landscape, the bar and the controls hid almost all of it. Phones under 740 px ta
 
 **Phones on their side** (under 500 px tall) show the house on the left and the studio on the right,
 under a one-row header. The project sheet opens on the right, below the header.
+
+## Screenshots
+
+October 30, 2026, with no paid services connected (the 3D house is the concept model).
+
+| | Desktop, 1280 × 800 | Phone, 390 × 844 |
+|---|---|---|
+| Step 1 | ![Step 1 on desktop](assets/ui-review/v018-step1-1280.png) | ![Step 1 on a phone](assets/ui-review/v018-step1-390.png) |
+| Step 2 | ![Step 2 on desktop](assets/ui-review/v018-step2-1280.png) | ![Step 2 on a phone](assets/ui-review/v018-step2-390.png) |
+| Your project | (the right-hand panel above) | ![The project sheet on a phone](assets/ui-review/v018-project-sheet-390.png) |
+| Step 5 | ![Step 5 on desktop](assets/ui-review/v018-step5-1280.png) | ![Step 5 on a phone](assets/ui-review/v018-step5-390.png) |

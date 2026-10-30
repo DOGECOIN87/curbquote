@@ -17,6 +17,7 @@ import { fetchPublicFootprint } from './footprint-client.js';
 import { setupLeadForm } from './lead-form.js';
 import { parseChangeRequest, describeChange } from './intent.js';
 import { setupAddressSuggestions } from './address-suggest.js';
+import { OFFICES, serviceArea } from './alco.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -32,6 +33,17 @@ let lastResult = null;
 let hasCalculated = false;
 let generatedAt = '';
 let matched = null;
+// Every match goes through here, so the service-area note and Alco's phone numbers follow the address.
+let office = OFFICES.bethesda;
+function setMatched(location) {
+  matched = location;
+  const area = location && location.source !== EXTERIOR_EXAMPLE.source ? serviceArea(location.matchedAddress) : null;
+  const note = byId('service-area');
+  note.textContent = area?.message || ''; note.hidden = !area?.message; note.dataset.status = area?.status || '';
+  office = area?.office || OFFICES.bethesda;
+  for (const link of document.querySelectorAll('[data-alco-tel]')) link.href = `tel:${office.tel}`;
+  for (const phone of document.querySelectorAll('[data-alco-phone]')) phone.textContent = office.phone;
+}
 let lookupSerial = 0;
 let lookupController = null;
 let lookupTimer = null;
@@ -502,7 +514,7 @@ function syncProjectControls({ microResponse = false } = {}) {
   byId('replaceWindows').disabled = byId('windowProduct').disabled = !p.windows;
   byId('replaceDoors').disabled = byId('doorProduct').disabled = !p.doors;
   byId('house-wall-color').setAttribute('fill', COLORS[selectedColor].hex);
-  byId('house-texture').setAttribute('fill', p.sidingProduct === 'engineered' ? 'url(#board-pattern)' : 'url(#lap-pattern)');
+  byId('house-texture').setAttribute('fill', 'url(#lap-pattern)');
   byId('house-door-color').setAttribute('fill', { steel: '#294e51', fiberglass: '#8a6844', wood: '#603c2d' }[p.doorProduct]);
   byId('house-windows').setAttribute('stroke', p.windowProduct === 'wood' ? '#d3bc93' : '#f6f4e8');
   byId('color-name').textContent = COLORS[selectedColor].name;
@@ -727,7 +739,7 @@ byId('reset-rates')?.addEventListener('click', () => {
 });
 function cancelAddressLookup() {
   clearTimeout(lookupTimer); lookupTimer = null;
-  lookupSerial++; lookupController?.abort(); lookupController = null; matched = null;
+  lookupSerial++; lookupController?.abort(); lookupController = null; setMatched(null);
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
   propertyPreview.clear();
 }
@@ -973,7 +985,7 @@ lookupButton.addEventListener('click', () => lookupAddress());
 byId('exterior-example').addEventListener('click', () => {
   addressEl.value = EXTERIOR_EXAMPLE.matchedAddress;
   addressChanged(); cancelAddressLookup();
-  matched = { matchedAddress: EXTERIOR_EXAMPLE.matchedAddress, coordinates: { ...EXTERIOR_EXAMPLE.coordinates }, source: EXTERIOR_EXAMPLE.source };
+  setMatched({ matchedAddress: EXTERIOR_EXAMPLE.matchedAddress, coordinates: { ...EXTERIOR_EXAMPLE.coordinates }, source: EXTERIOR_EXAMPLE.source });
   propertyPreview.show(matched);
   addressStatus.className = 'field-help success';
   addressStatus.textContent = `Example: ${EXTERIOR_EXAMPLE.name}, Austin. This prototype model covers this address only. Enter your address to return to your property.`;
@@ -999,7 +1011,7 @@ async function lookupAddress({ automatic = false } = {}) {
   const controller = new AbortController();
   lookupController = controller;
   const timeout = setTimeout(() => controller.abort(), 9000);
-  matched = null;
+  setMatched(null);
   refreshReport();
   lookupButton.disabled = true;
   lookupButton.setAttribute('aria-busy', 'true');
@@ -1022,7 +1034,7 @@ async function lookupAddress({ automatic = false } = {}) {
     }
     if (!isAddressMatch(payload)) throw new Error('Address lookup returned incomplete location data. Try again or estimate manually.');
     if (serial !== lookupSerial) return;
-    matched = payload;
+    setMatched(payload);
     propertyPreview.show(payload);
     autoFootprint(payload);
     if (automatic) propertyLookup?.lookup({ automatic: true });
@@ -1035,7 +1047,7 @@ async function lookupAddress({ automatic = false } = {}) {
     refreshReport();
   } catch (error) {
     if (serial !== lookupSerial) return;
-    matched = null;
+    setMatched(null);
     addressStatus.textContent = controller.signal.aborted
       ? 'Address lookup timed out. You can still estimate manually.'
       : error instanceof TypeError ? 'Address lookup could not connect. You can still estimate manually.' : error.message;
@@ -1068,6 +1080,7 @@ byId('print-summary').addEventListener('click', () => {
   if (calculate({ focus: true })) window.print();
 });
 setupLeadForm({
+  getPhone: () => office.phone,
   getRequest: () => calculate({ focus: true }) && {
     estimate: { address: (matched?.matchedAddress || addressEl.value.trim()).slice(0, 200) || undefined, range: lastRangeText.slice(0, 80) || undefined },
     brief: byId('print-report-content').textContent.slice(0, 16000)
@@ -1381,7 +1394,7 @@ assistant = setupAssistant({
   applyLocation: location => {
     if (!isAddressMatch(location)) return;
     propertyLookup?.clear({ restoreInputs: true });
-    cancelAddressLookup(); matched = location; addressEl.value = location.matchedAddress;
+    cancelAddressLookup(); setMatched(location); addressEl.value = location.matchedAddress;
     propertyPreview.show(location);
     addressStatus.textContent = `Approximate Census location: ${location.matchedAddress}. No building measurement retrieved.`; addressStatus.className = 'field-help success'; refreshReport();
   },

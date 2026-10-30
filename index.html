@@ -65,7 +65,8 @@
             <button type="button" class="account-item" data-open-projects><svg width="18" height="18" aria-hidden="true"><use href="#icon-folder"/></svg>Saved projects</button>
             <button type="button" id="install-app" class="account-item" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.2"/><path d="M12 7.5v7M9 11.8l3 3 3-3"/></svg>Install the app</button>
             <p id="install-ios" class="account-hint" hidden>Add it to your Home Screen: in Safari, tap Share, then Add to Home Screen.</p>
-            <a class="account-item" href="tel:3015931691"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.8l2.6-.6 1.8 4.4-2.2 1.5a11 11 0 0 0 6.1 6.1l1.5-2.2 4.4 1.8-.6 2.6a2 2 0 0 1-2.1 1.5C10.5 18.4 5.6 13.5 5.1 5.9a2 2 0 0 1 1.5-2.1z"/></svg>Call Alco Products · (301) 593-1691</a>
+            <a class="account-item" href="tel:3015931691" data-alco-tel><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.8l2.6-.6 1.8 4.4-2.2 1.5a11 11 0 0 0 6.1 6.1l1.5-2.2 4.4 1.8-.6 2.6a2 2 0 0 1-2.1 1.5C10.5 18.4 5.6 13.5 5.1 5.9a2 2 0 0 1 1.5-2.1z"/></svg>Call Alco Products · <span data-alco-phone>(301) 593-1691</span></a>
+            <a class="account-item" href="https://www.alcoproductsinc.com" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>Visit alcoproductsinc.com <span aria-hidden="true">↗</span></a>
           </div>
         </div>
       </div>
@@ -89,6 +90,7 @@
             <div class="address-entry"><svg class="address-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input type="text" id="property-address" name="property-address" form="estimate-form" autocomplete="street-address" aria-describedby="address-status" maxlength="120" placeholder="Street, city, state or ZIP" spellcheck="false" enterkeyhint="search"><button type="button" id="verify-address" class="secondary-button" aria-label="Find property"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
             <div id="address-suggest" class="address-suggest" hidden><ul id="address-suggestions" class="suggest-list" role="listbox" aria-label="Suggested addresses"></ul><p class="suggest-credit">Google Maps</p></div>
             <div class="field-help" id="address-status" role="status" aria-live="polite">Your estimate updates as soon as the address matches. Location is approximate.</div>
+            <p class="field-help service-area" id="service-area" role="status" hidden></p>
           </div>
           <section id="instant-estimate" class="instant-estimate" aria-labelledby="instant-label">
             <div class="instant-figure">
@@ -112,7 +114,7 @@
               <button type="button" id="proposal-materials" aria-expanded="false" aria-controls="material-chips"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>Change materials</button><button type="button" id="proposal-features" aria-expanded="false" aria-controls="feature-chips"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c6 0 12-5 13-14-9 1-14 7-14 13"/><path d="M5 19l7-7"/></svg>Add features</button><button type="button" id="proposal-estimate" data-step-link="5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h8"/></svg><span id="proposal-estimate-label">Estimate project</span></button>
             </div>
             <div id="material-chips" class="change-chips" hidden>
-              <button type="button" data-change="Standing-seam metal roof">Metal roof</button><button type="button" data-change="Cedar shake roof">Cedar shake roof</button><button type="button" data-change="Fiber cement siding">Fiber cement siding</button><button type="button" data-change="Engineered wood siding">Engineered wood</button><button type="button" data-change="Black trim">Black trim</button><button type="button" data-change="Stone accents">Stone accents</button><button type="button" data-change="Painted brick">Painted brick</button>
+              <button type="button" data-change="Standing-seam metal roof">Metal roof</button><button type="button" data-change="Cedar shake roof">Cedar shake roof</button><button type="button" data-change="James Hardie fiber cement siding">James Hardie siding</button><button type="button" data-change="Vinyl siding">Vinyl siding</button><button type="button" data-change="Black trim">Black trim</button><button type="button" data-change="Stone accents">Stone accents</button><button type="button" data-change="Painted brick">Painted brick</button>
             </div>
             <div id="feature-chips" class="change-chips" hidden>
               <button type="button" data-change="Add a covered porch">Covered porch</button><button type="button" data-change="Add a garage">Garage</button><button type="button" data-change="Add a picket fence">Picket fence</button><button type="button" data-change="Add shutters">Shutters</button><button type="button" data-change="Add dormers">Dormers</button><button type="button" data-change="Show it at golden hour">Golden hour</button>
@@ -288,9 +290,9 @@
           <section class="form-section pricing-section wizard-step rail-section" data-step="4" aria-labelledby="pricing-heading" hidden>
             <div class="rail-head"><h2 id="pricing-heading">Make your choices</h2><p>Pick materials, quality and color.</p></div>
             <div class="field-grid field-grid-3 choice-grid">
-              <div class="choice-field" id="choice-field-siding"><label for="sidingProduct">Siding material</label><select id="sidingProduct"><option value="vinyl">Vinyl lap siding</option><option value="fiber">Fiber cement</option><option value="engineered">Engineered wood</option></select><p class="choice-hint" id="siding-product-hint"></p></div>
-              <div class="choice-field" id="choice-field-windows"><label for="windowProduct">Window style</label><select id="windowProduct"><option value="vinyl">Vinyl double-hung</option><option value="fiberglass">Fiberglass casement</option><option value="wood">Wood-clad windows</option></select><p class="choice-hint" id="window-product-hint"></p></div>
-              <div class="choice-field" id="choice-field-doors"><label for="doorProduct">Entry door</label><select id="doorProduct"><option value="steel">Steel entry door</option><option value="fiberglass">Fiberglass entry door</option><option value="wood">Wood entry door</option></select><p class="choice-hint" id="door-product-hint"></p></div>
+              <div class="choice-field" id="choice-field-siding"><label for="sidingProduct">Siding material</label><select id="sidingProduct"><option value="fiber" selected>James Hardie fiber cement</option><option value="vinyl">CertainTeed vinyl siding</option></select><p class="choice-hint" id="siding-product-hint"></p></div>
+              <div class="choice-field" id="choice-field-windows"><label for="windowProduct">Window style</label><select id="windowProduct"><option value="fiberglass" selected>Marvin fiberglass</option><option value="wood">Marvin wood-clad</option><option value="vinyl">Vytex vinyl</option></select><p class="choice-hint" id="window-product-hint"></p></div>
+              <div class="choice-field" id="choice-field-doors"><label for="doorProduct">Entry door</label><select id="doorProduct"><option value="fiberglass" selected>ProVia fiberglass door</option><option value="steel">ProVia steel door</option><option value="wood">Marvin wood door</option></select><p class="choice-hint" id="door-product-hint"></p></div>
             </div>
             <fieldset class="tier-picker"><legend class="mini-heading">Quality</legend>
               <label><input type="radio" name="tier" value="standard" checked><strong>Standard</strong><span>Simple &amp; practical · 1× base rate</span></label>
@@ -321,9 +323,9 @@
                   <div class="coverage-note"><p class="micro-note" id="coverage-help">100% covers all estimated siding. Choose a smaller share for a partial project. Materials and tiers apply editable example prices, not contractor quotes.</p><button type="button" id="reset-rates" class="outline-button">Reset to catalog rates</button></div>
                 </div>
                 <div class="price-categories-grid">
-                  <div class="price-category"><strong>Siding <small>installed / sq ft</small></strong><div class="field-grid field-grid-2"><div><label for="sidingLowPerSqFt">Low $</label><input id="sidingLowPerSqFt" name="sidingLowPerSqFt" type="number" min="0" max="100" step="0.5" value="7"></div><div><label for="sidingHighPerSqFt">High $</label><input id="sidingHighPerSqFt" name="sidingHighPerSqFt" type="number" min="0" max="100" step="0.5" value="14"></div></div></div>
-                  <div class="price-category"><strong>Windows <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="windowLowEach">Low $</label><input id="windowLowEach" name="windowLowEach" type="number" min="0" max="20000" step="50" value="500"></div><div><label for="windowHighEach">High $</label><input id="windowHighEach" name="windowHighEach" type="number" min="0" max="20000" step="50" value="1300"></div></div></div>
-                  <div class="price-category"><strong>Doors <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="doorLowEach">Low $</label><input id="doorLowEach" name="doorLowEach" type="number" min="0" max="30000" step="50" value="1200"></div><div><label for="doorHighEach">High $</label><input id="doorHighEach" name="doorHighEach" type="number" min="0" max="30000" step="50" value="3000"></div></div></div>
+                  <div class="price-category"><strong>Siding <small>installed / sq ft</small></strong><div class="field-grid field-grid-2"><div><label for="sidingLowPerSqFt">Low $</label><input id="sidingLowPerSqFt" name="sidingLowPerSqFt" type="number" min="0" max="100" step="0.5" value="10"></div><div><label for="sidingHighPerSqFt">High $</label><input id="sidingHighPerSqFt" name="sidingHighPerSqFt" type="number" min="0" max="100" step="0.5" value="20"></div></div></div>
+                  <div class="price-category"><strong>Windows <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="windowLowEach">Low $</label><input id="windowLowEach" name="windowLowEach" type="number" min="0" max="20000" step="50" value="900"></div><div><label for="windowHighEach">High $</label><input id="windowHighEach" name="windowHighEach" type="number" min="0" max="20000" step="50" value="1800"></div></div></div>
+                  <div class="price-category"><strong>Doors <small>installed / each</small></strong><div class="field-grid field-grid-2"><div><label for="doorLowEach">Low $</label><input id="doorLowEach" name="doorLowEach" type="number" min="0" max="30000" step="50" value="1800"></div><div><label for="doorHighEach">High $</label><input id="doorHighEach" name="doorHighEach" type="number" min="0" max="30000" step="50" value="4200"></div></div></div>
                 </div>
               </div>
             </details>
@@ -492,7 +494,7 @@
               <ol>
                 <li><button type="button" class="link-button" data-step-link="4">Adjust materials, quality or coverage <span aria-hidden="true">→</span></button><span>See how each choice moves the range.</span></li>
                 <li><button type="button" class="link-button" data-step-link="3">Check your measurements <span aria-hidden="true">→</span></button><span>Wall area is the biggest driver of the siding price.</span></li>
-                <li><a class="link-button" href="tel:3015931691">Call Alco Products on (301) 593-1691</a><span>Take the saved summary to a contractor; we can review it with you.</span></li>
+                <li><a class="link-button" href="tel:3015931691" data-alco-tel>Call Alco Products on <span data-alco-phone>(301) 593-1691</span></a><span>Family-owned since 1956, with a limited lifetime labor warranty. Bring your saved summary and we'll review it with you.</span></li>
               </ol>
             </div>
           </div>
@@ -591,7 +593,7 @@
             </div>
             <div id="illustration-panel" role="tabpanel" aria-labelledby="illustration-tab" hidden>
               <svg id="concept-house" class="concept-house" viewBox="0 0 500 300" role="img" aria-label="Illustrative home with your selected siding color, window style and door">
-                <defs><pattern id="lap-pattern" width="10" height="13" patternUnits="userSpaceOnUse"><path d="M0 12.5H10" stroke="#1a1a1a" stroke-opacity=".22"/></pattern><pattern id="board-pattern" width="22" height="20" patternUnits="userSpaceOnUse"><path d="M1 0V20M20 0V20" stroke="#1a1a1a" stroke-opacity=".22"/></pattern></defs>
+                <defs><pattern id="lap-pattern" width="10" height="13" patternUnits="userSpaceOnUse"><path d="M0 12.5H10" stroke="#1a1a1a" stroke-opacity=".22"/></pattern></defs>
                 <ellipse cx="250" cy="263" rx="213" ry="13" fill="#1a1a1a" opacity=".08"/>
                 <path id="house-wall-color" d="M72 124L247 33 425 124V255H72Z" fill="#829581"/>
                 <path id="house-texture" d="M72 124L247 33 425 124V255H72Z" fill="url(#lap-pattern)"/>
@@ -655,6 +657,7 @@
   <dialog id="lead-dialog" class="projects-dialog lead-dialog" aria-labelledby="lead-title">
     <div class="dialog-header"><h2 id="lead-title">Send to Alco Products</h2><button type="button" id="close-lead" class="outline-button" aria-label="Close">✕</button></div>
     <p id="lead-intro" class="studio-help">Alco Products gets your estimate summary and contact details, reviews the measurements and gets back to you. Nothing is sent until you press Send.</p>
+    <p class="lead-trust">Family-owned since 1956 · Limited lifetime labor warranty</p>
     <form id="lead-form" novalidate>
       <div class="lead-fields">
         <div><label for="lead-name">Name</label><input id="lead-name" name="name" autocomplete="name" maxlength="100" required></div>
@@ -662,11 +665,11 @@
         <div><label for="lead-phone">Phone <span class="optional">(optional)</span></label><input id="lead-phone" name="phone" type="tel" autocomplete="tel" maxlength="40"></div>
         <div class="lead-notes"><label for="lead-notes">Anything we should know? <span class="optional">(optional)</span></label><textarea id="lead-notes" name="notes" rows="3" maxlength="1000" placeholder="Best time to call, timing, questions"></textarea></div>
       </div>
-      <label class="lead-consent"><input id="lead-consent" name="consent" type="checkbox" required><span>Alco Products may contact me about this estimate.</span></label>
+      <label class="lead-consent"><input id="lead-consent" name="consent" type="checkbox" required><span>I authorize Alco Products to contact me about this estimate by email, and by calls or text messages to the phone number above, including by autodialer or prerecorded message. I understand this is not a condition of doing business with Alco Products, and I agree to Alco Products' <a href="https://www.alcoproductsinc.com/terms" target="_blank" rel="noopener">Terms of Use</a> and <a href="https://www.alcoproductsinc.com/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
       <p id="lead-status" class="field-help" role="status"></p>
       <button type="submit" id="lead-submit" class="primary-button wide-button">Send</button>
     </form>
-    <p class="field-help lead-privacy">Your details go only to Alco Products. CurbQuote does not keep them. Prefer to talk? <a href="tel:3015931691">(301) 593-1691</a></p>
+    <p class="field-help lead-privacy">Your details go only to Alco Products. CurbQuote does not keep them. Prefer to talk? <a href="tel:3015931691" data-alco-tel><span data-alco-phone>(301) 593-1691</span></a></p>
   </dialog>
   <p id="project-toast" class="project-toast" role="status" hidden></p>
   <section id="print-report" class="print-report" aria-label="Printable estimate"><pre id="print-report-content"></pre></section>

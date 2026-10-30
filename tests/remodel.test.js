@@ -7,13 +7,13 @@ import { isThreeFile, PUBLIC_ASSETS, THREE_FILES } from '../lib/web.mjs';
 test('house spec mirrors the homeowner measurements and choices', () => {
   const spec = houseSpec(
     { lengthFt: 40, widthFt: 28, stories: 1, existingWindows: 8 },
-    { sidingProduct: 'engineered', windowProduct: 'wood', doorProduct: 'wood', color: 'slate' },
+    { sidingProduct: 'vinyl', windowProduct: 'wood', doorProduct: 'wood', color: 'slate' },
     { roof: 'clay', porch: true, dormers: true, shutters: false }
   );
   assert.equal(spec.lengthFt, 40);
   assert.equal(spec.widthFt, 28);
   assert.equal(spec.stories, 1);
-  assert.equal(spec.texture, 'board');
+  assert.equal(spec.texture, 'lap');
   assert.equal(spec.sidingHex, COLORS.slate.hex);
   assert.equal(spec.windows.length, 8);
   assert.equal(spec.porch, true);

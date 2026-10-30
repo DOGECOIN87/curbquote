@@ -1,12 +1,16 @@
 import { DEFAULT_INPUT, estimateExterior, InputError } from './estimate.js';
 
-// Demonstration price book. These are authored examples, never sourced contractor bids.
-export const CATALOG_VERSION = 'demo-products-2026-10-v1';
+// The product lines Alco Products installs (alcoproductsinc.com, October 2026), in the order offered.
+// The rates are authored examples, never Alco's prices: they stay labelled illustrative until Alco's
+// price book replaces them.
+export const CATALOG_VERSION = 'alco-products-2026-10-v2';
 export const PRODUCTS = Object.freeze({
-  siding: Object.freeze({ vinyl: { name: 'Vinyl lap siding', rates: [7, 14] }, fiber: { name: 'Fiber cement', rates: [10, 20] }, engineered: { name: 'Engineered wood', rates: [9, 18] } }),
-  windows: Object.freeze({ vinyl: { name: 'Vinyl double-hung', rates: [500, 1300] }, fiberglass: { name: 'Fiberglass casement', rates: [900, 1800] }, wood: { name: 'Wood-clad windows', rates: [1000, 2200] } }),
-  doors: Object.freeze({ steel: { name: 'Steel entry door', rates: [1200, 3000] }, fiberglass: { name: 'Fiberglass entry door', rates: [1800, 4200] }, wood: { name: 'Wood entry door', rates: [2500, 6000] } })
+  siding: Object.freeze({ fiber: { name: 'James Hardie fiber cement', rates: [10, 20] }, vinyl: { name: 'CertainTeed vinyl siding', rates: [7, 14] } }),
+  windows: Object.freeze({ fiberglass: { name: 'Marvin fiberglass', rates: [900, 1800] }, wood: { name: 'Marvin wood-clad', rates: [1000, 2200] }, vinyl: { name: 'Vytex vinyl', rates: [500, 1300] } }),
+  doors: Object.freeze({ fiberglass: { name: 'ProVia fiberglass door', rates: [1800, 4200] }, steel: { name: 'ProVia steel door', rates: [1200, 3000] }, wood: { name: 'Marvin wood door', rates: [2500, 6000] } })
 });
+// Engineered wood left the catalog with the move to Alco's lines; projects saved with it reopen as fiber cement.
+const RETIRED_PRODUCTS = Object.freeze({ sidingProduct: { engineered: 'fiber' } });
 export const TIERS = Object.freeze({ standard: { name: 'Standard', multiplier: 1 }, enhanced: { name: 'Enhanced', multiplier: 1.25 }, premium: { name: 'Premium', multiplier: 1.6 } });
 export const COLORS = Object.freeze({
   sage: { name: 'Sage', hex: '#829581' }, cream: { name: 'Warm ivory', hex: '#e9dfc8' }, slate: { name: 'Coastal slate', hex: '#637c8a' },
@@ -15,11 +19,12 @@ export const COLORS = Object.freeze({
   barn: { name: 'Barn red', hex: '#8b3d35' }, butter: { name: 'Butter yellow', hex: '#e3cd92' }, iron: { name: 'Iron black', hex: '#2e3133' }
 });
 export const PROJECT_HOME_STYLES = Object.freeze(['colonial-2story', 'ranch-1story', 'craftsman-bungalow', 'cape-cod', 'tudor-gable', 'farmhouse-porch', 'split-level', 'midcentury-flat', 'victorian-gingerbread', 'foursquare', 'creole-cottage', 'contemporary-gable', 'dutch-colonial', 'saltbox', 'modern-farmhouse', 'prairie']);
-export const DEFAULT_PROJECT = Object.freeze({ siding: true, windows: true, doors: true, sidingProduct: 'vinyl', windowProduct: 'vinyl', doorProduct: 'steel', tier: 'standard', coveragePercent: 100, color: 'sage', homeStyle: 'colonial-2story' });
+export const DEFAULT_PROJECT = Object.freeze({ siding: true, windows: true, doors: true, sidingProduct: 'fiber', windowProduct: 'fiberglass', doorProduct: 'fiberglass', tier: 'standard', coveragePercent: 100, color: 'sage', homeStyle: 'colonial-2story' });
 
 export function validateProject(candidate = {}) {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) throw new InputError('Choose your project options.', 'scope-siding');
   const p = { ...DEFAULT_PROJECT, ...candidate };
+  for (const [key, retired] of Object.entries(RETIRED_PRODUCTS)) if (Object.hasOwn(retired, p[key])) p[key] = retired[p[key]];
   for (const key of ['siding', 'windows', 'doors']) if (typeof p[key] !== 'boolean') throw new InputError('Choose a valid project scope.', `scope-${key}`);
   if (!p.siding && !p.windows && !p.doors) throw new InputError('Choose at least one project: siding, windows or doors.', 'scope-siding');
   for (const [key, kind] of [['sidingProduct', 'siding'], ['windowProduct', 'windows'], ['doorProduct', 'doors']]) {

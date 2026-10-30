@@ -115,7 +115,6 @@ export function parseProjectGoal(text, value) {
   if (/\bdoors? only\b/.test(source)) Object.assign(options, { siding: false, windows: false, doors: true });
   if (/\bsiding only\b/.test(source)) Object.assign(options, { siding: true, windows: false, doors: false });
   if (/\bfiber[ -]?cement\b/.test(source)) options.sidingProduct = 'fiber';
-  if (/\bengineered wood\b/.test(source)) options.sidingProduct = 'engineered';
   if (/\bvinyl siding\b/.test(source)) options.sidingProduct = 'vinyl';
   for (const tier of Object.keys(TIERS)) if (new RegExp(`\\b${tier}\\b`).test(source)) options.tier = tier;
   const dimensions = source.match(/\b(\d+(?:\.\d+)?)\s*(?:ft\s*)?[x×]\s*(\d+(?:\.\d+)?)\s*(?:ft|feet)\b/);

@@ -29,7 +29,7 @@ const ROOF_MATERIAL_WORDS = Object.freeze([['metal', ['standing seam', 'metal ro
 const ROOF_COLOR_WORDS = Object.freeze({ black: 'onyx', dark: 'charcoal', charcoal: 'charcoal', gray: 'slate', grey: 'slate', slate: 'slate', brown: 'weathered', red: 'clay', clay: 'clay', green: 'forest', tan: 'sand', sand: 'sand' });
 const TRIM_WORDS = Object.freeze({ black: 'black', white: 'white', cream: 'cream', ivory: 'cream', bronze: 'bronze', brown: 'bronze' });
 const MASONRY_WORDS = Object.freeze([['whitewash', ['painted brick', 'whitewash(ed)?', 'white brick']], ['stone', ['stone', 'fieldstone']], ['brick', ['red brick', 'brick']]]);
-const SIDING_PRODUCT_WORDS = Object.freeze([['fiber', ['fiber cement', 'fibre cement', 'hardie(plank)?', 'cement board']], ['engineered', ['engineered wood', 'wood siding', 'smartside']], ['vinyl', ['vinyl siding', 'vinyl lap']]]);
+const SIDING_PRODUCT_WORDS = Object.freeze([['fiber', ['fiber cement', 'fibre cement', 'hardie(plank)?', 'cement board']], ['vinyl', ['vinyl siding', 'vinyl lap']]]);
 const FEATURE_WORDS = Object.freeze({ porch: 'porch', garage: 'garage', fence: '(picket )?fence', shutters: 'shutters?', dormers: 'dormers?' });
 const SCENE_WORDS = Object.freeze([['golden', 'golden hour|sunset|sunrise'], ['dusk', 'dusk|night|evening'], ['overcast', 'overcast|cloudy'], ['day', 'midday|daytime']]);
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -92,7 +92,7 @@ export function describeChange(change, { colorName = key => COLORS[key]?.name, s
   }
   if (change.color) parts.push(`${colorName(change.color)} siding`);
   if (change.homeStyle) parts.push(`${styleName(change.homeStyle)} style`);
-  if (change.sidingProduct) parts.push({ fiber: 'fiber cement siding', engineered: 'engineered wood siding', vinyl: 'vinyl siding' }[change.sidingProduct]);
+  if (change.sidingProduct) parts.push({ fiber: 'fiber cement siding', vinyl: 'vinyl siding' }[change.sidingProduct]);
   const design = change.design || {};
   if (design.roofMaterial || design.roof) parts.push(`${design.roof ? `${{ onyx: 'black', charcoal: 'charcoal', slate: 'slate', weathered: 'brown', clay: 'clay', forest: 'green', sand: 'sand' }[design.roof]} ` : ''}${{ metal: 'metal', shake: 'cedar shake', tile: 'tile', shingle: 'shingle' }[design.roofMaterial] || ''} roof`.replace(/\s+/g, ' ').trim());
   if (design.trim) parts.push(`${design.trim} trim`);

@@ -18,7 +18,7 @@ test('window-only scopes do not use missing dimensions or excluded replacement w
   const result = estimateProject({ ...DEFAULT_INPUT, lengthFt: '', widthFt: '', existingWindows: 150, replaceWindows: 150, replaceDoors: 99 }, options);
   assert.deepEqual(result.items.siding, [0, 0]);
   assert.deepEqual(result.items.doors, [0, 0]);
-  assert.deepEqual(result.total, [75000, 195000]);
+  assert.deepEqual(result.total, [135000, 270000]);
   const summary = buildEstimateSummary(result);
   assert.match(summary, /Building geometry is not used/);
   assert.doesNotMatch(summary, /Footprint:/);
@@ -48,7 +48,7 @@ test('saved projects survive a storage round trip and an edit replaces the exist
   const storage = memory();
   saveProject(storage, record());
   const loaded = readProjects(storage)[0];
-  assert.deepEqual(estimateProject(loaded.inputs,loaded.options).total,[19020,53453]);
+  assert.deepEqual(estimateProject(loaded.inputs,loaded.options).total,[28372,75933]);
   saveProject(storage,{...loaded,name:'Updated house'});
   assert.equal(readProjects(storage).length,1);
   assert.equal(readProjects(storage)[0].name,'Updated house');

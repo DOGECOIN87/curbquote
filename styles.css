@@ -101,6 +101,8 @@ label{display:block;margin:0 0 8px;font-size:13.5px;font-weight:500;color:var(--
 input,select,textarea{width:100%;background:#fff;border:1px solid var(--line-strong);border-radius:12px;color:var(--ink);transition:border-color .15s ease,box-shadow .15s ease}
 input,select{height:48px;padding:0 14px;font-size:15px}
 select{appearance:none;padding-right:40px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2369736d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 16px center}
+/* The product names carry their brand, so the Step 4 menus give the text a little more room. */
+.choice-field select{padding-right:32px;background-position:right 12px center}
 input:hover,select:hover,textarea:hover{border-color:#c3cbbe}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-500);box-shadow:var(--ring)}
 input::placeholder,textarea::placeholder{color:#a3aba5}
@@ -181,7 +183,7 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .aerial-stage[data-view=empty]>:is(.aerial-placeholder,.thirds-grid){display:none}
 .view-dock{grid-row:5;grid-column:3;z-index:3;align-self:end;min-width:0;padding:8px 8px 6px;border-radius:30px}
 .hero[data-dock=top] .view-dock{grid-row:2;grid-column:2/4;justify-self:start;align-self:start;width:min(100%,400px);padding:0;border-radius:999px}
-.hero[data-dock=top] :is(.dock-head,.view-dock .field-help:not(.error)){position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.hero[data-dock=top] :is(.dock-head,.view-dock .field-help:not(.error,.service-area)){position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .hero[data-dock=top] .exterior-example{display:none}
 .hero[data-dock=top] .address-entry{min-height:50px;padding:2px 3px 2px 16px;background:transparent;border-color:transparent}
 .hero[data-dock=top] .address-entry input{height:44px;font-size:15px}
@@ -216,6 +218,11 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .view-dock .field-help{min-height:0;margin:6px 14px 2px;font-size:12.5px;line-height:1.45;color:var(--glass-muted)}
 .view-dock .field-help.success{color:#b6f09c}
 .view-dock .field-help.error{color:#ffb8a3}
+/* Whether Alco serves the matched address: shown under the address, docked or not. */
+.view-dock .service-area{margin-top:2px;color:#d9ead0}
+.view-dock .service-area[data-status=outside]{color:#ffd59a}
+.hero[data-dock=top] .view-dock .service-area{margin:0 18px 10px}
+.hero[data-dock=top] .view-dock:has(.service-area:not([hidden])){border-radius:24px}
 /* Address suggestions: under the search box at the top, above the bar while it sits at the bottom. */
 .view-dock{position:relative}
 .view-dock:has(>.address-suggest:not([hidden])){z-index:7}
@@ -636,6 +643,9 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
 .optional{font-weight:400;color:var(--muted)}
 .lead-consent{display:flex;align-items:flex-start;gap:10px;margin:16px 0 0;font-weight:400;cursor:pointer}
 .lead-consent input{flex:none;margin-top:1px}
+.lead-consent span{font-size:13px;line-height:1.5;color:var(--ink-2)}
+.lead-consent a{color:var(--ink)}
+.lead-trust{margin:-4px 0 14px;color:var(--studio-green);font-size:13.5px;font-weight:600}
 #lead-status[data-tone=warn]{color:var(--danger)}
 .lead-dialog .primary-button{margin-top:4px}
 .lead-privacy{margin-top:16px}
@@ -1199,7 +1209,7 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   .instant-range strong{font-size:20px}
   .property-preview:has(>.aerial-stage[data-view=empty]) .view-foot{display:none}
   .hero[data-dock=top] .view-dock{padding:4px;border-radius:999px}
-  .hero[data-dock=top] .view-dock :is(.dock-head,.field-help),.aerial-status{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+  .hero[data-dock=top] .view-dock :is(.dock-head,.field-help:not(.service-area)),.aerial-status{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
   .view-top-right,.map-housenumbers,.aerial-meta{display:none}
   .view-top-left{grid-row:3;width:auto;max-width:calc(100% - 64px)}
   .view-foot{grid-column:2/4;grid-row:3}

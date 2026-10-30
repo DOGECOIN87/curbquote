@@ -15,7 +15,7 @@ test('budget amounts in goal text are normalized without interpreting replacemen
 test('planner enumerates product and tier combinations without changing the input or scope', () => {
   const state = snapshot(), before = structuredClone(state);
   const comparison = comparePlans(state, { budget: 60000 });
-  assert.ok(comparison.evaluated >= 81);
+  assert.ok(comparison.evaluated >= 54);   // 2 siding × 3 window × 3 door products × 3 tiers
   assert.ok(comparison.fittingCount > 0);
   assert.deepEqual(state, before);
   for (const plan of comparison.plans) {
@@ -78,7 +78,7 @@ test('proposals re-enable saved excluded trades at catalog prices instead of ret
   state.inputs = estimateProject(state.inputs, state.options).inputs;
   assert.equal(state.inputs.sidingHighPerSqFt, 0);
   const proposal = proposalSnapshot(state, {}, { siding: true });
-  assert.equal(proposal.inputs.sidingHighPerSqFt, 14);
+  assert.equal(proposal.inputs.sidingHighPerSqFt, 20);
   assert.ok(estimateProject(proposal.inputs, proposal.options).items.siding[1] > 0);
   const parsed = parseProjectGoal('Siding only', state);
   assert.ok(estimateProject(parsed.inputs, parsed.options).total[1] > 0);

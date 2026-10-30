@@ -9,7 +9,7 @@ test('export is self-contained with source, price snapshot, geometry assumptions
     address: '123 Test St, Austin, TX', matchedAddress: '123 TEST ST, AUSTIN, TX', generatedAt: '2026-10-17T12:00:00.000Z'
   });
   for (const fragment of ['2026-10-17T12:00:00.000Z', 'manual-geometry-v2', 'illustrative-usd-v1 (edited)',
-    '600.25–1300/each', '123 TEST ST, AUSTIN, TX', '15 sq ft/window; 21 sq ft/door',
+    '600.25–1800/each', '123 TEST ST, AUSTIN, TX', '15 sq ft/window; 21 sq ft/door',
     '20% of solid walls', '2581.92 sq ft', 'not a confidence interval',
     'rounded to whole dollars', 'lead-safe renovation requirements', 'Excludes site conditions',
     'not ownership, parcel or building measurements']) assert.ok(text.includes(fragment), fragment);

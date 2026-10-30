@@ -58,3 +58,23 @@ motion, the logo is shown still.
 
 The 3D camera framing is unchanged. Zooming out shows more lawn rather than the mock-up's sky,
 because the concept camera looks down from above.
+
+## Small screens
+
+An audit at 320 × 568, 360 × 640, 375 × 667 and 667 × 375 (landscape) measured how much of the screen
+each bar, sheet and dialog covered. On short phones the header and the sticky price bar took 254 of
+568 px. On Steps 3–4 two rows of 3D controls then covered most of what was left of the house. In
+landscape, the bar and the controls hid almost all of it. Phones under 740 px tall now get:
+
+- **The price and Continue in one row.** The sticky footer is now 64 px instead of 148 px. On the
+  narrowest phones the range wraps rather than being cut off.
+- **One row of 3D controls.** Zoom buttons are hidden, because pinching zooms. On Steps 3–4 the
+  Rotate label is hidden too, because dragging turns the house.
+- **A header 8 px shorter.** Every target is still 44 px.
+- **An unpinned range in the project sheet.** The card no longer covers the sheet's content, and its
+  range shrinks so it stays on one line.
+- **On Step 1, no lead paragraph,** and at 320 px the typical-home range wraps.
+- **A full-width Saved projects dialog,** whose name field and Save button stack below 420 px.
+
+**Phones on their side** (under 500 px tall) show the house on the left and the studio on the right,
+under a one-row header. The project sheet opens on the right, below the header.

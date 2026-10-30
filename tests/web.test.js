@@ -79,6 +79,15 @@ test('public build serves browser modules while keeping backend, research and pr
   assert.equal((await fetch(`${base}/vendor/three/three.webgpu.js`)).status, 404);
   // The header logo is a WebP with a PNG fallback; an unknown type used to fail as a 500.
   assert.equal((await fetch(`${base}/assets/brand/alco-logo.webp`)).headers.get('content-type'), 'image/webp');
+  // Installable app: the manifest, its icons and a service worker that is never served stale.
+  const manifest = await fetch(`${base}/manifest.webmanifest`);
+  assert.match(manifest.headers.get('content-type'), /^application\/manifest\+json/);
+  const { icons, start_url, display } = await manifest.json();
+  assert.equal(start_url, './'); assert.equal(display, 'standalone');
+  for (const icon of icons) assert.equal((await fetch(`${base}/${icon.src}`)).headers.get('content-type'), 'image/png', icon.src);
+  assert.ok(icons.some(icon => icon.purpose === 'maskable' && icon.sizes === '512x512'));
+  const worker = await fetch(`${base}/sw.js`);
+  assert.equal(worker.status, 200); assert.equal(worker.headers.get('cache-control'), 'no-cache');
   for (const path of ['/lib/geocode.mjs', '/docs/01-data-sources.md', '/.env', '/.git/config', '/package.json', '/vendor/cesium/Cesium.js', '/node_modules/cesium/package.json']) {
     assert.equal((await fetch(base + path)).status, 404, path);
   }

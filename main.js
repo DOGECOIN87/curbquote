@@ -415,6 +415,19 @@ function setAccountMenu(open) { accountMenu.hidden = !open; accountButton.setAtt
 accountButton.addEventListener('click', () => setAccountMenu(accountMenu.hidden));
 accountButton.parentElement.addEventListener('focusout', event => { if (!accountButton.parentElement.contains(event.relatedTarget)) setAccountMenu(false); });
 accountButton.parentElement.addEventListener('keydown', event => { if (event.key === 'Escape' && !accountMenu.hidden) { setAccountMenu(false); accountButton.focus(); } });
+// Installable app: the service worker keeps the studio working offline once visited. Browsers that offer an
+// install prompt get an "Install the app" item; iPhone and iPad Safari get the Add to Home Screen steps.
+const installButton = byId('install-app'), standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installPrompt = null;
+if ('serviceWorker' in navigator && !navigator.webdriver) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; installButton.hidden = false; });
+addEventListener('appinstalled', () => { installPrompt = null; installButton.hidden = true; });
+installButton.addEventListener('click', async () => {
+  if (!installPrompt) return;
+  const prompt = installPrompt; installPrompt = null; installButton.hidden = true; setAccountMenu(false);
+  await prompt.prompt();   // One use per event; the browser sends a fresh one if the person declines.
+});
+byId('install-ios').hidden = standalone || !(/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 document.addEventListener('click', event => { if (!accountMenu.hidden && !event.target.closest('.account')) setAccountMenu(false); });
 for (const item of document.querySelectorAll('[data-open-projects]')) item.addEventListener('click', () => { setAccountMenu(false); try { openProjectDialog(); } catch (error) { notify(error.message); } });
 /** The project name in the top bar renames the project; a saved project is renamed on this device straight away. */

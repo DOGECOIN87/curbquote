@@ -46,7 +46,7 @@ export const DEFAULT_DESIGN = Object.freeze({ roof: 'charcoal', porch: true, dor
 /** The dated "existing home" palette used by Before. Additions never show in Before. */
 export const BEFORE_LOOK = Object.freeze({ sidingHex: '#b3a58c', roofHex: '#6f6459', doorHex: '#5d564c', frameHex: '#d8d2c4' });
 export const DOOR_HEX = Object.freeze({ steel: '#294e51', fiberglass: '#8a6844', wood: '#603c2d' });
-export const SIDING_TEXTURE = Object.freeze({ vinyl: 'lap', fiber: 'lap-wide', engineered: 'board' });
+export const SIDING_TEXTURE = Object.freeze({ vinyl: 'lap', fiber: 'lap-wide' });
 
 const clamp = (value, min, max, fallback) => {
   if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) return fallback;

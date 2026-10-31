@@ -4,8 +4,8 @@
  * into an email to `LEAD_EMAIL` for the homeowner to send.
  */
 import { STATIC_LEAD, STATIC_SITE } from './config.js';
+import { OFFICES } from './alco.js';
 
-const PHONE = '(301) 593-1691';
 const MAIL_LIMIT = 1800;   // Long mailto links are cut off by some email apps.
 const PHONE_PATTERN = /^[\d\s()+.-]*$/;
 const INTRO = 'Alco Products gets your estimate summary and contact details, reviews the measurements and gets back to you. Nothing is sent until you press Send.';
@@ -20,7 +20,7 @@ export function mailtoLink(address, { contact, estimate = {}, brief }) {
   return `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-export function setupLeadForm({ getRequest, fetchImpl = (...args) => fetch(...args) }) {
+export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.phone, fetchImpl = (...args) => fetch(...args) }) {
   const byId = id => document.getElementById(id);
   const dialog = byId('lead-dialog'), form = byId('lead-form'), intro = byId('lead-intro'), status = byId('lead-status'), submit = byId('lead-submit');
   let destination = null;
@@ -39,7 +39,7 @@ export function setupLeadForm({ getRequest, fetchImpl = (...args) => fetch(...ar
   function say(text = '', tone = '') { status.textContent = text; status.dataset.tone = tone; }
   function present({ configured, email }) {
     form.hidden = !configured && !email;
-    intro.textContent = configured ? INTRO : email ? MAIL_INTRO : `Online requests are not set up yet. Call Alco Products on ${PHONE}; your downloaded summary has everything they need.`;
+    intro.textContent = configured ? INTRO : email ? MAIL_INTRO : `Online requests are not set up yet. Call Alco Products on ${getPhone()}; your downloaded summary has everything they need.`;
     submit.textContent = configured ? 'Send' : 'Write the email';
   }
   function invalid(field, message) {
@@ -99,9 +99,9 @@ export function setupLeadForm({ getRequest, fetchImpl = (...args) => fetch(...ar
         destination = { configured: false, email: data.email };
         present(destination);
         say(`${data.error || 'Could not send.'} You can email it instead.`, 'warn');
-      } else say(data.error || `Could not send. Call Alco Products on ${PHONE}.`, 'warn');
+      } else say(data.error || `Could not send. Call Alco Products on ${getPhone()}.`, 'warn');
     } catch {
-      say(`Could not send. Check your connection or call Alco Products on ${PHONE}.`, 'warn');
+      say(`Could not send. Check your connection or call Alco Products on ${getPhone()}.`, 'warn');
     } finally {
       submit.disabled = false;
     }

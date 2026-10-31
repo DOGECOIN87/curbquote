@@ -12,9 +12,10 @@ export const DEFAULT_INPUT = Object.freeze({
   existingWindows: 12, existingDoors: 2,
   replaceWindows: 6, replaceDoors: 1,
   yearBuilt: 1998,
-  sidingLowPerSqFt: 7, sidingHighPerSqFt: 14,
-  windowLowEach: 500, windowHighEach: 1300,
-  doorLowEach: 1200, doorHighEach: 3000
+  // The default products' standard-tier rates: James Hardie siding, Marvin fiberglass windows, ProVia fiberglass door.
+  sidingLowPerSqFt: 10, sidingHighPerSqFt: 20,
+  windowLowEach: 900, windowHighEach: 1800,
+  doorLowEach: 1800, doorHighEach: 4200
 });
 
 export const GEOMETRY_VARIATION = ASSUMPTIONS.geometryVariation; // Not a confidence interval.

@@ -75,6 +75,11 @@ try {
   assert.equal(await page.locator('#aerial-marker').getAttribute('hidden'), null);
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
   assert.match(await page.locator('#aerial-status').textContent(), /approximate Census/);
+  // Alco serves all of Washington, DC: the note shows under the docked address, and calls go to North Bethesda.
+  assert.equal(await page.locator('#service-area').isVisible(), true);
+  assert.equal(await page.locator('#service-area').textContent(), 'Alco Products serves Washington, DC. Questions? Call (301) 593-1691.');
+  assert.equal(await page.locator('#service-area').getAttribute('data-status'), 'served');
+  assert.deepEqual(await page.locator('[data-alco-tel]').evaluateAll(links => [...new Set(links.map(link => link.getAttribute('href')))]), ['tel:3015931691']);
   checks.push('A complete typed address automatically loads aerial imagery after one debounce; street fragments make no lookup');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
   assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), webgl2);
@@ -166,7 +171,7 @@ try {
   await page.locator('#estimate-info').click();
   assert.equal(await page.locator('#dock-share-title').isVisible(), true);
   assert.match(await page.locator('#dock-share-title').textContent(), /How the range is shared/);
-  assert.equal(await page.locator('.dock-cost-share [data-share-range="siding"]').textContent(), '$14,820 – $42,653');
+  assert.equal(await page.locator('.dock-cost-share [data-share-range="siding"]').textContent(), '$21,172 – $60,933');
   assert.match(await page.locator('.dock-cost-share [data-share-percent="windows"]').textContent(), /%/);
   const dockShares = await page.locator('.dock-cost-share .cost-share-bar rect').evaluateAll(rects => rects.map(rect => Number(rect.getAttribute('width'))));
   assert.ok(Math.abs(dockShares.reduce((sum, width) => sum + width, 0) - 100) < .01, 'Step 2 share segments should add to 100%');
@@ -192,10 +197,10 @@ try {
   assert.equal(await page.evaluate(() => document.activeElement.dataset.swatch), 'greige');
   await page.locator('#material-swatches [data-swatch="sage"]').click();
   const studioRange = await page.locator('#project-panel [data-live-range]').textContent();
-  await page.locator('#material-select').selectOption('fiber');
-  assert.equal(await page.locator('#sidingProduct').inputValue(), 'fiber');
-  assert.notEqual(await page.locator('#project-panel [data-live-range]').textContent(), studioRange);
   await page.locator('#material-select').selectOption('vinyl');
+  assert.equal(await page.locator('#sidingProduct').inputValue(), 'vinyl');
+  assert.notEqual(await page.locator('#project-panel [data-live-range]').textContent(), studioRange);
+  await page.locator('#material-select').selectOption('fiber');
   assert.equal(await page.locator('#project-panel [data-live-range]').textContent(), studioRange);
   await page.locator('#scope-doors').uncheck();
   assert.equal(await page.locator('#scope-detail-doors').textContent(), 'Not selected');
@@ -219,7 +224,7 @@ try {
   assert.equal(await page.evaluate(() => document.querySelector('#remodel-stage').getBoundingClientRect().top < innerHeight), true, 'the jump brings the 3D house on screen');
   await page.setViewportSize({ width: 1440, height: 1000 });
   assert.equal(await page.locator('#results').isVisible(), true);
-  assert.equal(await page.locator('#total-range').textContent(), '$19,020 – $53,453');
+  assert.equal(await page.locator('#total-range').textContent(), '$28,372 – $75,933');
   checks.push('See my estimate opens the estimate step, the total offers a one-tap 3D jump, and the default manual estimate reconciles with the tested calculation');
   await go('#existingWindows'); await page.locator('#existingWindows').fill('2');
   assert.equal(await resultsShown(), false);
@@ -239,7 +244,7 @@ try {
   assert.match(await page.locator('#price-details-summary').textContent(), /edited rates/);
   assert.equal(await page.locator('#reset-rates').isDisabled(), false);
   await page.locator('#reset-rates').click();
-  assert.equal(await page.locator('#windowLowEach').inputValue(), '500');
+  assert.equal(await page.locator('#windowLowEach').inputValue(), '900');
   assert.match(await page.locator('#price-details-summary').textContent(), /catalog rates/);
   assert.equal(await page.locator('#reset-rates').isDisabled(), true);
   await page.locator('#windowLowEach').fill('600.25');
@@ -271,10 +276,10 @@ try {
   assert.equal(await page.locator('#remodel-panel').isVisible(), true);
   await go('#sidingProduct');
   assert.match(await page.locator('#siding-product-hint').textContent(), /Example \$/);
-  await page.locator('#sidingProduct').selectOption('fiber');
-  assert.match(await page.locator('#siding-product-hint').textContent(), /\$10–\$20/);
-  assert.match(await page.locator('#window-product-hint').textContent(), /Standard tier/);
   await page.locator('#sidingProduct').selectOption('vinyl');
+  assert.match(await page.locator('#siding-product-hint').textContent(), /\$7–\$14/);
+  assert.match(await page.locator('#window-product-hint').textContent(), /Standard tier/);
+  await page.locator('#sidingProduct').selectOption('fiber');
   // Choosing a product resets the editable example rates; restore the edited window rate for the report checks.
   await page.evaluate(() => { document.querySelector('#windowLowEach').value = '600.25'; });
   checks.push('Steps 3 and 4 show the live range, report per-choice example prices, and open the 3D studio directly');
@@ -289,8 +294,8 @@ try {
   const download = await downloadPromise;
   const exported = await readFile(await download.path(), 'utf8');
   assert.match(exported, /manual-geometry-v2/);
-  assert.match(exported, /demo-products-2026-10-v1 \(edited\)/);
-  assert.match(exported, /600.25–1300\/each/);
+  assert.match(exported, /alco-products-2026-10-v2 \(edited\)/);
+  assert.match(exported, /600.25–1800\/each/);
   assert.match(exported, /4600 SILVER HILL RD/);
   assert.equal(exported, await page.locator('#print-report-content').textContent());
   checks.push('Download and print share the full input, pricing, provenance and assumptions report');
@@ -434,8 +439,10 @@ try {
   await page.locator('#scope-windows').check();
   assert.equal(await page.locator('#lengthFt').isDisabled(), true);
   await go('#replaceWindows'); await page.locator('#replaceWindows').fill('4');
+  assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
+  await go('#windowProduct'); await page.locator('#windowProduct').selectOption('vinyl');
   assert.equal(await page.locator('#total-range').textContent(), '$2,000 – $5,200');
-  await go('#windowProduct'); await page.locator('#windowProduct').selectOption('fiberglass');
+  await page.locator('#windowProduct').selectOption('fiberglass');
   assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
   await page.getByText('Premium', {exact:true}).click();
   assert.equal(await page.locator('#total-range').textContent(), '$5,760 – $11,520');
@@ -495,7 +502,7 @@ try {
   await page.getByRole('button',{name:'Confirm delete',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#project-count').textContent==='0');
   await page.locator('#new-project').click();
-  assert.equal(await page.locator('#total-range').textContent(),'$19,020 – $53,453');
+  assert.equal(await page.locator('#total-range').textContent(),'$28,372 – $75,933');
   checks.push('Project deletion and new-project reset complete without stale data');
   // Automated planning works even with no inference credentials; AI transport is checked separately.
   await go('#project-budget'); await page.locator('#project-budget').fill('25000');
@@ -511,7 +518,7 @@ try {
   assert.match(await page.locator('#assistant-status').textContent(), /applied/);
   assert.equal(await page.locator('#undo-plan').isVisible(), true);
   await page.locator('#undo-plan').click();
-  assert.equal(await page.locator('#total-range').textContent(), '$19,020 – $53,453');
+  assert.equal(await page.locator('#total-range').textContent(), '$28,372 – $75,933');
   checks.push('Budget search uses upper bounds; opt-in phases apply real scope changes and undo restores the previous project');
   await page.locator('#review-project').click();
   assert.equal(await page.locator('#detail-questions .detail-question').count(), 12);
@@ -530,7 +537,7 @@ try {
   assert.equal(await page.locator('#replaceWindows').inputValue(), '6');
   await page.locator('.plan-card').filter({ hasText: 'Goal-based proposal' }).getByRole('button').click();
   assert.equal(await page.locator('#replaceWindows').inputValue(), '4');
-  assert.equal(await page.locator('#total-range').textContent(), '$2,000 – $5,200');
+  assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
   const briefPromise = page.waitForEvent('download'); await page.locator('#download-brief').click();
   const brief = await readFile(await (await briefPromise).path(), 'utf8');
   assert.match(brief, /CONTRACTOR DISCUSSION BRIEF/); assert.match(brief, /\$8,000/); assert.match(brief, /No appointment/);
@@ -539,7 +546,7 @@ try {
   await page.reload();
   assert.equal(await page.locator('#restore-draft').isVisible(), true);
   await page.locator('#restore-draft').click();
-  assert.equal(await page.locator('#total-range').textContent(), '$2,000 – $5,200');
+  assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
   assert.equal(await page.locator('#project-goal').inputValue(), 'Windows only. Replace 4 windows.');
   checks.push('Automatic device drafts restore the project, goal, budget and confirmation state after reload');
   await page.unroute('**/api/assistant');

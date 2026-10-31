@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { estimateExterior, validateInput, DEFAULT_INPUT, InputError } from '../estimate.js';
 
-const base = () => ({ ...DEFAULT_INPUT });
+// The arithmetic below is pinned to fixed example rates, independent of the catalog's default products.
+const base = () => ({ ...DEFAULT_INPUT, sidingLowPerSqFt: 7, sidingHighPerSqFt: 14, windowLowEach: 500, windowHighEach: 1300, doorLowEach: 1200, doorHighEach: 3000 });
 test('geometry and line item arithmetic reconcile exactly', () => {
   const result = estimateExterior(base());
   assert.equal(result.geometry.perimeterFt, 164);
@@ -74,7 +75,7 @@ test('fractional unit prices round each line before summing and keep an exact pr
 test('original price inputs are immutable and all low values <= high values', () => {
   const input = base();
   const result = estimateExterior(input);
-  assert.deepEqual(input, DEFAULT_INPUT);
+  assert.deepEqual(input, base());
   assert.ok(result.total[0] <= result.total[1]);
   for (const pair of Object.values(result.items)) assert.ok(pair[0] <= pair[1]);
 });

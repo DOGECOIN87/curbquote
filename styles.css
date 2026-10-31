@@ -1162,6 +1162,65 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   .project-name-row{grid-template-columns:minmax(0,1fr)}
   .projects-dialog h2{font-size:24px}
 }
+/* Phones: a denser scale. Type, padding and floating controls shrink so the house and the price get the
+   screen; every target stays at least 44 px. The price and Continue share one row from 340 px up. */
+@media(max-width:599.98px){
+  .site-header{padding:4px 4px 0 12px}
+  .brand{height:32px;padding:3px 6px 0}
+  .brand-logo{height:36px}
+  .app-name{font-size:15px}
+  .wizard-steps{min-height:44px;margin-top:2px}
+  .wizard-steps .step-dot{width:24px;height:24px;font-size:12px}
+  .step-context{font-size:12.5px}
+  .view-toggle{padding:2px}
+  .view-toggle button{gap:6px;padding:0 13px;font-size:13.5px}
+  .control-pill,.compare-pill{padding:2px}
+  .control-pill button,.compare-pill button{font-size:13.5px}
+  .canvas-badge{padding:3px 10px;font-size:12px}
+  .rail-head h2{margin-bottom:8px;font-size:20px}
+  .rail-section .rail-head p{margin:-4px 0 12px;font-size:13.5px}
+  .project-card{min-height:56px;padding:6px}
+  .material-bar{padding:8px 16px 0}
+  .material-select{font-size:14px}
+  .material-swatch{height:44px}
+  .sheet-footer{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+  .estimate-strip{min-height:48px;padding:4px 8px 4px 12px;gap:6px}
+  .estimate-strip>svg{display:none}
+  .strip-label{font-size:11px;line-height:1.2}
+  .strip-text strong{font-size:clamp(14px,4.3vw,17px);white-space:normal;line-height:1.15}
+  .sheet-continue{grid-row:1;grid-column:2}
+  .sheet-continue .primary-button,.panel-continue .primary-button{width:auto;min-height:44px;padding:0 14px;font-size:14.5px;white-space:nowrap}
+  .canvas-controls{flex-wrap:nowrap;gap:8px}
+  .control-pill .pill-zoom{display:none}
+  body:is([data-active-step="3"],[data-active-step="4"]) .control-pill .pill-text{display:none}
+  .compare-pill button{padding:0 10px}
+  .dock-head{min-height:0;padding:0 2px 2px 14px}
+  .address-entry{min-height:50px;padding:2px 2px 2px 14px}
+  .view-dock .field-help{margin:4px 14px 0;font-size:12px;line-height:1.4}
+  .panel-continue .primary-button{width:100%}
+  .panel-head h2{font-size:20px}
+  .studio-panel{gap:12px}
+  .studio-panel .estimate-card .estimate-range strong{font-size:clamp(22px,7vw,26px)}
+  .hero h1{font-size:30px}
+  .hero-lead{margin-top:10px;font-size:14px;line-height:1.5}
+  .result-heading{padding:16px 16px 4px}
+  .result-title{font-size:21px}
+  .total-card{padding:14px 16px}
+  .jump-to-3d{min-height:44px;margin-top:10px;font-size:14px}
+  .line-item{gap:12px;padding:10px 0}
+}
+/* The narrowest screens (fold cover screens): the price and Continue stack again, the step name gives way to
+   the dots, the address label keeps its words whole and the typical-home card stacks its button. */
+@media(max-width:339.98px){
+  .sheet-footer{grid-template-columns:minmax(0,1fr)}
+  .sheet-continue{grid-row:auto;grid-column:auto}
+  .sheet-continue .primary-button{width:100%}
+  .step-context{visibility:hidden}
+  .dock-head{flex-wrap:wrap;row-gap:0}
+  .dock-head label{white-space:nowrap}
+  .instant-estimate{grid-template-columns:minmax(0,1fr)}
+  .hero h1{font-size:27px}
+}
 /* On its side, a phone shows the house on the left and the studio on the right, under a one-row header. */
 @media(max-width:1023.98px) and (max-height:499.98px) and (orientation:landscape){
   .site-header{flex-wrap:nowrap;padding:4px 4px 4px 12px}

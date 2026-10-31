@@ -57,6 +57,8 @@ export async function streetView([lat, lon], { signal, width = 640, height = 400
     const base = 'https://maps.googleapis.com/maps/api/streetview';
     const meta = await fetch(`${base}/metadata?${new URLSearchParams({ location: `${lat},${lon}`, radius: '60', source: 'outdoor', key })}`, { signal }).then(response => response.json());
     if (meta?.status !== 'OK' || !meta.location || !meta.pano_id) return null;
+    // Only Google's own street imagery: "outdoor" still admits panoramas businesses upload, such as a lobby.
+    if (!/google/i.test(meta.copyright || '')) return null;
     const heading = Math.round(bearing([meta.location.lat, meta.location.lng], [lat, lon]));
     const url = `${base}?${new URLSearchParams({ size: `${width}x${height}`, pano: meta.pano_id, heading: String(heading), fov: '70', pitch: '6', source: 'outdoor', return_error_code: 'true', key })}`;
     return { url, date: typeof meta.date === 'string' ? meta.date : null, heading };

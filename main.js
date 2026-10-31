@@ -277,11 +277,17 @@ function paintMaterialCard() {
 }
 function paintStudio() { paintPanel(); paintMaterialBar(); paintMaterialCard(); }
 function setSurface(kind) { surface = kind; paintMaterialBar(); paintMaterialCard(); }
-/** Floats each hotspot over the surface the 3D view found for it, or hides it when that surface faces away. */
+/**
+ * Floats each hotspot over the surface the 3D view found for it, or hides it when that surface faces away
+ * or would land under the floating controls (small views put the door right behind the control pill).
+ */
 function placeHotspots(anchors) {
+  const layer = document.querySelector('.hotspots').getBoundingClientRect();
+  const blocked = [...document.querySelectorAll('#studio-canvas :is(.view-toggle,.canvas-controls>*,.canvas-badge)')]
+    .filter(el => el.getClientRects().length).map(el => el.getBoundingClientRect());
   for (const { surface: kind, x, y, visible } of anchors) {
-    const spot = document.querySelector(`[data-hotspot="${kind}"]`);
-    spot.hidden = !visible;
+    const spot = document.querySelector(`[data-hotspot="${kind}"]`), cx = layer.left + x, cy = layer.top + y;
+    spot.hidden = !visible || blocked.some(box => cx + 24 > box.left && cx - 24 < box.right && cy + 24 > box.top && cy - 24 < box.bottom);
     if (visible) spot.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
   }
 }

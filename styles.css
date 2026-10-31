@@ -1169,7 +1169,7 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   .brand{height:32px;padding:3px 6px 0}
   .brand-logo{height:36px}
   .app-name{font-size:15px}
-  .wizard-steps{min-height:44px;margin-top:2px}
+  .wizard-steps{min-height:44px;margin-top:2px;margin-left:-12px}
   .wizard-steps .step-dot{width:24px;height:24px;font-size:12px}
   .step-context{font-size:12.5px}
   .view-toggle{padding:2px}
@@ -1231,6 +1231,7 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
   body:not([data-active-step="1"]) #estimate-form>*{grid-column:2}
   body:not([data-active-step="1"]) #estimate-form>.studio-canvas{position:sticky;top:0;grid-column:1;grid-row:1/span 20;height:calc(100svh - 52px)}
   body:not([data-active-step="1"]) .sheet-grab{display:none}
+  .canvas-controls{flex-wrap:wrap-reverse}
   body:not([data-active-step="1"]) .rail-section{margin-top:0;padding-top:12px}
   .studio-panel{right:0;left:auto;width:min(420px,60vw);max-height:calc(100svh - 60px)}
 }

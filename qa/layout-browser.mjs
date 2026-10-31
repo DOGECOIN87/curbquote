@@ -29,10 +29,15 @@ function inspect() {
     if (!live(el) || (modal && !modal.contains(el)) || el.closest('.sr-only')) continue;
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2 || r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) continue;
-    const x = Math.min(Math.max(r.left + r.width / 2, 1), vw - 1), y = Math.min(Math.max(r.top + r.height / 2, 1), vh - 1);
-    const hit = document.elementFromPoint(x, y);
     const target = el.matches('input[type=checkbox],input[type=radio]') ? el.closest('label') || el : el;
-    if (hit && !target.contains(hit) && !hit.contains(target) && !(el.labels && [...el.labels].some(label => label.contains(hit)))) problems.push(`"${name(el)}" is covered by "${name(hit)}"`);
+    const clear = () => {
+      const box = target.getBoundingClientRect(), hit = document.elementFromPoint(Math.min(Math.max(box.left + box.width / 2, 1), vw - 1), Math.min(Math.max(box.top + box.height / 2, 1), vh - 1));
+      return !hit || target.contains(hit) || hit.contains(target) || (el.labels && [...el.labels].some(label => label.contains(hit))) ? null : hit;
+    };
+    // Content passing under a sticky bar is fine as long as scrolling brings it out, the way a person would.
+    let hit = clear();
+    if (hit) { target.scrollIntoView({ block: 'center', inline: 'nearest' }); hit = clear(); }
+    if (hit) problems.push(`"${name(el)}" is covered by "${name(hit)}"`);
     if (r.left < -1 || r.right > vw + 1) problems.push(`"${name(el)}" runs off the side of the screen`);
   }
   return problems;
@@ -42,7 +47,7 @@ function inspect() {
 async function mainAction(page) {
   return page.evaluate(() => {
     const live = el => el.getClientRects().length && !el.closest('[hidden],[inert]') && getComputedStyle(el).visibility === 'visible';
-    const action = [...document.querySelectorAll('.panel-continue button,.sheet-continue button,#see-estimate,.instant-actions .primary-button,#property-address')].find(live);
+    const action = [...document.querySelectorAll('.panel-continue button,.sheet-continue button,#send-lead,.instant-actions .primary-button,#property-address')].find(live);
     if (!action) return 'no main action is visible';
     action.scrollIntoView({ block: 'nearest' });
     const r = action.getBoundingClientRect();

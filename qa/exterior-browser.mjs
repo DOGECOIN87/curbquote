@@ -89,7 +89,7 @@ try {
     view.on('console', message => { if (message.type() === 'error' && /Content Security Policy|unsafe-eval/i.test(message.text())) errors.push(message.text()); });
     await view.route('**/api/map3d', route => route.fulfill({ json: { configured: true, provider: 'Google Photorealistic 3D Tiles', key: 'AIzaSyQA-synthetic-key_0123456789', mapsKey: 'AIzaSyQA-synthetic-key_0123456789' } }));
     // Street View answers with a synthetic panorama; Solar and Aerial View have nothing for this place.
-    await view.route('https://maps.googleapis.com/maps/api/streetview/metadata?**', route => route.fulfill({ headers: cors, json: { status: 'OK', pano_id: 'SYNTHETIC_PANO', date: '2024-05', location: { lat: point.lat - .0003, lng: point.lon } } }));
+    await view.route('https://maps.googleapis.com/maps/api/streetview/metadata?**', route => route.fulfill({ headers: cors, json: { status: 'OK', pano_id: 'SYNTHETIC_PANO', copyright: '© Google', date: '2024-05', location: { lat: point.lat - .0003, lng: point.lon } } }));
     await view.route('https://maps.googleapis.com/maps/api/streetview?**', route => route.fulfill({ headers: cors, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64') }));
     await view.route(/https:\/\/(solar|aerialview)\.googleapis\.com\/.*/, route => route.fulfill({ status: 404, headers: cors, json: { error: { code: 404 } } }));
     await view.route('https://tile.googleapis.com/**', route => {

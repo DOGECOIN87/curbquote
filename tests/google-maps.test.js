@@ -54,3 +54,16 @@ test('roof stats: area-weighted pitch and segment count; flat roofs give nothing
   assert.equal(roofFromInsights({ solarPotential: { roofSegmentStats: [{ pitchDegrees: 3, azimuthDegrees: 0, stats: { areaMeters2: 10 } }] } }), null);
   assert.equal(roofFromInsights({}), null);
 });
+
+test('Street View offers only Google street imagery, never a business-uploaded indoor panorama', async () => {
+  const { streetView } = await import('../google-maps.js');
+  const answer = copyright => async url => ({ ok: true, json: async () => String(url).includes('map3d') ? { mapsKey: 'test-key-for-street-view' }
+    : String(url).includes('/metadata?') ? { status: 'OK', pano_id: 'PANO', date: '2026-01', copyright, location: { lat: 38.98, lng: -77.09 } } : {} });
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = answer('© 2026 A Photographer');
+    assert.equal(await streetView([38.9801, -77.0901]), null);
+    globalThis.fetch = answer('© Google');
+    assert.match((await streetView([38.9801, -77.0901]))?.url || '', /pano=PANO/);
+  } finally { globalThis.fetch = original; }
+});

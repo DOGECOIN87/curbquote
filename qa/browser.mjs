@@ -521,6 +521,8 @@ try {
   await page.locator('#restore-draft').click();
   assert.equal(await page.locator('#total-range').textContent(), '$28,372 – $75,933');
   checks.push('Automatic device drafts restore the project after reload');
+  // Let the restored draft's delayed address lookup finish before the next section starts.
+  await page.clock.runFor(1500); await page.waitForTimeout(500);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('#open-projects').click(); await page.locator('#new-project').click();
   await page.locator('#property-address').fill('123 Test St, Austin, TX 78701');

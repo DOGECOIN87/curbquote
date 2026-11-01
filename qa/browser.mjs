@@ -42,10 +42,18 @@ async function go(selector, target = page) {
     for (let details = el.closest('details'); details; details = details.parentElement?.closest('details')) details.open = true;
     return el.closest('.wizard-step[data-step]').dataset.step;
   });
+  // The photo wall-marking page sits past the step list; the studio's photo view opens it.
+  if (step === '5') { await target.locator('[data-goto="4"]').click(); await target.locator('#view-photo').click(); await target.locator('#studio-mark-walls').evaluate(button => button.click()); return; }
   const button = target.locator(`[data-goto="${step}"]`);
   if (await button.getAttribute('aria-current') !== 'step') await button.click();
 }
 const resultsShown = () => page.locator('#results').evaluate(el => !el.hidden);
+/** Opens the studio (Step 4, the last screen) and recalculates, as Enter in a field does. */
+async function estimate(target = page) {
+  const button = target.locator('[data-goto="4"]');
+  if (await button.getAttribute('aria-current') !== 'step') await button.click();
+  await target.evaluate(() => document.querySelector('#estimate-form').requestSubmit());
+}
 const shown = selector => page.locator(selector).evaluate(el => !el.hidden);
 const imageryPattern = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage?**';
 const fixtureImagery = '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600"><rect width="960" height="600" fill="#536d47"/><path d="M0 280H960M510 0V600" stroke="#aaa99c" stroke-width="70"/><g fill="#c0b6a1" stroke="#394d3f" stroke-width="7"><path d="M160 100h180v110H160zM630 370h180v130H630zM620 60h140v140H620z"/></g><text x="35" y="565" fill="white" font-family="Arial" font-size="24">SYNTHETIC IMAGERY FIXTURE · NOT A REAL PROPERTY</text></svg>';
@@ -154,17 +162,17 @@ try {
   await page.waitForFunction(() => document.querySelector('#aerial-placeholder-title').textContent.includes('No aerial coverage'));
   assert.equal(await page.locator('#aerial-images img').count(), 0);
   await page.locator('#aerial-photo').click();
-  assert.equal(await page.locator('#photo-panel').isVisible(), true);
+  assert.equal(await page.locator('[data-goto="4"]').getAttribute('aria-current'), 'step', 'Use my photo opens the studio');
+  assert.equal(await page.locator('#studio-photo').isVisible(), true);
   await page.unroute('**/api/geocode?**');
-  await page.locator('#illustration-tab').click(); await go('#property-address'); await page.locator('#property-address').fill('');
+  await page.locator('#view-3d').click(); await go('#property-address'); await page.locator('#property-address').fill('');
   await page.clock.resume();
   checks.push('Slow imagery times out, late images cannot cross addresses, unsupported coverage is explicit, and the photo fallback opens');
-  await go('#calculate'); await page.locator('#calculate').click();
-  assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
-  assert.match(await page.locator('#jump-to-3d').textContent(), /See your home in 3D/);
-  assert.equal(await page.locator('#jump-to-3d').isVisible(), false, 'the phone jump is redundant beside the studio on desktop');
-  const resultShares = await page.locator('#results .cost-share-bar rect').evaluateAll(rects => rects.map(rect => Number(rect.getAttribute('width'))));
-  assert.ok(Math.abs(resultShares.reduce((sum, width) => sum + width, 0) - 100) < .01, 'Step 5 share segments should add to 100%');
+  await estimate();
+  assert.equal(await page.locator('[data-goto="4"]').getAttribute('aria-current'), 'step');
+  assert.equal(await page.locator('[data-goto="5"]').count(), 0, 'four steps: the studio is the last one');
+  const resultShares = await page.locator('#project-panel .cost-share-bar rect').evaluateAll(rects => rects.map(rect => Number(rect.getAttribute('width'))));
+  assert.ok(Math.abs(resultShares.reduce((sum, width) => sum + width, 0) - 100) < .01, 'studio share segments should add to 100%');
   assert.match(await page.locator('[data-share-value="siding"]').textContent(), /% share/);
   await go('#scope-siding');
   // On Step 2 the trade ranges and shares sit behind the estimate card's info button.
@@ -177,9 +185,9 @@ try {
   assert.ok(Math.abs(dockShares.reduce((sum, width) => sum + width, 0) - 100) < .01, 'Step 2 share segments should add to 100%');
   await page.locator('#estimate-info').click();
   assert.equal(await page.locator('#estimate-breakdown').isHidden(), true);
-  await page.locator('[data-goto="5"]').click();
-  assert.equal(await page.locator('#step-progress-readout').textContent(), 'Step 5 of 5');
-  checks.push('Step 2 and Step 5 display midpoint-based trade ranges and cost-share bars that total 100%');
+  await page.locator('[data-goto="4"]').click();
+  assert.equal(await page.locator('#step-progress-readout').textContent(), 'Step 4 of 4');
+  checks.push('The studio panel shows midpoint-based trade ranges and cost-share bars that total 100% behind "See the breakdown"');
   // The studio's material bar and hotspots drive the same controls as Step 4; the project panel follows them.
   await page.locator('[data-goto="2"]').click();
   assert.match(await page.locator('#scope-detail-siding').textContent(), /^[\d,]+ sq ft \(estimated\)$/);
@@ -214,18 +222,19 @@ try {
   assert.equal(await page.locator('#project-panel').isVisible(), false);
   assert.equal(await page.evaluate(() => document.activeElement.classList.contains('estimate-strip')), true);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.locator('[data-goto="5"]').click();
+  await page.locator('[data-goto="4"]').click();
   checks.push('The studio material bar, tabs, hotspots and swatch radio group edit the same Step 4 choices and estimate; the phone project sheet opens with focus and closes on Escape');
   await page.setViewportSize({ width: 390, height: 844 });
-  assert.equal(await page.locator('#jump-to-3d').isVisible(), true);
-  await page.locator('#jump-to-3d').click();
-  assert.equal(await page.locator('#remodel-panel').isVisible(), true);
-  await page.clock.runFor(120);
-  assert.equal(await page.evaluate(() => document.querySelector('#remodel-stage').getBoundingClientRect().top < innerHeight), true, 'the jump brings the 3D house on screen');
+  assert.equal(await page.locator('[data-send-lead]:visible').count(), 1, 'phones keep Send to Alco Products beside the price');
   await page.setViewportSize({ width: 1440, height: 1000 });
-  assert.equal(await page.locator('#results').isVisible(), true);
+  assert.equal(await page.locator('[data-send-lead]:visible').count(), 1);
+  assert.equal(await page.locator('[data-save-project]:visible').count(), 1);
+  assert.equal(await page.locator('[data-download-summary]:visible').count(), 1);
+  await estimate();
+  assert.equal(await resultsShown(), true);
   assert.equal(await page.locator('#total-range').textContent(), '$28,372 – $75,933');
-  checks.push('See my estimate opens the estimate step, the total offers a one-tap 3D jump, and the default manual estimate reconciles with the tested calculation');
+  assert.equal(await page.locator('#project-panel [data-live-range]').textContent(), '$28,372 – $75,933');
+  checks.push('The studio ends with Send to Alco Products, Save and Download (beside the price on phones), and the default manual estimate reconciles with the tested calculation');
   await go('#existingWindows'); await page.locator('#existingWindows').fill('2');
   assert.equal(await resultsShown(), false);
   assert.equal(await page.locator('#form-error').isVisible(), true);
@@ -233,7 +242,7 @@ try {
   assert.equal(await resultsShown(), true);
   checks.push('Correcting invalid counts automatically restores live estimates');
   await page.evaluate(() => { document.querySelector('#windowLowEach').value = '1900'; });
-  await go('#calculate'); await page.locator('#calculate').click();
+  await estimate();
   assert.equal(await page.locator('[data-goto="4"]').getAttribute('aria-current'), 'step');
   assert.equal(await page.locator('#price-details').getAttribute('open'), '');
   assert.equal(await page.locator('#windowLowEach').getAttribute('aria-invalid'), 'true');
@@ -271,9 +280,7 @@ try {
   await page.locator('#lengthFt').fill('60');
   assert.notEqual(await page.locator('[data-live-range]').first().textContent(), liveRange);
   await page.locator('#lengthFt').fill('48');
-  await page.locator('.wizard-step[data-step="3"] [data-open-studio]').click();
-  assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
-  assert.equal(await page.locator('#remodel-panel').isVisible(), true);
+  assert.equal(await page.locator('[data-open-studio]').count(), 0, 'no detour to a separate design page');
   await go('#sidingProduct');
   assert.match(await page.locator('#siding-product-hint').textContent(), /Example \$/);
   await page.locator('#sidingProduct').selectOption('vinyl');
@@ -282,7 +289,7 @@ try {
   await page.locator('#sidingProduct').selectOption('fiber');
   // Choosing a product resets the editable example rates; restore the edited window rate for the report checks.
   await page.evaluate(() => { document.querySelector('#windowLowEach').value = '600.25'; });
-  checks.push('Steps 3 and 4 show the live range, report per-choice example prices, and open the 3D studio directly');
+  checks.push('Steps 3 and 4 show the live range and report per-choice example prices, with no detour to a separate design page');
   await go('#property-address'); await page.locator('#property-address').fill('4600 Silver Hill Rd, Washington, DC 20233');
   await page.locator('#verify-address').click();
   await page.waitForFunction(() => !document.querySelector('#verify-address').disabled, undefined, { timeout: 12000 });
@@ -290,7 +297,7 @@ try {
   assert.equal(await page.locator('#lengthFt').inputValue(), '48');
   checks.push('Fixture provider browser → Node API → matched-address display, without changing dimensions');
   const downloadPromise = page.waitForEvent('download');
-  await go('#save-summary'); await page.locator('#save-summary').click();
+  await page.locator('[data-goto="4"]').click(); await page.locator('[data-download-summary]:visible').click();
   const download = await downloadPromise;
   const exported = await readFile(await download.path(), 'utf8');
   assert.match(exported, /manual-geometry-v2/);
@@ -306,7 +313,7 @@ try {
     leads.push(route.request().postDataJSON());
     return route.fulfill(leadReply);
   });
-  await page.locator('#send-lead').click();
+  await page.locator('[data-send-lead]:visible').click();
   await page.locator('#lead-dialog[open]').waitFor();
   await page.locator('#lead-submit').click();
   assert.equal(await page.locator('#lead-status').textContent(), 'Enter your name.');
@@ -330,7 +337,7 @@ try {
   // A failed delivery offers the same message as an email to Alco's inbox.
   leadReply = { status: 502, json: { error: 'Your request could not be delivered.', code: 'LEAD_DELIVERY_FAILED', email: 'estimates@alco.example' } };
   await page.evaluate(() => { HTMLAnchorElement.prototype.click = function () { if (this.href.startsWith('mailto:')) window.mailtoOpened = this.href; }; });
-  await page.locator('#send-lead').click();
+  await page.locator('[data-send-lead]:visible').click();
   await page.locator('#lead-submit').click();
   await page.waitForFunction(() => document.querySelector('#lead-submit').textContent === 'Write the email');
   assert.match(await page.locator('#lead-status').textContent(), /could not be delivered\. You can email it instead/);
@@ -390,7 +397,7 @@ try {
   const undersizedTargets = [];
   for (const [width,height] of matrix) {
     await page.setViewportSize({ width, height });
-    for (const step of [1, 2, 3, 4, 5]) {
+    for (const step of [1, 2, 3, 4]) {
       await page.locator(`[data-goto="${step}"]`).click();
       const result = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
         clipped: [...document.querySelectorAll('label,.total-range,.item-price,.item-amount small,.result-heading,.hero h1,.wizard-steps button,.wizard-nav button,.cost-share-amount-legend li,.cost-share-amount-legend [data-share-range],.cost-share-amount-legend [data-share-percent],.cost-share-key-legend li,.stage-corner-badges span')].filter(el => el.getClientRects().length && el.scrollWidth > el.clientWidth + 2).map(el => ({text:el.textContent,scroll:el.scrollWidth,width:el.clientWidth})) }));
@@ -410,7 +417,7 @@ try {
   }
   assert.deepEqual(overflows, [], 'Default layout overflow');
   assert.deepEqual(undersizedTargets, [], 'Visible buttons, form controls and checkbox/radio labels must be at least 44×44 CSS pixels');
-  checks.push('Visible buttons, form controls and labeled checkbox/radio targets meet 44×44 CSS pixels across all 10 viewports and five steps');
+  checks.push('Visible buttons, form controls and labeled checkbox/radio targets meet 44×44 CSS pixels across all 10 viewports and four steps');
   await page.evaluate(() => {
     const values = {lengthFt:350,widthFt:350,stories:4,storyHeightFt:16,gables:12,gableRiseFt:20,masonryPercent:0,
       existingWindows:150,existingDoors:50,replaceWindows:150,replaceDoors:50,sidingLowPerSqFt:100,sidingHighPerSqFt:100,
@@ -418,7 +425,7 @@ try {
     for (const [id,value] of Object.entries(values)) document.getElementById(id).value = value;
     document.getElementById('lengthFt').dispatchEvent(new Event('input',{bubbles:true}));
   });
-  await page.locator('[data-goto="5"]').click();
+  await estimate(); await page.locator('#estimate-info').click();
   for (const [width,height] of matrix) {
     await page.setViewportSize({width,height});
     const result = await page.evaluate(() => ({ width:innerWidth, document:document.documentElement.scrollWidth,
@@ -426,7 +433,7 @@ try {
     if(result.document>width+1||result.clipped.length) overflows.push(result);
   }
   assert.deepEqual(overflows, [], 'Maximum legal input values overflow');
-  checks.push('No page overflow or clipped labels, ranges or step controls on any of the 5 steps at 10 phone, tablet, desktop and landscape sizes, including maximum input values');
+  checks.push('No page overflow or clipped labels, ranges or step controls on any of the 4 steps at 10 phone, tablet, desktop and landscape sizes, including maximum input values');
   // Complete homeowner prototype: scopes → products → save/reload → marked photo → export.
   await page.setViewportSize({width:1440,height:1000});
   await page.locator('#open-projects').click();
@@ -449,7 +456,7 @@ try {
   await page.locator('[data-color="charcoal"]').click();
   assert.equal(await page.locator('#house-wall-color').getAttribute('fill'), '#42494d');
   checks.push('Project scopes, materials, tiers and color selections update the actual budget and design');
-  await go('#save-project'); await page.locator('#save-project').click();
+  await page.locator('[data-goto="4"]').click(); await page.locator('[data-save-project]:visible').click();
   await page.locator('#project-name').fill('Window refresh test');
   await page.locator('#save-project-form button[type="submit"]').click();
   await page.waitForFunction(() => !document.querySelector('#projects-dialog').open);
@@ -457,7 +464,7 @@ try {
   await page.reload();
   await page.locator('#open-projects').click();
   await page.getByRole('button',{name:'Open project',exact:true}).click();
-  assert.equal(await page.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
+  assert.equal(await page.locator('[data-goto="4"]').getAttribute('aria-current'), 'step', 'a saved project reopens in the studio');
   assert.equal(await page.locator('#total-range').textContent(), '$5,760 – $11,520');
   assert.equal(await page.locator('#windowProduct').inputValue(),'fiberglass');
   assert.equal(await page.locator('#scope-siding').isChecked(),false);
@@ -468,7 +475,7 @@ try {
     ctx.fillStyle='#fff';ctx.fillRect(300,200,100,100);
     return canvas.toDataURL('image/png').split(',')[1];
   });
-  await page.locator('#photo-tab').click();
+  await page.locator('[data-goto="4"]').click(); await page.locator('#view-photo').click(); await page.locator('#studio-mark-walls').evaluate(button => button.click());
   await page.locator('#photo-upload').setInputFiles({name:'test-home.png',mimeType:'image/png',buffer:Buffer.from(imageBase64,'base64')});
   await page.waitForFunction(() => !document.querySelector('#photo-canvas').hidden);
   const originalPixel=await page.evaluate(()=>[...document.querySelector('#photo-canvas').getContext('2d').getImageData(10,10,1,1).data]);
@@ -488,7 +495,7 @@ try {
   const preview=await previewDownload;const png=await readFile(await preview.path());
   assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   checks.push('Photo selection tints only marked wall areas and exports an actual PNG preview');
-  await page.locator('#save-project').click();
+  await page.locator('[data-goto="4"]').click(); await page.locator('[data-save-project]:visible').click();
   await page.locator('#save-project-form button[type="submit"]').click();
   await page.waitForFunction(()=>!document.querySelector('#projects-dialog').open);
   await page.reload();await page.locator('#open-projects').click();
@@ -504,76 +511,15 @@ try {
   await page.locator('#new-project').click();
   assert.equal(await page.locator('#total-range').textContent(),'$28,372 – $75,933');
   checks.push('Project deletion and new-project reset complete without stale data');
-  // Automated planning works even with no inference credentials; AI transport is checked separately.
-  await go('#project-budget'); await page.locator('#project-budget').fill('25000');
-  await page.locator('#compare-plans').click();
-  assert.match(await page.locator('.comparison-summary').textContent(), /No tested plan/);
-  assert.equal(await page.locator('.plan-card').count(), 3);
-  assert.equal(await page.locator('.budget-fit.within').count(), 0);
-  await page.locator('#allow-phasing').check();
-  assert.equal(await page.locator('#plan-comparison').isVisible(), false);
-  await page.locator('#compare-plans').click();
-  assert.ok(await page.locator('.budget-fit.within').count() > 0);
-  await page.locator('.plan-card button').first().click();
-  assert.match(await page.locator('#assistant-status').textContent(), /applied/);
-  assert.equal(await page.locator('#undo-plan').isVisible(), true);
-  await page.locator('#undo-plan').click();
-  assert.equal(await page.locator('#total-range').textContent(), '$28,372 – $75,933');
-  checks.push('Budget search uses upper bounds; opt-in phases apply real scope changes and undo restores the previous project');
-  await page.locator('#review-project').click();
-  assert.equal(await page.locator('#detail-questions .detail-question').count(), 12);
-  await page.getByRole('button', { name: 'Confirm footprint length', exact: true }).click();
-  assert.match(await page.locator('#detail-review-summary').textContent(), /1 of 12/);
-  await go('#lengthFt'); await page.locator('#lengthFt').fill('50');
-  assert.match(await page.locator('#detail-review-summary').textContent(), /0 of 12/);
-  await page.locator('#lengthFt').fill('48');
-  checks.push('Example measurements remain unconfirmed; homeowner confirmation is revoked when a measurement changes');
-  await page.route('**/api/assistant', route => route.request().method() === 'GET' ? route.fulfill({ json: { mode: 'planner' } }) : route.fulfill({ status: 503, json: { error: 'AI unavailable' } }));
-  await go('#project-goal'); await page.locator('#project-goal').fill('Windows only. Replace 4 windows.');
-  await page.locator('#project-budget').fill('8000');
-  await page.locator('#run-assistant').click();
-  await page.waitForFunction(() => document.querySelector('#assistant-status').textContent.includes('Automatic planning completed'));
-  assert.equal(await page.locator('#assistant-mode').textContent(), 'Automatic planner');
-  assert.equal(await page.locator('#replaceWindows').inputValue(), '6');
-  await page.locator('.plan-card').filter({ hasText: 'Goal-based proposal' }).getByRole('button').click();
-  assert.equal(await page.locator('#replaceWindows').inputValue(), '4');
-  assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
-  const briefPromise = page.waitForEvent('download'); await page.locator('#download-brief').click();
-  const brief = await readFile(await (await briefPromise).path(), 'utf8');
-  assert.match(brief, /CONTRACTOR DISCUSSION BRIEF/); assert.match(brief, /\$8,000/); assert.match(brief, /No appointment/);
-  checks.push('AI outage falls back truthfully to supported goal parsing, calculated proposals and a real contractor brief download');
+  // The renovation copilot (plan comparison, AI assistant, contractor brief) is no longer shown in the
+  // simplified flow; its planner logic keeps its Node tests (tests/planning.test.js, tests/agent.test.js).
+  assert.equal(await page.locator('#assistant-drawer').isVisible(), false);
   await page.clock.runFor(600);
   await page.reload();
   assert.equal(await page.locator('#restore-draft').isVisible(), true);
   await page.locator('#restore-draft').click();
-  assert.equal(await page.locator('#total-range').textContent(), '$3,600 – $7,200');
-  assert.equal(await page.locator('#project-goal').inputValue(), 'Windows only. Replace 4 windows.');
-  checks.push('Automatic device drafts restore the project, goal, budget and confirmation state after reload');
-  await page.unroute('**/api/assistant');
-  await page.route('**/api/assistant', async route => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { mode: 'ai' } });
-    const data = route.request().postDataJSON();
-    assert.equal(data.snapshot.inputs.replaceWindows, '4');
-    assert.equal(data.budget, 8000);
-    return route.fulfill({ json: { mode: 'ai', text: 'I checked the current estimate. <script>window.injected = true</script>', activity: [{ tool: 'inspectProject', summary: 'Checked the project with the estimate engine.' }], proposal: null, comparisons: null, location: null } });
-  });
-  await go('#project-goal'); await page.locator('#project-goal').fill('Check this plan.');
-  await page.locator('#run-assistant').click();
-  await page.waitForFunction(() => document.querySelector('#assistant-status').textContent.includes('Assistant finished'));
-  assert.equal(await page.locator('#assistant-mode').textContent(), 'AI assistant');
-  assert.equal(await page.evaluate(() => window.injected), undefined);
-  assert.match(await page.locator('#assistant-conversation').textContent(), /<script>/);
-  checks.push('AI requests include current validated project state; replies and completed tool actions render without executing HTML');
-  for (const [width, height] of matrix) {
-    await page.setViewportSize({ width, height });
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Assistant overflow at ${width}`);
-  }
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.screenshot({ path: join(outputDir, 'assistant-desktop.png'), fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: join(outputDir, 'assistant-phone.png'), fullPage: true });
-  checks.push('Assistant, open measurement review and planning controls fit all 10 responsive viewports');
-  await page.unroute('**/api/assistant');
+  assert.equal(await page.locator('#total-range').textContent(), '$28,372 – $75,933');
+  checks.push('Automatic device drafts restore the project after reload');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('#open-projects').click(); await page.locator('#new-project').click();
   await page.locator('#property-address').fill('123 Test St, Austin, TX 78701');
@@ -594,13 +540,10 @@ try {
   checks.push('Browser → property API → normalized fixture provider → reviewed story/year import leaves exterior dimensions and openings untouched');
   await go('#yearBuilt'); await page.locator('#yearBuilt').fill('1975');
   assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
-  const sourceBriefPromise = page.waitForEvent('download'); await go('#download-brief'); await page.locator('#download-brief').click();
-  const sourceBrief = await readFile(await (await sourceBriefPromise).path(), 'utf8');
-  assert.match(sourceBrief, /Synthetic test provider/); assert.match(sourceBrief, /source reported 1965; homeowner correction 1975/);
   await page.clock.runFor(600); await page.reload(); await page.locator('#restore-draft').click();
   assert.equal(await page.locator('#stories').inputValue(), '1'); assert.equal(await page.locator('#yearBuilt').inputValue(), '1975');
   assert.match(await page.locator('#property-applied-note').textContent(), /source reported 1965; homeowner correction 1975/);
-  await go('#save-project'); await page.locator('#save-project').click(); await page.locator('#project-name').fill('Source profile');
+  await page.locator('[data-goto="4"]').click(); await page.locator('[data-save-project]:visible').click(); await page.locator('#project-name').fill('Source profile');
   await page.locator('#save-project-form button[type="submit"]').click();
   await page.waitForFunction(() => !document.querySelector('#projects-dialog').open);
   await page.reload(); await page.locator('#open-projects').click(); await page.getByRole('button', { name: 'Open project', exact: true }).click();

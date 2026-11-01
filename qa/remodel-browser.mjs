@@ -42,7 +42,7 @@ const canvasHash = () => page.evaluate(() => {
   return `${data.length}:${hash}`;
 });
 const distinctColors = () => page.evaluate(() => {
-  const source = document.querySelector('#remodel-stage canvas');
+  const source = document.querySelector('#remodel-stage canvas, #step3-3d-stage canvas');
   const probe = document.createElement('canvas'); probe.width = 64; probe.height = 48;
   probe.getContext('2d').drawImage(source, 0, 0, 64, 48);
   const pixels = probe.getContext('2d').getImageData(0, 0, 64, 48).data, seen = new Set();
@@ -105,71 +105,54 @@ try {
   await page.mouse.move(orbitStartX, splitY); await page.mouse.down(); await page.mouse.move(orbitStartX + 32, splitY + 13, { steps: 4 }); await page.mouse.up();
   assert.notEqual(await canvasHash(), beforeOrbit, 'dragging away from the seam must continue to orbit the house');
   checks.push('Both stage corners label comparisons; live seam dragging synchronizes the range, readout and dock controls, with ±18px hit testing and orbit preserved elsewhere');
-  await page.locator('[data-goto="5"]').click();
-  await page.locator('#remodel-stage').scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => document.querySelector('#remodel-stage')?.dataset.ready === 'true', undefined, { timeout: 45000 });
-  assert.equal(await page.locator('#remodel-stage canvas').isVisible(), true);
-  assert.equal(await page.locator('#remodel-stage').getAttribute('data-split-active'), 'true');
-  assert.equal(await page.locator('#remodel-stage .stage-corner-badges').isVisible(), true);
-  const studioCanvas = page.locator('#remodel-stage canvas');
-  const studioBox = await studioCanvas.boundingBox();
-  const currentSplit = Number(await page.locator('#remodel-split').inputValue());
-  const studioSeamX = studioBox.x + studioBox.width * (100 - currentSplit) / 100;
-  const studioTargetX = studioBox.x + studioBox.width * .4;
-  const studioY = studioBox.y + studioBox.height * .5;
-  await page.mouse.move(studioSeamX, studioY);
-  assert.equal(await studioCanvas.evaluate(canvas => getComputedStyle(canvas).cursor), 'ew-resize');
-  const expectedStudioSplit = await studioCanvas.evaluate((canvas, x) => Math.round((1 - (x - canvas.getBoundingClientRect().left) / canvas.getBoundingClientRect().width) * 100), studioTargetX);
-  await page.mouse.down(); await page.mouse.move(studioTargetX, studioY, { steps: 6 }); await page.mouse.up();
-  assert.equal(await page.locator('#remodel-split').inputValue(), String(expectedStudioSplit));
-  assert.equal(await page.locator('#remodel-split-readout').textContent(), `${100 - expectedStudioSplit}% Before · ${expectedStudioSplit}% After`);
-  assert.equal(await page.evaluate(() => document.querySelectorAll('#step3-3d-stage canvas, #remodel-stage canvas').length), 1, 'Step 3 and Step 5 share one WebGL canvas');
+  // The studio (Step 4) is the last screen: the same one canvas, no separate estimate page.
+  assert.equal(await page.locator('[data-goto="5"]').count(), 0, 'four steps; the old estimate page is not in the step list');
+  await page.locator('[data-goto="4"]').click();
+  const stage = page.locator('#step3-3d-stage'), studioCanvas = page.locator('#step3-3d-stage canvas');
+  await page.waitForFunction(() => document.querySelector('#step3-3d-stage')?.dataset.ready === 'true', undefined, { timeout: 45000 });
+  assert.equal(await studioCanvas.isVisible(), true);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('#step3-3d-stage canvas, #remodel-stage canvas').length), 1, 'one shared WebGL canvas');
   assert.ok(await distinctColors() > 40, 'the 3D canvas should show a shaded scene, not a blank frame');
   assert.equal(await page.locator('#lengthFt').inputValue(), '48', 'rendering must not change estimate inputs');
-  checks.push('3D remodel loads lazily on Step 3, shares one WebGL canvas with Step 5, and leaves the estimate untouched');
+  assert.equal(await page.locator('#add-porch').isVisible(), false, 'look-only additions Alco does not sell are not offered');
+  assert.equal(await page.locator('[data-send-lead]:visible').count(), 1, 'the studio ends with Send to Alco Products');
+  checks.push('3D remodel loads lazily, stays one WebGL canvas in the studio, which is the last step and ends with Send to Alco Products, and leaves the estimate untouched');
 
+  await page.locator('[data-dock-split="100"]').click(); await page.waitForTimeout(250);
   const after = await canvasHash();
-  await page.locator('#remodel-before').click();
-  await page.waitForTimeout(250);
+  await page.locator('[data-dock-split="0"]').click(); await page.waitForTimeout(250);
   const before = await canvasHash();
-  assert.equal(await page.locator('#remodel-before').getAttribute('aria-pressed'), 'true');
-  assert.equal(await page.locator('#add-porch').isDisabled(), true);
+  assert.equal(await page.locator('[data-dock-split="0"]').getAttribute('aria-pressed'), 'true');
   assert.notEqual(before, after, 'Before must repaint the house');
-  await page.locator('#remodel-split-half').click();
-  await page.waitForTimeout(250);
+  await page.locator('[data-dock-split="50"]').click(); await page.waitForTimeout(250);
   const splitHalf = await canvasHash();
-  assert.equal(await page.locator('#remodel-split-half').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#remodel-split').inputValue(), '50');
-  assert.match(await page.locator('#remodel-split-readout').textContent(), /50% Before · 50% After/);
-  assert.match(await page.locator('#remodel-compare-note').textContent(), /Split comparison \(50% Before on left, 50% After on right\)/);
   assert.notEqual(splitHalf, before, '50/50 split must differ from 100% Before');
   assert.notEqual(splitHalf, after, '50/50 split must differ from 100% After');
-  await page.locator('#remodel-after').click();
-  await page.waitForTimeout(250);
-  const porchOff = await (async () => { await page.locator('#add-porch').click(); await page.waitForTimeout(250); return canvasHash(); })();
-  assert.notEqual(porchOff, after, 'removing the porch must repaint the house');
-  await page.locator('#add-porch').click();
-  checks.push('Before, Split 50/50, After and the porch addition repaint the model, and additions stay locked in Before');
+  await page.locator('[data-dock-split="100"]').click(); await page.waitForTimeout(250);
+  checks.push('Before, Split and After in the studio repaint the model');
 
-  await page.locator('[data-remodel-view="front"]').click(); await page.waitForTimeout(200);
   const front = await canvasHash();
-  await page.locator('[data-remodel-view="top"]').click(); await page.waitForTimeout(200);
-  assert.notEqual(await canvasHash(), front, 'camera view buttons must move the camera');
-  const downloadPromise = page.waitForEvent('download', { timeout: 10000 });
-  await page.locator('#remodel-download').click();
-  const download = await downloadPromise;
-  assert.match(download.suggestedFilename(), /curbquote-3d-remodel\.png/);
-  checks.push('Corner, Front and Top move the camera, and the current view downloads as a PNG');
+  await page.locator('#studio-rotate-left').click(); await page.waitForTimeout(400);
+  assert.notEqual(await canvasHash(), front, 'rotating must move the camera');
+  // Alco sells roofing: the Roof tab recolours the shingles on the model.
+  await page.locator('[data-surface-tab="roofing"]').click();
+  assert.equal(await page.locator('#material-off').isVisible(), true, 'roofing is offered, not priced, until it is added to the project');
+  await page.locator('#material-add').click();
+  assert.equal(await page.locator('#scope-roofing').isChecked(), true);
+  assert.match(await page.locator('#scope-detail-roofing').textContent(), /sq ft of roof/);
+  const roofBefore = await canvasHash();
+  await page.locator('#material-swatches [data-swatch="weathered"]').click(); await page.waitForTimeout(300);
+  assert.equal(await page.locator('#material-card-shown').textContent(), 'Shown: Weathered wood');
+  assert.notEqual(await canvasHash(), roofBefore, 'a shingle colour repaints the roof');
+  checks.push('Rotating moves the camera, and the Roof tab recolours the shingles and adds roofing to the priced project');
 
   // Restyle from step 4 and resize from step 3; the model follows both.
-  await page.locator('[data-goto="4"]').click();
   await page.locator('[data-color="charcoal"]').click();
   await page.locator('[data-goto="3"]').click();
   await page.locator('#stories').selectOption('1');
-  await page.locator('[data-goto="5"]').click();
-  await page.locator('#remodel-stage').scrollIntoViewIfNeeded();
-  await page.locator('[data-remodel-view="corner"]').click();
-  await page.waitForFunction(() => document.querySelector('#remodel-stage')?.dataset.spec.includes('1 story'), undefined, { timeout: 10000 });
+  await page.locator('[data-goto="4"]').click();
+  await page.waitForFunction(() => document.querySelector('#step3-3d-stage')?.dataset.spec.includes('1 story'), undefined, { timeout: 10000 });
   assert.notEqual(await canvasHash(), front);
   checks.push('Siding color from step 4 and story count from step 3 rebuild the 3D house');
 
@@ -189,11 +172,11 @@ try {
   await page.locator('#footprint-consent').click();
   await page.locator('#fetch-footprint').click();
   await page.waitForFunction(() => document.querySelector('#step3-studio-badge')?.textContent?.includes('Style variant — approximate'), undefined, { timeout: 10000 });
-  assert.equal(await page.locator('#studio-model-badge').textContent(), 'Style variant — approximate, not your surveyed footprint');
+  assert.equal(await page.locator('#step3-studio-badge').textContent(), 'Style variant — approximate, not your surveyed footprint');
   checks.push('All 16 North-American style cards rebuild the 3D silhouette and public footprint lookup enforces approximate-model guardrails');
 
-  await page.locator('[data-goto="5"]').click();
-  await page.locator('.design-studio').screenshot({ path: resolve(outputDir, 'remodel-browser.png') });
+  await page.locator('[data-goto="4"]').click();
+  await page.locator('#studio-canvas').screenshot({ path: resolve(outputDir, 'remodel-browser.png') });
   assert.deepEqual(errors, []);
   await writeFile(resolve(outputDir, 'remodel-checks.txt'), checks.map((check, i) => `${i + 1}. ${check}`).join('\n') + '\n');
   console.log(`${checks.length} 3D remodel browser checks passed.`);

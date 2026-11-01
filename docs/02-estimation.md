@@ -140,6 +140,31 @@ are real but poorly documented in public sources. Use your own costs, not nation
 Cost guides disagree widely; for example, Fixr puts a typical siding job at $8,500–$20,000
 ([Fixr 2026](https://origin-2.fixr.com/costs/siding-replacement)).
 
+### Roofing and gutters example rates (until Alco's price book)
+
+Alco installs CertainTeed asphalt shingles (a CertainTeed Select ShingleMaster) and seamless gutters
+([alcoproductsinc.com](https://www.alcoproductsinc.com)). Both are optional project items, off by
+default, priced with example rates labelled as such:
+
+| Item | Standard-tier example rate | How the quantity is found |
+|---|---|---|
+| Roofing: CertainTeed architectural shingles, one layer torn off | $550–$900 per square (100 sq ft of roof) | Footprint plus a 1 ft eave on each side, tilted by the pitch the gable rise implies, plus 12% waste; the area range is ±12% |
+| Gutters: seamless, downspouts included | $14–$26 per foot of gutter | The two long eaves of a gabled roof (every side of a hipped one), plus the overhang at each end |
+
+Sources, checked November 2026; all are secondary estimates, so confirm with Alco's own costs:
+- Northern Virginia and DC architectural shingles about $450–$700 per square installed, and
+  one-layer tear-off about $100–$150 per square
+  ([Quality Built Exteriors](https://qualitybuiltexteriors.com/?p=64202),
+  [Roof tear-off guide](https://new.risingsunartscentre.org/news/average-roof-tear-off-and-replacement-cost-per-square-2026.html)).
+- A typical 2,200 sq ft Arlington roof at $11,000–$19,000 in 2026
+  ([Arlington roofing calculator](https://vanderflip-home.pages.dev/arlington-virginia-roofing-cost-calculator/)).
+- Seamless 5-inch aluminum gutters $14–$20 per foot installed, downspouts $3–$10 per foot
+  ([Fixr](https://fixr.com/costs/aluminum-gutters-installation)); Washington, DC seamless gutters
+  $6–$28 per foot ([Angi](https://www.angi.com/articles/how-much-does-gutter-replacement-cost/dc/washington)).
+
+A 48 × 34 ft home with a 6 ft gable rise comes to about 1,900 sq ft of roof (21 squares,
+$10,300–$21,600) and 100 ft of gutters ($1,400–$2,600) at the Standard tier.
+
 **Tax-credit note for marketing copy:** the federal 25C credit for energy-efficient windows and
 doors ended for property placed in service after **Dec 31, 2025** under the July 2025 budget law
 ([Five Seasons Windows](https://www.fiveseasonswindows.com/federal-tax-credits-for-windows-in-colorado-what-happened-to-25c-and-what-s-left-in-2026),

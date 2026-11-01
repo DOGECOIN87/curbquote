@@ -62,3 +62,26 @@ test('corrupt records and failed storage writes are reported, never silently sav
   assert.throws(() => saveProject(memory(),{...record(),options:{tier:'invalid'}}));
   assert.throws(() => saveProject({getItem:() => null,setItem:() => {throw new Error('Quota exceeded');}},record()),/Quota/);
 });
+
+test('roofing and gutters are optional, measured from the footprint and priced per square and per foot', () => {
+  const base = { ...DEFAULT_INPUT, ...catalogRates({ ...DEFAULT_PROJECT, roofing: true, gutters: true }) };
+  const without = estimateProject(base, DEFAULT_PROJECT);
+  assert.equal('roofing' in without.items, false, 'off by default, so existing estimates do not change');
+  const withBoth = estimateProject(base, { ...DEFAULT_PROJECT, roofing: true, gutters: true });
+  // 48 x 34 ft with 1 ft eaves is 50 x 36 ft of plan; a 6 ft rise over a 17 ft run tilts it by about 6%.
+  const plan = 50 * 36, slope = Math.sqrt(1 + (6 / 17) ** 2), squares = plan * slope * 1.12 / 100;
+  assert.deepEqual(withBoth.items.roofing, [Math.round(squares * 0.88 * 550), Math.round(squares * 1.12 * 900)]);
+  // A gabled roof drains along its two long sides, with an eave overhang at each end.
+  assert.equal(withBoth.geometry.gutterFt, 2 * (48 + 2));
+  assert.deepEqual(withBoth.items.gutters, [100 * 14, 100 * 26]);
+  assert.equal(withBoth.total[0], without.total[0] + withBoth.items.roofing[0] + withBoth.items.gutters[0]);
+  // A hipped roof (no gable ends) has gutters on every side.
+  assert.equal(estimateProject({ ...base, gables: 0 }, { ...DEFAULT_PROJECT, gutters: true }).geometry.gutterFt, 2 * (48 + 34) + 8);
+  // Roofing alone still uses the footprint, and old saved projects without roofing rates still open.
+  const roofOnly = estimateProject(base, { ...DEFAULT_PROJECT, siding: false, windows: false, doors: false, roofing: true });
+  assert.ok(roofOnly.total[0] > 0 && roofOnly.inputs.lengthFt === 48);
+  const legacy = { ...DEFAULT_INPUT }; for (const key of ['roofLowPerSquare', 'roofHighPerSquare', 'gutterLowPerFt', 'gutterHighPerFt']) delete legacy[key];
+  assert.deepEqual(estimateProject(legacy, DEFAULT_PROJECT).total, without.total);
+  assert.equal(estimateProject(base, { ...DEFAULT_PROJECT, roofing: true, tier: 'premium' }).inputs.roofLowPerSquare, 550, 'rates come from the inputs; the tier sets them through catalogRates');
+  assert.equal(catalogRates({ ...DEFAULT_PROJECT, tier: 'premium' }).roofLowPerSquare, 880);
+});

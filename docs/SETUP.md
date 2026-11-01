@@ -25,7 +25,7 @@ else is optional and adds a feature.
 | Open ODbL building footprints | Step 3 approximate building dimensions | None (OSM Overpass / ODbL GeoJSON) | Free open data | `MICROSOFT_FOOTPRINTS_URL` (optional) |
 | Licensed building footprints | Step 3 commercial building outlines & roof pitch | Provider contract + consent | Varies | `EARTHDEFINE_KEY`, `EAGLEVIEW_KEY`, `ATTOM_KEY`, `DATA_USE_APPROVED` |
 | Licensed property data | Pre-filled stories and year built | Provider contract | Varies | `PROPERTY_*`, `DATA_USE_APPROVED` |
-| Lead inbox (webhook or email) | "Send to Alco Products" on Step 5 | A form or automation URL, or an inbox | Free tiers available | `LEAD_WEBHOOK_URL`, `LEAD_EMAIL` |
+| Lead inbox (webhook or email) | "Send to Alco Products" in the studio (Step 4) | A form or automation URL, or an inbox | Free tiers available | `LEAD_WEBHOOK_URL`, `LEAD_EMAIL` |
 
 Prices were checked in October 2026 ([docs/12](12-3d-and-ai-map-alternatives.md)); confirm them
 with each provider.
@@ -54,7 +54,7 @@ The key is public in the page by design, like the Map Tiles key, so the restrict
 Typed addresses go to Google for suggestions; Street View, Solar and Aerial View receive only the
 address point or the matched address.
 
-**Photo concepts** ("Show my choices on this photo", Step 5 → Your photo) restyle the homeowner's own
+**Photo concepts** ("Show my choices on this photo", studio → Photo → Mark your walls) restyle the homeowner's own
 upload with an image model through the Vercel AI Gateway (`AI_IMAGE_MODEL`, default
 `google/gemini-2.5-flash-image`). They use the same AI Gateway credentials as the assistant, are
 rate-limited, store nothing, and are not available on the static Pages demo. Google imagery is never
@@ -197,7 +197,7 @@ Configuration (`PROPERTY_LOOKUP_URL`, `PROPERTY_API_KEY`, field map, grant) is d
 
 ## 5b. Send to Alco Products (optional)
 
-On Step 5 the homeowner can send their estimate summary with their name, email, optional phone
+From the studio (Step 4) the homeowner can send their estimate summary with their name, email, optional phone
 and notes, after ticking a box that lets Alco Products contact them. Nothing is stored by
 CurbQuote; the request goes straight to Alco.
 

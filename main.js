@@ -77,7 +77,7 @@ const wizard = setupWizard({
   }
 });
 const propertyPreview = setupPropertyPreview({
-  onPhoto: () => { wizard.show(5); showStudioTab('photo'); byId('photo-tab').scrollIntoView({ block: 'center', behavior: 'instant' }); byId('photo-tab').focus(); },
+  onPhoto: () => { wizard.show(4); setStudioView('photo'); byId('view-photo').focus(); },
   // The measuring pass shows the size this page is using; height is stories × story height plus the roof rise.
   // The 3D view also traces the mapped building outline when the open-data lookup found one.
   getDimensions: () => {
@@ -177,18 +177,18 @@ byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
  * surface through the same Step 4 controls; "Your project" summarises the live estimate. On phones the
  * studio is a bottom sheet and "Your project" opens as a second sheet over it.
  */
-const STEP_NAMES = ['Address', 'Project', 'Home', 'Choices', 'Estimate'];
-const SURFACES = { siding: { label: 'Siding', select: 'sidingProduct' }, windows: { label: 'Windows', select: 'windowProduct' }, doors: { label: 'Doors', select: 'doorProduct' } };
+const STEP_NAMES = ['Address', 'Project', 'Home', 'Choices', 'Your photo'];
+const SURFACES = { siding: { label: 'Siding', select: 'sidingProduct' }, windows: { label: 'Windows', select: 'windowProduct' }, doors: { label: 'Doors', select: 'doorProduct' }, roofing: { label: 'Roofing', select: 'roofProduct' }, gutters: { label: 'Gutters', select: 'gutterProduct' } };
 // The bar offers five siding colours; the full palette stays in Step 4, and a colour picked there takes the fifth place.
 const FEATURED_COLORS = ['sage', 'white', 'greige', 'charcoal', 'cream'];
 const CALLOUTS = { 2: 'Confirm your home details to refine this range.', 3: 'Your measurements and home style refine this range as you type.', 4: 'Your materials and quality move this range.' };
-const ROW_FIELDS = { siding: 'lengthFt', windows: 'replaceWindows', doors: 'replaceDoors' };
+const ROW_FIELDS = { siding: 'lengthFt', windows: 'replaceWindows', doors: 'replaceDoors', roofing: 'gableRiseFt', gutters: 'lengthFt' };
 const compactQuery = matchMedia('(max-width: 1023.98px), (max-height: 599.98px)');
 const studioCanvas = byId('studio-canvas'), studioPanel = byId('project-panel');
 let surface = 'siding', projectName = '', photoFromStudio = false, sheetOpener = null;
 const displayName = () => projectName || 'Example home';
 function paintStepContext(step) {
-  for (const node of document.querySelectorAll('[data-step-number]')) node.textContent = String(step);
+  for (const node of document.querySelectorAll('[data-step-number]')) node.textContent = String(Math.min(step, 4));
   for (const node of document.querySelectorAll('[data-step-name]')) node.textContent = STEP_NAMES[step - 1];
 }
 /** The address card's two lines, in title case when the text is Census capitals. */
@@ -206,7 +206,9 @@ function paintPanel() {
   const details = {
     siding: !p.siding ? 'Not selected' : result?.project.siding ? `${number.format(result.geometry.sidingNetSqFt)} sq ft (estimated)` : '—',
     windows: !p.windows ? 'Not selected' : `${plural(count('replaceWindows'), 'window')} (estimated)`,
-    doors: !p.doors ? 'Not selected' : plural(count('replaceDoors'), 'door')
+    doors: !p.doors ? 'Not selected' : plural(count('replaceDoors'), 'door'),
+    roofing: !p.roofing ? 'Not selected' : result?.project.roofing ? `${number.format(Math.round(result.geometry.roofSqFt))} sq ft of roof (estimated)` : '—',
+    gutters: !p.gutters ? 'Not selected' : result?.project.gutters ? `${number.format(Math.round(result.geometry.gutterFt))} ft with downspouts (estimated)` : '—'
   };
   for (const [kind, text] of Object.entries(details)) {
     byId(`scope-detail-${kind}`).textContent = text;
@@ -221,6 +223,8 @@ function paintPanel() {
 function surfaceSwatches(kind) {
   if (kind === 'windows') return { label: 'Trim colour', selected: remodelDesign.trim, options: Object.entries(TRIM_COLORS).map(([key, { name, hex }]) => ({ key, name: `${name} trim`, hex })) };
   if (kind === 'doors') return { label: 'Entry door', selected: byId('doorProduct').value, options: Object.entries(DOOR_HEX).map(([key, hex]) => ({ key, name: PRODUCTS.doors[key].name, hex })) };
+  if (kind === 'roofing') return { label: 'Shingle colour', selected: remodelDesign.roof, options: Object.entries(ROOF_COLORS).map(([key, { name, hex }]) => ({ key, name: `${name} shingles`, hex })) };
+  if (kind === 'gutters') return { label: 'Gutters', selected: null, options: [] };
   const keys = FEATURED_COLORS.includes(selectedColor) ? FEATURED_COLORS : [...FEATURED_COLORS.slice(0, 4), selectedColor];
   return { label: 'Siding colour', selected: selectedColor, options: keys.map(key => ({ key, name: COLORS[key].name, hex: COLORS[key].hex })) };
 }
@@ -253,7 +257,7 @@ function paintMaterialBar() {
   panel.setAttribute('aria-labelledby', `surface-tab-${surface}`);
   panel.toggleAttribute('data-off', !included);
   byId('material-off').hidden = included;
-  byId('material-off-text').textContent = `${label} ${surface === 'siding' ? 'isn’t' : 'aren’t'} part of your project yet.`;
+  byId('material-off-text').textContent = `${label} ${['siding', 'roofing'].includes(surface) ? 'isn’t' : 'aren’t'} part of your project yet.`;
   byId('material-add').textContent = `Add ${label.toLowerCase()}`;
   paintSwatches();
   const proxy = byId('material-select'), source = byId(select);
@@ -262,13 +266,15 @@ function paintMaterialBar() {
     proxy.replaceChildren(...[...source.options].map(option => new Option(option.textContent, option.value)));
   }
   proxy.value = source.value;
-  byId('material-colour').textContent = surface === 'siding' ? COLORS[selectedColor].name : `${TRIM_COLORS[remodelDesign.trim].name} trim`;
-  byId('material-colour').parentElement.hidden = surface === 'doors';
+  byId('material-colour').textContent = surface === 'siding' ? COLORS[selectedColor].name : surface === 'roofing' ? ROOF_COLORS[remodelDesign.roof].name : `${TRIM_COLORS[remodelDesign.trim].name} trim`;
+  byId('material-colour').parentElement.hidden = surface === 'doors' || surface === 'gutters';
 }
 function paintMaterialCard() {
   const p = projectOptions(), swatch = byId('material-card-swatch'), product = PRODUCTS[surface][p[SURFACES[surface].select]].name;
   const [hex, shown] = surface === 'windows' ? [TRIM_COLORS[remodelDesign.trim].hex, `Trim shown: ${TRIM_COLORS[remodelDesign.trim].name}`]
-    : surface === 'doors' ? [DOOR_HEX[p.doorProduct], 'Shown on the 3D house'] : [COLORS[selectedColor].hex, `Shown: ${COLORS[selectedColor].name}`];
+    : surface === 'doors' ? [DOOR_HEX[p.doorProduct], 'Shown on the 3D house']
+    : surface === 'roofing' ? [ROOF_COLORS[remodelDesign.roof].hex, `Shown: ${ROOF_COLORS[remodelDesign.roof].name}`]
+    : surface === 'gutters' ? [null, 'Seamless, with downspouts'] : [COLORS[selectedColor].hex, `Shown: ${COLORS[selectedColor].name}`];
   swatch.classList.toggle('is-style-default', !hex);
   if (hex) swatch.style.setProperty('--swatch', hex);
   byId('material-card-trade').textContent = SURFACES[surface].label;
@@ -300,6 +306,8 @@ function setControl(id, value) {
 function chooseSwatch(key) {
   if (surface === 'siding') chooseColor(key);
   else if (surface === 'doors') setControl('doorProduct', key);
+  else if (surface === 'roofing') { remodelDesign.roof = key; syncRemodelControls(); remodel.refresh({ microResponse: true }); paintStudio(); }
+  else if (surface === 'gutters') return;
   else { remodelDesign.trim = key; syncRemodelControls(); remodel.refresh({ microResponse: true }); paintStudio(); }
 }
 for (const spot of document.querySelectorAll('[data-hotspot]')) spot.addEventListener('click', () => setSurface(spot.dataset.hotspot));
@@ -479,7 +487,9 @@ titleInput.addEventListener('blur', () => finishRename(true, { refocus: false })
 function projectOptions() {
   return {
     siding: byId('scope-siding').checked, windows: byId('scope-windows').checked, doors: byId('scope-doors').checked,
+    roofing: byId('scope-roofing').checked, gutters: byId('scope-gutters').checked,
     sidingProduct: byId('sidingProduct').value, windowProduct: byId('windowProduct').value, doorProduct: byId('doorProduct').value,
+    roofProduct: byId('roofProduct').value, gutterProduct: byId('gutterProduct').value,
     tier: form.querySelector('[name="tier"]:checked').value, coveragePercent: byId('coveragePercent').value, color: selectedColor,
     homeStyle: selectedHomeStyle
   };
@@ -503,9 +513,9 @@ function paintChoiceHints() {
   byId('siding-product-hint').textContent = p.siding ? `${exampleRate('siding', p.sidingProduct, 'per sq ft')} · ${TIERS[p.tier].name} tier` : 'Siding is switched off in step 2.';
   byId('window-product-hint').textContent = p.windows ? `${exampleRate('windows', p.windowProduct, 'each')} · ${TIERS[p.tier].name} tier` : 'Windows are switched off in step 2.';
   byId('door-product-hint').textContent = p.doors ? `${exampleRate('doors', p.doorProduct, 'each')} · ${TIERS[p.tier].name} tier` : 'Doors are switched off in step 2.';
-  byId('choice-field-siding')?.classList.toggle('is-excluded', !p.siding);
-  byId('choice-field-windows')?.classList.toggle('is-excluded', !p.windows);
-  byId('choice-field-doors')?.classList.toggle('is-excluded', !p.doors);
+  byId('roof-product-hint').textContent = p.roofing ? `${exampleRate('roofing', p.roofProduct, 'per square')} · ${TIERS[p.tier].name} tier` : 'Add roofing in step 2 to price it.';
+  byId('gutter-product-hint').textContent = p.gutters ? `${exampleRate('gutters', p.gutterProduct, 'per ft')} · ${TIERS[p.tier].name} tier` : 'Add gutters in step 2 to price them.';
+  for (const kind of Object.keys(SURFACES)) byId(`choice-field-${kind}`)?.classList.toggle('is-excluded', !p[kind]);
   const customized = areRatesCustomized();
   if (byId('price-details-summary')) {
     const cov = p.siding ? `${byId('coveragePercent').value || 100}% coverage` : 'siding off';
@@ -516,9 +526,12 @@ function paintChoiceHints() {
 function syncProjectControls({ microResponse = false } = {}) {
   const p = projectOptions();
   paintChoiceHints();
-  for (const id of ['lengthFt','widthFt','stories','storyHeightFt','gables','gableRiseFt','masonryPercent','coveragePercent','sidingProduct']) byId(id).disabled = !p.siding;
+  // Roofing and gutters are measured from the footprint too, so it stays editable for them.
+  for (const id of ['lengthFt','widthFt','stories','storyHeightFt','gables','gableRiseFt']) byId(id).disabled = !p.siding && !p.roofing && !p.gutters;
+  for (const id of ['masonryPercent','coveragePercent','sidingProduct']) byId(id).disabled = !p.siding;
   byId('replaceWindows').disabled = byId('windowProduct').disabled = !p.windows;
   byId('replaceDoors').disabled = byId('doorProduct').disabled = !p.doors;
+  byId('roofProduct').disabled = !p.roofing; byId('gutterProduct').disabled = !p.gutters;
   byId('house-wall-color').setAttribute('fill', COLORS[selectedColor].hex);
   byId('house-texture').setAttribute('fill', 'url(#lap-pattern)');
   byId('house-door-color').setAttribute('fill', { steel: '#294e51', fiberglass: '#8a6844', wood: '#603c2d' }[p.doorProduct]);
@@ -620,7 +633,9 @@ function paintLiveRange(text) {
 const COST_TRADES = [
   { key: 'siding', label: 'Siding' },
   { key: 'windows', label: 'Windows' },
-  { key: 'doors', label: 'Doors' }
+  { key: 'doors', label: 'Doors' },
+  { key: 'roofing', label: 'Roofing' },
+  { key: 'gutters', label: 'Gutters' }
 ];
 function paintCostShares(result) {
   const amounts = COST_TRADES.map(({ key }) => {
@@ -673,7 +688,7 @@ function paintResult(result) {
   byId('order-area').textContent = `${number.format(result.geometry.sidingOrderSqFt)} sq ft`;
   byId('lead-notice').hidden = !result.leadPaintReview;
   byId('geometry-details').hidden = byId('geometry-note').hidden = !result.project.siding;
-  byId('selection-summary').textContent = `${result.productNames.tier} tier · ${['siding','windows','doors'].filter(key => result.project[key]).map(key => result.productNames[key]).join(' · ')}${result.project.siding ? ` · ${result.project.coveragePercent}% siding coverage` : ''}`;
+  byId('selection-summary').textContent = `${result.productNames.tier} tier · ${Object.keys(SURFACES).filter(key => result.project[key]).map(key => result.productNames[key]).join(' · ')}${result.project.siding ? ` · ${result.project.coveragePercent}% siding coverage` : ''}`;
   byId('pricing-source').textContent = `${result.pricing.version}${result.pricing.customized ? ' · edited example rates' : ' · example rates'} · ${result.modelVersion}`;
   paintChoiceHints();
   refreshReport();
@@ -692,7 +707,7 @@ function calculate({ scroll = false, focus = false } = {}) {
     errorEl.textContent = '';
     paintResult(lastResult);
     byId('result-status').textContent = `Estimate updated: ${range(lastResult.total)}.`;
-    if (scroll) wizard.show(5, { focus: true });
+    if (scroll) wizard.show(4, { focus: true });
     return true;
   } catch (error) {
     lastResult = null;
@@ -716,7 +731,8 @@ function calculate({ scroll = false, focus = false } = {}) {
 form.addEventListener('submit', event => {
   event.preventDefault();
   hasCalculated = true;
-  calculate({ scroll: true, focus: true });
+  // Enter in a field recalculates in place; the studio's panel already shows the estimate.
+  calculate({ focus: true });
 });
 form.addEventListener('input', event => {
   // The address box has its own handler; recalculating the whole estimate per keystroke
@@ -726,11 +742,11 @@ form.addEventListener('input', event => {
   if (event.target.matches('#lengthFt,#widthFt,#stories')) measurementsTouched = true;
   propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
-  if (event.target.matches('#sidingProduct,#windowProduct,#doorProduct,[name="tier"]')) setCatalogRates();
+  if (event.target.matches('#sidingProduct,#windowProduct,#doorProduct,#roofProduct,#gutterProduct,[name="tier"]')) setCatalogRates();
   if (event.target.matches('[id^="scope-"]')) {
     const rates = catalogRates({ ...projectOptions(), siding: true, coveragePercent: 100 });
     if (event.target.checked) {
-      const kind = event.target.id.slice(6), prefix = kind === 'windows' ? 'window' : kind === 'doors' ? 'door' : 'siding';
+      const kind = event.target.id.slice(6), prefix = { windows: 'window', doors: 'door', roofing: 'roof', gutters: 'gutter' }[kind] || 'siding';
       for (const [key,value] of Object.entries(rates)) if (key.startsWith(prefix) && Number(byId(key).value) === 0) byId(key).value = value;
     }
   }
@@ -1134,16 +1150,8 @@ for (const [name, tabId] of STUDIO_TABS.map(([n, t]) => [n, t])) {
 }
 byId('remodel-open').addEventListener('click', () => remodel.open(byId('remodel-stage')));
 byId('step3-3d-open')?.addEventListener('click', () => remodel.open(byId('step3-3d-stage')));
-/** Any "Preview in 3D" control lands on the estimate step with the studio on screen. */
-function openStudio() {
-  wizard.show(5, { focus: true });
-  showStudioTab('remodel');
-  requestAnimationFrame(() => {
-    byId('remodel-stage').scrollIntoView({ block: 'center', behavior: 'instant' });
-    byId('remodel-stage').setAttribute('tabindex', '-1');
-    byId('remodel-stage').focus({ preventScroll: true });
-  });
-}
+/** Any "Preview in 3D" control opens the studio (Step 4) in its 3D view. */
+function openStudio() { wizard.show(4, { focus: true }); setStudioView('3d'); }
 for (const button of document.querySelectorAll('[data-open-studio]')) button.addEventListener('click', openStudio);
 byId('jump-to-3d').addEventListener('click', openStudio);
 function applyRemodelSplit(splitValue, { animate = false } = {}) {
@@ -1225,6 +1233,8 @@ function openProjectDialog() {
 }
 byId('open-projects').addEventListener('click', () => { try { openProjectDialog(); } catch (error) { notify(error.message); } });
 byId('save-project').addEventListener('click', () => { if (calculate({focus:true})) { try { openProjectDialog(); byId('project-name').focus(); } catch(error) { notify(error.message); } } });
+for (const button of document.querySelectorAll('[data-save-project]')) button.addEventListener('click', () => byId('save-project').click());
+for (const button of document.querySelectorAll('[data-download-summary]')) button.addEventListener('click', () => { if (calculate({ focus: true })) byId('save-summary').click(); });
 byId('close-projects').addEventListener('click', () => projectDialog.close());
 byId('save-project-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -1246,8 +1256,8 @@ async function restoreProject(project) {
   const serial = ++projectLoadSerial;
   cancelAddressLookup();
   for (const [key,value] of Object.entries(project.inputs)) if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
-  for (const kind of ['siding','windows','doors']) byId(`scope-${kind}`).checked = project.options[kind];
-  for (const key of ['sidingProduct','windowProduct','doorProduct','coveragePercent']) byId(key).value = project.options[key];
+  for (const kind of Object.keys(SURFACES)) byId(`scope-${kind}`).checked = project.options[kind];
+  for (const key of ['sidingProduct','windowProduct','doorProduct','roofProduct','gutterProduct','coveragePercent']) byId(key).value = project.options[key];
   form.querySelector(`[name="tier"][value="${project.options.tier}"]`).checked = true;
   selectedColor = project.options.color;
   selectedHomeStyle = resolveHomeStyle(project.options.homeStyle).id;
@@ -1257,7 +1267,7 @@ async function restoreProject(project) {
   propertyLookup?.restore(project.propertyData);
   addressStatus.textContent = 'Saved address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
   scheduleAddressLookup();
-  editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close(); wizard.show(5);
+  editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close(); wizard.show(4);
   assistant?.restore(project.planning);
   try { const photo = await loadPhoto(project.id); if (serial === projectLoadSerial && photo) { await editor.setPhoto(photo.blob,photo.areas); if (serial === projectLoadSerial) showStudioTab('photo'); } }
   catch { if (serial === projectLoadSerial) notify('Estimate restored. The saved photo could not be opened.'); }
@@ -1390,8 +1400,8 @@ assistant = setupAssistant({
   focusField: field => { const input = byId(field); if (!input) return; wizard.reveal(input); input.scrollIntoView({ block: 'center', behavior: 'instant' }); input.focus(); },
   apply: snapshot => {
     for (const [key, value] of Object.entries(snapshot.inputs)) if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
-    for (const kind of ['siding', 'windows', 'doors']) byId(`scope-${kind}`).checked = snapshot.options[kind];
-    for (const key of ['sidingProduct', 'windowProduct', 'doorProduct', 'coveragePercent']) byId(key).value = snapshot.options[key];
+    for (const kind of Object.keys(SURFACES)) byId(`scope-${kind}`).checked = Boolean(snapshot.options[kind]);
+    for (const key of ['sidingProduct', 'windowProduct', 'doorProduct', 'roofProduct', 'gutterProduct', 'coveragePercent']) if (snapshot.options[key] !== undefined) byId(key).value = snapshot.options[key];
     form.querySelector(`[name="tier"][value="${snapshot.options.tier}"]`).checked = true;
     selectedColor = snapshot.options.color;
     if (snapshot.options.homeStyle) selectedHomeStyle = resolveHomeStyle(snapshot.options.homeStyle).id;

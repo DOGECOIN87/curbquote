@@ -77,9 +77,9 @@ export async function auditLayouts({ shapes = SHAPES, outputDir = null } = {}) {
     for (const [label, width, height] of shapes) {
       const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce', hasTouch: width < 1024 });
       await page.goto(`http://127.0.0.1:${server.address().port}`);
-      const views = [['Step 1', null], ['Step 2', 2], ['Step 3', 3], ['Step 4', 4], ['Step 5', 5], ['project sheet', 'sheet'], ['saved projects', 'dialog']];
+      const views = [['Step 1', null], ['Step 2', 2], ['Step 3', 3], ['Step 4', 4], ['project sheet', 'sheet'], ['saved projects', 'dialog']];
       for (const [view, go] of views) {
-        if (typeof go === 'number') { await page.locator(`[data-goto="${go}"]`).first().click(); await page.waitForTimeout(go === 5 ? 300 : 600); }
+        if (typeof go === 'number') { await page.locator(`[data-goto="${go}"]`).first().click(); await page.waitForTimeout(600); }
         if (go === 'sheet') {
           await page.locator('[data-goto="2"]').first().click(); await page.waitForTimeout(300);
           if (!await page.locator('#open-project-sheet').isVisible()) continue;   // Wide layouts show the panel beside the house.

@@ -58,10 +58,10 @@ export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.ph
     return false;
   }
 
-  async function open() {
+  async function open(event) {
     const request = getRequest();
     if (!request) return;
-    const opener = byId('send-lead');
+    const opener = event?.currentTarget instanceof Element ? event.currentTarget : byId('send-lead');
     opener.setAttribute('aria-busy', 'true');
     const found = await where();
     opener.removeAttribute('aria-busy');
@@ -106,7 +106,7 @@ export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.ph
       submit.disabled = false;
     }
   });
-  byId('send-lead').addEventListener('click', open);
+  for (const button of document.querySelectorAll('#send-lead, [data-send-lead]')) button.addEventListener('click', open);
   byId('close-lead').addEventListener('click', () => dialog.close());
   return { open };
 }

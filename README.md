@@ -78,7 +78,7 @@ variable is optional; the app works without any of them.
 | `CESIUM_ION_TOKEN` | 3D view through Cesium ion's free plan (testing) | Token with only `assets:read`, restricted to your site URLs. Not for launch. |
 | `GOOGLE_MAP_TILES_KEY` | 3D view directly from Google (launch) | Needs Google Cloud billing. Restrict the key to the Map Tiles API and your domains, and cap it at 30 sessions a day to stay free. Wins over the ion token. |
 | `AI_GATEWAY_API_KEY`, `AI_GATEWAY_MODEL` | AI project assistant | Vercel deployments can use OIDC instead of a key. Without either, the automatic planner still works. See [docs/08](docs/08-agentic-planning.md). |
-| `LEAD_WEBHOOK_URL`, `LEAD_EMAIL` | "Send to Alco Products" on Step 5 | The webhook (https, server-only) receives the contact details and summary as JSON; the email is the fallback and the only option on GitHub Pages. See [docs/SETUP.md](docs/SETUP.md#5b-send-to-alco-products-optional). |
+| `LEAD_WEBHOOK_URL`, `LEAD_EMAIL` | "Send to Alco Products" in the studio (Step 4) | The webhook (https, server-only) receives the contact details and summary as JSON; the email is the fallback and the only option on GitHub Pages. See [docs/SETUP.md](docs/SETUP.md#5b-send-to-alco-products-optional). |
 | `PROPERTY_*`, `DATA_USE_APPROVED` | Licensed property-record lookups | Only with a signed data agreement. See [docs/09](docs/09-property-data-adapter.md). |
 
 Never paste these values into chats, screenshots or commits. The 3D credentials reach the browser

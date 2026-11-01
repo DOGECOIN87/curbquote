@@ -1,6 +1,7 @@
 /** One complete report shared by downloads and print, including the exact price snapshot. */
 import { propertySourceLines } from './property-data.js';
 import { resolveHomeStyle } from './home-styles.js';
+const TRADE_KEYS = ['siding', 'windows', 'doors', 'roofing', 'gutters'];
 export function buildEstimateSummary(result, { address = '', matchedAddress = '', generatedAt = new Date().toISOString(), propertyData, footprintData } = {}) {
   const { inputs: i, geometry: g, assumptions: a, pricing: p } = result;
   const dollars = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -21,9 +22,9 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     ...propertySourceLines(propertyData),
     ...footprintLines,
     ...(result.project ? [
-      `Selected projects: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).join(', ')}`,
+      `Selected projects: ${TRADE_KEYS.filter(key => result.project[key]).join(', ')}`,
       `Product tier: ${result.productNames.tier}`,
-      `Products: ${['siding', 'windows', 'doors'].filter(key => result.project[key]).map(key => result.productNames[key]).join('; ')}`,
+      `Products: ${TRADE_KEYS.filter(key => result.project[key]).map(key => result.productNames[key]).join('; ')}`,
       `Siding coverage: ${result.project.siding ? result.project.coveragePercent + '%' : 'not selected'}; color concept: ${result.productNames.color}${styleName ? `; style: ${styleName}` : ''}`
     ] : []),
     '',
@@ -31,6 +32,8 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Siding: ${result.project?.siding === false ? 'Not selected' : range(result.items.siding)}`,
     `Windows (${i.replaceWindows}): ${range(result.items.windows)}`,
     `Doors (${i.replaceDoors}): ${range(result.items.doors)}`,
+    ...(result.project?.roofing ? [`Roofing (${Math.round(g.roofSqFt)} sq ft of roof, ${g.roofPitch}/12 pitch from the gable rise, ${a.roofWasteFraction * 100}% waste, ±${a.roofVariation * 100}% area): ${range(result.items.roofing)}`] : []),
+    ...(result.project?.gutters ? [`Gutters (${Math.round(g.gutterFt)} ft along the eaves, downspouts included): ${range(result.items.gutters)}`] : []),
     '',
     ...(result.project?.siding === false ? ['Building geometry is not used for this window/door-only budget.'] : [
     `Footprint: ${i.lengthFt} ft by ${i.widthFt} ft; ${i.stories} stories; ${i.storyHeightFt} ft/story`,
@@ -43,7 +46,7 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Siding quantity scenario: ±${a.geometryVariation * 100}% (illustrative, not a confidence interval)`,
     `Siding cost uses unrounded sq ft, not the ${g.squares} whole 100-sq-ft squares shown for reference.`,
     ]),
-    `Prices (USD): siding ${i.sidingLowPerSqFt}–${i.sidingHighPerSqFt}/sq ft; windows ${i.windowLowEach}–${i.windowHighEach}/each; doors ${i.doorLowEach}–${i.doorHighEach}/each`,
+    `Prices (USD): siding ${i.sidingLowPerSqFt}–${i.sidingHighPerSqFt}/sq ft; windows ${i.windowLowEach}–${i.windowHighEach}/each; doors ${i.doorLowEach}–${i.doorHighEach}/each${result.project?.roofing ? `; roofing ${i.roofLowPerSquare}–${i.roofHighPerSquare}/square` : ''}${result.project?.gutters ? `; gutters ${i.gutterLowPerFt}–${i.gutterHighPerFt}/ft` : ''}`,
     'Rounding: each line-item endpoint is rounded to whole dollars, then line items are summed.',
     `Year built: ${i.yearBuilt}${result.leadPaintReview ? ' (review lead-safe renovation requirements; cost not included)' : ''}`,
     '',

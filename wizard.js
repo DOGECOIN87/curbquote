@@ -7,6 +7,8 @@ export function setupWizard({ root = document, onChange } = {}) {
   const parts = [...root.querySelectorAll('[data-step]')];
   const buttons = [...root.querySelectorAll('.wizard-steps [data-goto]')];
   const last = parts.reduce((max, part) => Math.max(max, ...part.dataset.step.split(' ').map(Number)), 1);
+  // Pages past the step list (the photo wall-marking page) are reachable but not counted.
+  const counted = buttons.length || last;
   let current = 1;
   function show(step, { focus = false } = {}) {
     current = Math.min(Math.max(Number(step) || 1, 1), last);
@@ -17,7 +19,7 @@ export function setupWizard({ root = document, onChange } = {}) {
       button.classList.toggle('done', n < current);
     }
     const progressReadout = root.querySelector?.('#step-progress-readout');
-    if (progressReadout) progressReadout.textContent = `Step ${current} of ${last}`;
+    if (progressReadout) progressReadout.textContent = `Step ${Math.min(current, counted)} of ${counted}`;
     if (focus) {
       const heading = parts.find(part => !part.hidden && part.classList.contains('wizard-step'))?.querySelector('h1, h2');
       if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }

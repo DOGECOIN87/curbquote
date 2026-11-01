@@ -61,9 +61,13 @@ test('data-step-link controls inside a step and on the estimate screen move the 
   assert.equal(parts[2].hidden, true);
 });
 
-test('a step routed to with data-open-studio lands on the estimate step', async () => {
+test('the studio is the last step: Send to Alco Products, Save and Download sit in its panel', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /data-open-studio/);
+  assert.doesNotMatch(html, /data-goto="5"/, 'four steps in the progress bar');
+  assert.match(html, /data-send-lead>Send to Alco Products/);
+  assert.match(html, /data-save-project/);
+  assert.match(html, /data-download-summary/);
+  assert.match(html, /id="estimate-info" class="breakdown-toggle"[^>]*>See the breakdown/);
   assert.match(html, /id="jump-to-3d"/);
   assert.match(html, /data-live-range/);
   assert.match(html, /id="remodel-compare-note"/);

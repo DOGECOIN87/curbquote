@@ -58,6 +58,8 @@ const shown = selector => page.locator(selector).evaluate(el => !el.hidden);
 const imageryPattern = 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage?**';
 const fixtureImagery = '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600"><rect width="960" height="600" fill="#536d47"/><path d="M0 280H960M510 0V600" stroke="#aaa99c" stroke-width="70"/><g fill="#c0b6a1" stroke="#394d3f" stroke-width="7"><path d="M160 100h180v110H160zM630 370h180v130H630zM620 60h140v140H620z"/></g><text x="35" y="565" fill="white" font-family="Arial" font-size="24">SYNTHETIC IMAGERY FIXTURE · NOT A REAL PROPERTY</text></svg>';
 await page.route(imageryPattern, route => route.fulfill({ contentType: 'image/svg+xml', body: fixtureImagery }));
+// No live map tiles: the page reads outlines from them too, and the suite must not depend on live data.
+await page.route('https://tiles.openfreemap.org/**', route => route.fulfill({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' }, json: { error: 'Synthetic map outage' } }));
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error' && ![404, 500, 502, 503].some(status => message.text().includes(`status of ${status}`))) errors.push(message.text()); });
 try {

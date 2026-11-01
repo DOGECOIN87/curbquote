@@ -40,6 +40,8 @@ try {
   assert.equal(requests.filter(r => r.url().includes('/vendor/maplibre/')).length, 0);
   assert.equal(await page.locator('#aerial-map-toggle').isVisible(), true, 'WebGL2 renderer must be exercised in this QA environment');
   const originalImage = await page.locator('#aerial-images img').getAttribute('src');
+  // The match may size the home from the fixture outlines; opening the map must not change it.
+  await page.waitForTimeout(1500); const sizedLength = await page.locator('#lengthFt').inputValue();
   await page.locator('#aerial-map-toggle').click(); await ready();
   const canvas = page.locator('#property-map canvas'); await page.waitForTimeout(100);
   assert.equal(await canvas.isVisible(), true);
@@ -48,7 +50,7 @@ try {
   assert.equal(await page.locator('#map-hybrid').getAttribute('aria-pressed'), 'true');
   assert.ok(requests.some(r => r.url().includes('maplibre-gl-worker.mjs')));
   assert.ok(requests.some(r => r.url().includes('/qa/') && r.url().endsWith('.pbf')));
-  assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  assert.equal(await page.locator('#lengthFt').inputValue(), sizedLength, 'opening the map leaves the measurements as they were');
   checks.push('Opening Explore map lazy-loads the actual self-hosted renderer/worker, renders fixture vector/raster tiles and shows source attribution');
   const box = await canvas.boundingBox(); await canvas.click({ position: { x: box.width / 2 + 12, y: box.height / 2 + 8 } });
   await page.waitForFunction(() => !document.querySelector('#map-selection').hidden);

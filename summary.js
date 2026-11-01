@@ -32,7 +32,7 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Siding: ${result.project?.siding === false ? 'Not selected' : range(result.items.siding)}`,
     `Windows (${i.replaceWindows}): ${range(result.items.windows)}`,
     `Doors (${i.replaceDoors}): ${range(result.items.doors)}`,
-    ...(result.project?.roofing ? [`Roofing (${Math.round(g.roofSqFt)} sq ft of roof, ${g.roofPitch}/12 pitch from the gable rise, ${a.roofWasteFraction * 100}% waste, ±${a.roofVariation * 100}% area): ${range(result.items.roofing)}`] : []),
+    ...(result.project?.roofing ? [`Roofing (${Math.round(g.roofSqFt)} sq ft of roof from ${i.footprintSqFt > 0 ? `the ${Math.round(i.footprintSqFt)} sq ft mapped outline` : `${i.lengthFt} × ${i.widthFt} ft`} plus eaves, ${g.roofPitch}/12 pitch from the gable rise, ${a.roofWasteFraction * 100}% waste, ±${a.roofVariation * 100}% area): ${range(result.items.roofing)}`] : []),
     ...(result.project?.gutters ? [`Gutters (${Math.round(g.gutterFt)} ft along the eaves, downspouts included): ${range(result.items.gutters)}`] : []),
     '',
     ...(result.project?.siding === false ? ['Building geometry is not used for this window/door-only budget.'] : [

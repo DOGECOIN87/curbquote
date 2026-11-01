@@ -741,6 +741,8 @@ form.addEventListener('input', event => {
   // The material bar's select only forwards to the real Step 4 control, which reports its own change.
   if (event.target === addressEl || event.target.closest('[data-proxy]')) return;
   if (event.target.matches('#lengthFt,#widthFt,#stories')) measurementsTouched = true;
+  // A typed length or width replaces the mapped outline, so the roof follows the new rectangle.
+  if (event.target.matches('#lengthFt,#widthFt')) byId('footprintSqFt').value = '0';
   propertyLookup?.edited(event.target.id);
   assistant?.changed(event.target.id);
   if (event.target.matches('#sidingProduct,#windowProduct,#doorProduct,#roofProduct,#gutterProduct,[name="tier"]')) setCatalogRates();
@@ -806,6 +808,7 @@ function applyStylePreset(styleId, { manual = true } = {}) {
   const lengthFt = Math.max(18, Math.min(90, Math.round((currentArea / widthFt) * 2) / 2));
   byId('lengthFt').value = String(Math.max(lengthFt, widthFt));
   byId('widthFt').value = String(Math.min(lengthFt, widthFt));
+  byId('footprintSqFt').value = '0';   // the style's rectangle already holds the outline's area
   byId('stories').value = String(footprintData?.stories || style.stories);
   byId('storyHeightFt').value = String(style.storyHeightFt);
   byId('gableRiseFt').value = String(style.gableRiseFt);
@@ -874,6 +877,8 @@ function applyFootprint(result, { automatic = false } = {}) {
   const style = resolveHomeStyle(selectedHomeStyle);
   byId('lengthFt').value = String(Math.round(Math.max(18, Math.min(90, result.lengthFt)) * 2) / 2);
   byId('widthFt').value = String(Math.round(Math.max(16, Math.min(64, result.widthFt)) * 2) / 2);
+  // The outline's own area prices the roof; an L-shaped home's rectangle would overstate it.
+  byId('footprintSqFt').value = String(Math.round(Number(result.areaSqFt) || 0));
   if (result.stories) byId('stories').value = String(Math.min(4, Math.max(1, Math.round(result.stories))));
   byId('storyHeightFt').value = String(style.storyHeightFt);
   byId('gableRiseFt').value = String(style.gableRiseFt);
@@ -897,6 +902,7 @@ function confirmMeasuredSize({ sides, heightFt, measuredHeight, source }) {
   const outline = source === 'outline' && footprintData?.lengthFt && footprintData?.widthFt;
   const lengthFt = half(outline ? footprintData.lengthFt : long), widthFt = half(outline ? footprintData.widthFt : short);
   byId('lengthFt').value = String(lengthFt); byId('widthFt').value = String(widthFt);
+  byId('footprintSqFt').value = String(outline && footprintData?.areaSqFt ? Math.round(footprintData.areaSqFt) : 0);
   if (measuredHeight && heightFt) {
     const storyHeight = Number(byId('storyHeightFt').value) || 9, rise = Number(byId('gableRiseFt').value) || 0;
     byId('stories').value = String(Math.min(4, Math.max(1, Math.round((heightFt - rise) / storyHeight))));

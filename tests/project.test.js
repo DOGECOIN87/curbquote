@@ -85,3 +85,17 @@ test('roofing and gutters are optional, measured from the footprint and priced p
   assert.equal(estimateProject(base, { ...DEFAULT_PROJECT, roofing: true, tier: 'premium' }).inputs.roofLowPerSquare, 550, 'rates come from the inputs; the tier sets them through catalogRates');
   assert.equal(catalogRates({ ...DEFAULT_PROJECT, tier: 'premium' }).roofLowPerSquare, 880);
 });
+
+test('an L-shaped home prices its roof from the mapped outline, not its bounding rectangle', () => {
+  const options = { ...DEFAULT_PROJECT, roofing: true }, rates = catalogRates(options);
+  // 90 x 52.5 ft around an L-shaped outline of 3,032 sq ft (a real DC-area example).
+  const rectangle = estimateProject({ ...DEFAULT_INPUT, ...rates, lengthFt: 90, widthFt: 52.5 }, options);
+  const outline = estimateProject({ ...DEFAULT_INPUT, ...rates, lengthFt: 90, widthFt: 52.5, footprintSqFt: 3032 }, options);
+  const eaves = 2 * (90 + 52.5) + 4, slope = Math.sqrt(1 + (6 / 26.25) ** 2);
+  assert.ok(Math.abs(outline.geometry.roofSqFt - (3032 + eaves) * slope) < 0.01);
+  assert.ok(Math.abs(rectangle.geometry.roofSqFt - 92 * 54.5 * slope) < 0.01);
+  assert.ok(outline.items.roofing[1] < rectangle.items.roofing[1] * 0.7, 'about a third less roof');
+  assert.deepEqual(outline.items.siding, rectangle.items.siding, 'the walls still follow length and width');
+  // An area larger than the rectangle cannot be right, so the rectangle caps it.
+  assert.equal(estimateProject({ ...DEFAULT_INPUT, ...rates, footprintSqFt: 99999 }, options).geometry.roofSqFt, estimateProject({ ...DEFAULT_INPUT, ...rates }, options).geometry.roofSqFt);
+});

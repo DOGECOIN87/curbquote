@@ -23,7 +23,10 @@ export const DEFAULT_INPUT = Object.freeze({
   // CertainTeed architectural shingles with one layer torn off, per roofing square (100 sq ft of roof),
   // and seamless gutters with downspouts, per foot of gutter. DC-metro example rates, October 2026.
   roofLowPerSquare: 550, roofHighPerSquare: 900,
-  gutterLowPerFt: 14, gutterHighPerFt: 26
+  gutterLowPerFt: 14, gutterHighPerFt: 26,
+  // The mapped outline's own area when one sized the home (0: length x width). An L-shaped home's
+  // bounding rectangle can hold half again its real roof; the walls still follow length and width.
+  footprintSqFt: 0
 });
 
 export const GEOMETRY_VARIATION = ASSUMPTIONS.geometryVariation; // Not a confidence interval.
@@ -36,7 +39,8 @@ const labels = {
   windowLowEach: 'Window low price', windowHighEach: 'Window high price',
   doorLowEach: 'Door low price', doorHighEach: 'Door high price',
   roofLowPerSquare: 'Roofing low price', roofHighPerSquare: 'Roofing high price',
-  gutterLowPerFt: 'Gutter low price', gutterHighPerFt: 'Gutter high price'
+  gutterLowPerFt: 'Gutter low price', gutterHighPerFt: 'Gutter high price',
+  footprintSqFt: 'Footprint area'
 };
 export class InputError extends Error {
   constructor(message, field) { super(message); this.name = 'InputError'; this.field = field; }
@@ -50,7 +54,8 @@ const limits = {
   windowLowEach: [0, 20000], windowHighEach: [0, 20000],
   doorLowEach: [0, 30000], doorHighEach: [0, 30000],
   roofLowPerSquare: [0, 5000], roofHighPerSquare: [0, 5000],
-  gutterLowPerFt: [0, 200], gutterHighPerFt: [0, 200]
+  gutterLowPerFt: [0, 200], gutterHighPerFt: [0, 200],
+  footprintSqFt: [0, 122500]
 };
 
 /** @returns {Record<keyof typeof DEFAULT_INPUT, number>} */
@@ -59,6 +64,8 @@ export function validateInput(candidate) {
     throw new InputError('Enter the home details to calculate an estimate.');
   }
   const result = {};
+  // Saved projects from before the footprint area existed open as length x width.
+  candidate = { footprintSqFt: 0, ...candidate };
   for (const [key, [min, max]] of Object.entries(limits)) {
     const value = candidate[key];
     if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) {
@@ -111,7 +118,10 @@ export function estimateExterior(input, { siding = true, coveragePercent = 100, 
   // Roofing and gutters, only when chosen: the footprint carries no roof plan, so both stay ranges.
   const eave = ASSUMPTIONS.eaveOverhangFt, shortSide = Math.min(p.lengthFt, p.widthFt), longSide = Math.max(p.lengthFt, p.widthFt);
   const roofSlope = Math.sqrt(1 + (p.gableRiseFt / (shortSide / 2)) ** 2);
-  const roofSqFt = roofing ? (p.lengthFt + 2 * eave) * (p.widthFt + 2 * eave) * roofSlope : 0;
+  // A mapped outline's area, plus the eaves around it, when it is smaller than the rectangle.
+  const outlineSqFt = p.footprintSqFt > 0 ? Math.min(p.footprintSqFt, p.lengthFt * p.widthFt) : p.lengthFt * p.widthFt;
+  const roofPlanSqFt = outlineSqFt + 2 * (p.lengthFt + p.widthFt) * eave + 4 * eave * eave;
+  const roofSqFt = roofing ? roofPlanSqFt * roofSlope : 0;
   const roofSquares = roofSqFt * (1 + ASSUMPTIONS.roofWasteFraction) / 100;
   const roofingLow = roundMoney(roofSquares * (1 - ASSUMPTIONS.roofVariation) * p.roofLowPerSquare);
   const roofingHigh = roundMoney(roofSquares * (1 + ASSUMPTIONS.roofVariation) * p.roofHighPerSquare);

@@ -53,9 +53,15 @@ Google's logo and data attributions on screen.
 browser key by design: Google's tiles are requested from the browser, so the key's restrictions
 and quota are what protect it.
 
-**One session per visit.** CesiumJS creates the tileset once, the first time 3D is opened, and
-reuses it for later addresses on the same page. One Google root request covers up to 3 hours of
-viewing.
+**One session per visit.** CesiumJS creates the tileset once and reuses it for later addresses on
+the same page. One Google root request covers up to 3 hours of viewing.
+
+**Warm-up while typing.** The session starts once the address box holds something that looks like a
+street address (a house number and a street name), not when the property matches. An out-of-sight,
+whole-country view then loads Google's top tiles and prepares the tile workers and shaders, which
+roughly halves the time to the first property (13.6 s to 7.1 s to a fully loaded close-up in a
+headless test). A visitor who searches still uses one session; one who types an address and leaves
+uses one too, which counts toward the daily root-request cap. Data Saver turns the warm-up off.
 
 ## Security and privacy changes
 

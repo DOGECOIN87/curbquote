@@ -982,6 +982,13 @@ addressEl.addEventListener('focus', () => {
   if (navigator.connection?.saveData) return;
   import('./cesium-runtime.js').then(module => module.loadCesium()).catch(() => {});
 }, { once: true });
+// Once the text looks like a street address (a house number and a street name), start Google's 3D
+// session and warm it up out of sight. Almost everyone who types that far searches, so this rarely
+// starts a session that goes unused, and the first property view opens in about half the time.
+const looksLikeAddress = value => value.trim().length >= 8 && /^\s*\d+[a-z]?\s+[a-z]{2,}/i.test(value);
+addressEl.addEventListener('input', () => {
+  if (!navigator.connection?.saveData && looksLikeAddress(addressEl.value)) propertyPreview.warm3d();
+});
 addressEl.addEventListener('compositionstart', () => { addressComposing = true; cancelAddressLookup(); });
 addressEl.addEventListener('compositionend', () => { addressComposing = false; addressChanged(); });
 addressEl.addEventListener('keydown', event => {

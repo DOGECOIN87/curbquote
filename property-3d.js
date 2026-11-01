@@ -16,6 +16,8 @@ const MEASURE_TIMEOUT = 12000;
 // The roof search samples Google's surface every 1.25 m over a 50 m square around the point.
 const ROOF_STEP = 1.6, ROOF_SAMPLES = 31;
 const TILE_FAILURES = 6;
+// The warm-up view loads Google's top tiles for the whole country, then stops drawing (or gives up).
+const WARM_LIMIT = 30000, WARM_SETTLE = 500;
 // Degrees per second for the turn around the building; the free 3D map turns at the same pace.
 const ORBIT_SPEED = 7;
 // CesiumJS defaults to a 1.5 GB in-memory tile cache for Google tiles, too much for phones.
@@ -30,7 +32,7 @@ export function setupProperty3D(options) {
   let current = google, serial = 0;
   const hasLocal = location => localAvailable && Boolean(exteriorForLocation(location));
   return {
-    available: google.available, hasLocal,
+    available: google.available, hasLocal, warm: () => google.warm(),
     async show(location) {
       const request = ++serial; google.close(); exterior.close(); current = hasLocal(location) ? exterior : google;
       try { const result = await current.show(location); return request === serial ? result : null; }
@@ -54,6 +56,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
   let key = null, ionToken = null, Cesium = null, widget = null, marker = null, ready = null, serial = 0, open = false;
   let target = null, place = null, heading = 0, top = false, range = 115, padding = null, paddingAt = 0;
   let orbitFrame = 0, orbiting = false, measurer = null, tileset = null, loading = 0;
+  let warming = false, warmTimer = 0, warmFrom = 0, home = null;
   const layer = document.createElement('div');
   layer.className = 'measure-3d'; layer.hidden = true; layer.setAttribute('aria-hidden', 'true');
   const available = (STATIC_SITE ? Promise.resolve(STATIC_MAP3D) : fetch('api/map3d', { headers: { Accept: 'application/json' }, cache: 'no-store' }).then(response => response.ok ? response.json() : {}))
@@ -71,7 +74,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
     }
   }
   function destroy() {
-    cancelOrbit();
+    endWarm(); cancelOrbit();
     try { widget?.destroy(); } catch { /* already torn down */ }
     measurer?.clear(); widget = marker = ready = measurer = tileset = null; container.replaceChildren();
   }
@@ -128,10 +131,42 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
       });
       // The measuring pass is drawn over the canvas and follows every rendered frame.
       container.append(layer); measurer = setupScreenMeasure(layer, { obstacles: () => [...stage.parentElement.querySelectorAll(PANELS)].filter(el => el.offsetParent).map(el => el.getBoundingClientRect()) });
-      widget.scene.postRender.addEventListener(() => { measurer?.redraw(); if (target && container.dataset.loading && tileset?.tilesLoaded) loaded(); });
+      widget.scene.postRender.addEventListener(() => {
+        measurer?.redraw(); if (target && container.dataset.loading && tileset?.tilesLoaded) loaded();
+        if (warming && warmFrom && loadedTiles && tileset?.tilesLoaded && performance.now() - warmFrom > WARM_SETTLE) endWarm();
+      });
       widget.scene.requestRender();
     })();
     return ready;
+  }
+  /**
+   * Starts the 3D session while the visitor is still typing an address, and loads a whole-country
+   * view out of sight. Google's top tiles, the tile workers and the shaders are then ready, so the
+   * first property opens in about half the time. It is the same session the property view would
+   * start a few seconds later, so a visitor who searches still uses one session. A refusal is kept
+   * for the property view to report, without a second request.
+   */
+  function warm() {
+    if (ready || open) return;
+    available.then(ok => {
+      if (!ok || ready || open) return;
+      // Drawn off-screen at a small size: the view's own spot can be hidden while the visitor types.
+      home = { next: container.nextSibling }; document.body.append(container);
+      warming = true; container.dataset.warm = ''; container.hidden = false; warmTimer = setTimeout(endWarm, WARM_LIMIT);
+      start().then(() => {
+        if (!warming || open) return;
+        widget.scene.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(-96, 38, 6000000) });
+        warmFrom = performance.now(); widget.useDefaultRenderLoop = true; widget.scene.requestRender();
+      }, endWarm);
+    });
+  }
+  /** Ends the warm-up: the view goes back to its place, and stops drawing unless it is open. */
+  function endWarm() {
+    clearTimeout(warmTimer); warmTimer = warmFrom = 0;
+    if (home) { stage.insertBefore(container, home.next?.parentNode === stage ? home.next : null); home = null; }
+    if (!warming) return;
+    warming = false; delete container.dataset.warm;
+    if (!open) { container.hidden = true; if (widget) widget.useDefaultRenderLoop = false; }
   }
   /** Screen pixels of a [lon, lat, metres] point, or null when it is behind the camera. */
   function project([lon, lat, height]) {
@@ -261,7 +296,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
   function loaded() { clearTimeout(loading); delete container.dataset.loading; }
   /** Resolves 'framed' (on the address point), 'overview' (no surface height) or null if superseded. */
   async function show(location) {
-    const request = ++serial; open = true; container.hidden = false; container.dataset.loading = 'true';
+    const request = ++serial; open = true; endWarm(); container.hidden = false; container.dataset.loading = 'true';
     clearTimeout(loading); loading = setTimeout(loaded, 45000);
     try { await start(); }
     // A failed start leaves nothing half-built, so the next attempt begins again.
@@ -303,11 +338,12 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
   function unmark() { if (marker) marker.show = false; widget?.scene.requestRender(); }
   function close() {
     cancelOrbit(); measurer?.clear(); layer.hidden = true;
-    serial++; open = false; container.hidden = true; loaded();
-    if (widget) widget.useDefaultRenderLoop = false;
+    // Closing (the page does it when the address changes) leaves a warm-up running.
+    serial++; open = false; container.hidden = !warming; loaded();
+    if (widget) widget.useDefaultRenderLoop = warming;
   }
   return {
-    available, show, close, measure, mark, unmark,
+    available, show, close, measure, mark, unmark, warm,
     setTop(value) { cancelOrbit(); top = value; frame(0.8); },
     rotate() { cancelOrbit(); heading = (heading + Math.PI / 2) % (2 * Math.PI); frame(0.8); },
     recenter() { cancelOrbit(); heading = 0; frame(0.8); },

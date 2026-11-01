@@ -546,5 +546,5 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
     if (view3d.isOpen) { if (!view3d.isExterior) measure3d(); }
     else if (loaded && !viewMap.isOpen) drawAerialMeasure();
   };
-  clear(); return { clear, searching, failed, show, remeasure };
+  clear(); return { clear, searching, failed, show, remeasure, warm3d: () => view3d.warm() };
 }

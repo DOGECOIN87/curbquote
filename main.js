@@ -971,7 +971,7 @@ byId('clear-footprint')?.addEventListener('click', () => {
   refreshReport();
 });
 
-let addressResetTimer = 0;
+let addressResetTimer = 0, addressReset = null;
 function addressChanged() {
   const undoAuto = footprintData?.automatic === true && !measurementsTouched;
   cancelAddressLookup(); assistant?.changed('property-address');
@@ -982,12 +982,19 @@ function addressChanged() {
   // keyboard is up), so it now runs once, shortly after typing pauses — still before the
   // automatic lookup fires, so the order the rest of the flow expects is unchanged.
   clearTimeout(addressResetTimer);
-  addressResetTimer = setTimeout(() => {
+  addressReset = () => {
     resetFootprintState({ restoreManual: undoAuto }); propertyLookup?.clear({ restoreInputs: true });
     if (undoAuto) { syncProjectControls(); if (hasCalculated) calculate(); }
     refreshReport();
-  }, 350);
+  };
+  addressResetTimer = setTimeout(flushAddressReset, 350);
   scheduleAddressLookup();
+}
+/** Runs a pending address reset now. A lookup starts with it, so the reset can never land after the
+    lookup and clear the property record or footprint it just loaded (a fast Find, or a picked suggestion). */
+function flushAddressReset() {
+  clearTimeout(addressResetTimer); addressResetTimer = 0;
+  const reset = addressReset; addressReset = null; reset?.();
 }
 // Suggestions first: Enter on a highlighted suggestion picks it before the lookup below runs.
 setupAddressSuggestions({ input: addressEl, panel: byId('address-suggest'), list: byId('address-suggestions'), onPick: text => { addressEl.value = text; addressChanged(); clearTimeout(lookupTimer); lookupAddress(); } });
@@ -1026,6 +1033,7 @@ byId('exterior-example').addEventListener('click', () => {
 });
 async function lookupAddress({ automatic = false } = {}) {
   clearTimeout(lookupTimer); lookupTimer = null;
+  flushAddressReset();
   let address;
   try { address = validateAddress(addressEl.value); }
   catch (error) {

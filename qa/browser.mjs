@@ -677,8 +677,8 @@ try {
   const sizedRange = await quick.locator('#instant-estimate [data-live-range]').textContent();
   assert.notEqual(sizedRange, typicalRange);
   await quick.locator('#instant-estimate .primary-button').click();
-  assert.equal(await quick.locator('[data-goto="5"]').getAttribute('aria-current'), 'step');
-  assert.equal(await quick.locator('#total-range').textContent(), sizedRange, 'one click after typing the address reaches the full estimate');
+  assert.equal(await quick.locator('[data-goto="4"]').getAttribute('aria-current'), 'step', 'See my estimate opens the design studio (Step 4), not the long estimate page');
+  assert.equal(await quick.locator('#project-panel [data-live-range]').textContent(), sizedRange, 'one click after typing the address reaches the studio with the same estimate');
   await go('#lengthFt', quick); await quick.locator('#lengthFt').fill('60');
   await go('#property-address', quick); await quick.locator('#property-address').fill('4601 Silver Hill Rd, Washington, DC 20233');
   await quick.waitForFunction(() => document.querySelector('#aerial-images img')?.complete);
@@ -686,7 +686,7 @@ try {
   assert.equal(footprintBodies.length, 1, 'a typed size is never replaced by a later automatic lookup');
   assert.equal(await quick.locator('#lengthFt').inputValue(), '60');
   await quick.close();
-  checks.push('Express path: a typical-home range shows on arrival, the matched address sizes the home from open data with no extra click and no street address sent, one click reaches the full estimate, and typed sizes are never overwritten');
+  checks.push('Express path: a typical-home range shows on arrival, the matched address sizes the home from open data with no extra click and no street address sent, one click reaches the design studio with the estimate, and typed sizes are never overwritten');
   // "What would you like to change?" drives the same controls as Steps 2–4 and opens the Original / Proposed preview.
   const chat = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }); await chat.addInitScript(() => { try { localStorage.setItem('curbquote.property.view', 'photo'); } catch {} });
   chat.on('pageerror', error => errors.push(error.message));

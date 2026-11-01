@@ -104,7 +104,28 @@ export function buildOverpassQuery({ lat, lon }, radiusMeters = 35) {
   return `[out:json][timeout:6];way(around:${r},${lat.toFixed(6)},${lon.toFixed(6)})["building"];out body geom;`;
 }
 
-/** Parses an Overpass JSON response around `{ lat, lon }` into a normalized building footprint. */
+// Outbuildings and street furniture. These, and anything under MINOR_SQFT (sheds, kiosks, booths),
+// are never taken for the home: they often stand closer to the street, where the Census address
+// point lands, than the building the address belongs to. With only those near, there is no match,
+// and the page falls back to Google's building, the 3D roof search or typed measurements.
+const MINOR_TAGS = new Set(['garage', 'garages', 'shed', 'carport', 'roof', 'gazebo', 'kiosk', 'hut', 'toilets', 'shelter', 'service', 'transformer_tower', 'greenhouse', 'container', 'guardhouse']);
+const MINOR_SQFT = 350;
+/** Metres from a point to the nearest wall of a ring (local metres). */
+function distanceToRing(px, py, pts) {
+  let best = Infinity;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [ax, ay] = pts[j], [bx, by] = pts[i], dx = bx - ax, dy = by - ay, span = dx * dx + dy * dy;
+    const t = span ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / span)) : 0;
+    best = Math.min(best, Math.hypot(px - ax - t * dx, py - ay - t * dy));
+  }
+  return best;
+}
+
+/**
+ * Parses an Overpass JSON response around `{ lat, lon }` into a normalized building footprint: the
+ * full-size building holding the address point, else the one whose nearest wall is closest, else
+ * null. Measuring to the wall, not the middle, keeps a large building ahead of a small one nearby.
+ */
 export function parseOverpassFootprint(payload, center, styleId = DEFAULT_HOME_STYLE) {
   const elements = Array.isArray(payload?.elements) ? payload.elements : null;
   if (!elements) return null;
@@ -116,18 +137,19 @@ export function parseOverpassFootprint(payload, center, styleId = DEFAULT_HOME_S
     if (!measured || measured.areaSqFt < 120) continue;
     const [targetX, targetY] = toLocalMeters([[center.lon, center.lat]], measured.centroid.lon, measured.centroid.lat)[0];
     const contains = pointInRing(targetX, targetY, measured.localPoints);
-    const distanceM = Math.hypot(targetX, targetY);
+    const wallM = contains ? 0 : distanceToRing(targetX, targetY, measured.localPoints);
     const tags = el.tags && typeof el.tags === 'object' ? el.tags : {};
-    const accessory = ['garage', 'garages', 'shed', 'carport', 'roof', 'gazebo'].includes(String(tags.building || '').toLowerCase());
-    candidates.push({ measured, tags, contains, distanceM, accessory });
+    const minor = MINOR_TAGS.has(String(tags.building || '').toLowerCase()) || measured.areaSqFt < MINOR_SQFT;
+    candidates.push({ measured, tags, contains, wallM, minor });
   }
   if (!candidates.length) return null;
   candidates.sort((a, b) =>
+    Number(a.minor) - Number(b.minor) ||
     Number(b.contains) - Number(a.contains) ||
-    Number(a.accessory) - Number(b.accessory) ||
-    a.distanceM - b.distanceM
+    a.wallM - b.wallM
   );
   const chosen = candidates[0];
+  if (chosen.minor) return null;
   const { measured, tags } = chosen;
   const levels = Number(tags['building:levels']);
   const heightFt = parseHeightFt(tags.height);

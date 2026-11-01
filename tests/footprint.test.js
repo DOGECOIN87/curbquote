@@ -59,6 +59,24 @@ test('parseOverpassFootprint prefers main building containing address over detac
   assert.ok(Math.abs(parsed.areaSqFt - 2160) < 25);
 });
 
+test('parseOverpassFootprint picks the building with the nearest wall, not a kiosk by the street', () => {
+  // The Census point lands in the street. A 4 x 4 m booth stands 4 m away (its middle 6 m); the
+  // office building's front wall is 15 m away, but its middle is 30 m away.
+  const box = (cx, cy, w, h, building) => ({
+    type: 'way',
+    tags: { building },
+    geometry: [[-w, -h], [w, -h], [w, h], [-w, h], [-w, -h]].map(([x, y]) => ({ lon: AUSTIN_CENTER.lon + (cx + x / 2) * DEG_LON_M, lat: AUSTIN_CENTER.lat + (cy + y / 2) * DEG_LAT_M }))
+  });
+  const parsed = parseOverpassFootprint({ elements: [box(0, 6, 4, 4, 'yes'), box(0, 30, 40, 30, 'office')] }, AUSTIN_CENTER);
+  assert.ok(Math.abs(parsed.areaSqFt - 40 * 30 * 10.7639) < 150, `got ${parsed.areaSqFt}`);
+  // Between two full-size buildings, the nearer wall wins even when the other building's middle is closer.
+  const near = parseOverpassFootprint({ elements: [box(26, 0, 10, 10, 'house'), box(0, 30, 40, 30, 'house')] }, AUSTIN_CENTER);
+  assert.ok(near.areaSqFt > 10000, `got ${near.areaSqFt}`);
+  // A booth or shed alone is no match (the page then tries other sources), even holding the point.
+  assert.equal(parseOverpassFootprint({ elements: [box(0, 6, 4, 4, 'yes')] }, AUSTIN_CENTER), null);
+  assert.equal(parseOverpassFootprint({ elements: [box(0, 0, 4, 4, 'yes'), box(0, 30, 40, 30, 'office')] }, AUSTIN_CENTER).areaSqFt > 10000, true);
+});
+
 test('resolveFootprint enforces consent and contiguous U.S. bounds', async () => {
   await assert.rejects(
     () => resolveFootprint({ coordinates: AUSTIN_CENTER, consented: false }, { env: {} }),

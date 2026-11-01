@@ -92,11 +92,11 @@ let tileUrl = null;
  * `tags`) so the same parser chooses and measures the outline. `radius` is in metres.
  */
 export async function nearbyBuildings({ lat, lon }, { radius = 35, signal, fetchImpl = fetch } = {}) {
-  tileUrl ??= fetchImpl(MAP_DATA_URL, { credentials: 'omit', signal }).then(response => response.ok ? response.json() : Promise.reject(new Error('Map data unavailable.')))
+  tileUrl ??= fetchImpl(MAP_DATA_URL, { credentials: 'omit', referrerPolicy: 'no-referrer', signal }).then(response => response.ok ? response.json() : Promise.reject(new Error('Map data unavailable.')))
     .then(json => { const url = json?.tiles?.[0]; if (typeof url !== 'string' || !url.startsWith('https://')) throw new Error('Map data unavailable.'); return url; })
     .catch(error => { tileUrl = null; throw error; });
   const tile = tileFor(lon, lat), template = await tileUrl;
-  const response = await fetchImpl(template.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y), { credentials: 'omit', signal });
+  const response = await fetchImpl(template.replace('{z}', tile.z).replace('{x}', tile.x).replace('{y}', tile.y), { credentials: 'omit', referrerPolicy: 'no-referrer', signal });
   // Tile addresses carry a dated version that OpenFreeMap retires; ask for the current one next time.
   if (!response.ok) { tileUrl = null; throw new Error('Map data unavailable.'); }
   const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110540;

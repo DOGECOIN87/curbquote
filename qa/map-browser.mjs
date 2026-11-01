@@ -41,7 +41,8 @@ try {
   assert.equal(await page.locator('#aerial-map-toggle').isVisible(), true, 'WebGL2 renderer must be exercised in this QA environment');
   const originalImage = await page.locator('#aerial-images img').getAttribute('src');
   // The match may size the home from the fixture outlines; opening the map must not change it.
-  await page.waitForTimeout(1500); const sizedLength = await page.locator('#lengthFt').inputValue();
+  await page.waitForFunction(() => /Sized automatically|manual/i.test(document.querySelector('#footprint-status')?.textContent || ''), null, { timeout: 30000 });
+  const sizedLength = await page.locator('#lengthFt').inputValue();
   await page.locator('#aerial-map-toggle').click(); await ready();
   const canvas = page.locator('#property-map canvas'); await page.waitForTimeout(100);
   assert.equal(await canvas.isVisible(), true);
@@ -74,7 +75,7 @@ try {
   assert.equal(await page.locator('#aerial-3d-toggle').textContent(), 'Aerial photo');
   await page.waitForTimeout(150);
   assert.notDeepEqual(await canvas.screenshot(), flat, 'extruded buildings and a tilted camera must change the view');
-  assert.equal(await page.locator('#lengthFt').inputValue(), '48');
+  assert.equal(await page.locator('#lengthFt').inputValue(), sizedLength, 'the 3D buildings mode leaves the measurements as they were');
   await page.locator('#map-hybrid').click(); assert.equal(await page.locator('#map-hybrid').getAttribute('aria-pressed'), 'true');
   checks.push('The key-free 3D buildings mode extrudes mapped heights, tilts the camera and returns to the flat hybrid view');
   await mkdir('qa-output', { recursive: true });
@@ -135,7 +136,9 @@ try {
   checks.push('After a match the key-free 3D view opens, measures the mapped outline, then circles the building until touched');
   await auto.locator('#aerial-3d-toggle').click();
   await auto.waitForFunction(() => document.querySelector('#aerial-images img')?.complete, undefined, { timeout: 15000 });
-  assert.equal(await auto.evaluate(() => document.querySelectorAll('#aerial-measure .measure-tag').length), 0, 'no measurement is drawn on the photo without building data');
+  // The page reads outlines from the map tiles too, so a hosted outage no longer leaves it without building data.
+  const outlined = /Sized automatically/.test(await auto.locator('#footprint-status').textContent());
+  assert.equal(await auto.evaluate(() => document.querySelectorAll('#aerial-measure .measure-tag').length) > 0, outlined, 'the photo shows a measurement exactly when an outline sized the home');
   assert.equal(await auto.evaluate(() => localStorage.getItem('curbquote.property.view')), 'photo');
   await live.close();
   checks.push('Choosing the aerial photo is remembered on this device, and the photo draws no measurement without building data');

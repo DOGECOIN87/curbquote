@@ -60,7 +60,7 @@ Requires Node 22.x.
 ```bash
 npm ci --ignore-scripts
 npm run dev            # http://127.0.0.1:3000
-npm run check          # syntax checks, 119 Node tests, public build
+npm run check          # syntax checks, 128 Node tests, public build
 npm run test:browser   # 65 Chromium checks with fixture data (needs Playwright's Chromium)
 npm run test:exterior  # real local exterior model, Google 3D measuring pass, controls and fallback
 npm run test:layouts   # every step at 27 device shapes, 280 px fold covers to 3440 px ultrawide (about 30 min)

@@ -46,6 +46,41 @@ export async function suggestAddresses(input, { session, signal } = {}) {
   } catch { return []; }
 }
 
+export const GOOGLE_ADDRESS_SOURCE = 'Google Maps address location';
+/**
+ * Google's location for a street address: { matchedAddress, coordinates } or null. Census places an
+ * address along the street (a measured test of 60 DC-area homes found it 43 m from the house on
+ * average, never on it); Google's point for the same address usually sits on the building. Only a
+ * street address with the same house number counts, and, when `near` (the Census point) is given,
+ * only one within 300 m of it, so a different street or town never replaces the match.
+ */
+export async function locateAddress(address, { near = null, signal } = {}) {
+  const key = await mapsKey(), text = String(address || '').trim(), number = text.match(/^\s*(\d+)/)?.[1];
+  if (!key || !number) return null;
+  const local = new AbortController(), timer = setTimeout(() => local.abort(), 3000), stop = () => local.abort();
+  signal?.addEventListener('abort', stop);
+  try {
+    const headers = { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key };
+    const suggested = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+      method: 'POST', signal: local.signal, headers: { ...headers, 'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text.text' },
+      body: JSON.stringify({ input: text.slice(0, 120), includedRegionCodes: ['us'], languageCode: 'en' })
+    });
+    if (!suggested.ok) return null;
+    const prediction = (await suggested.json())?.suggestions?.[0]?.placePrediction;
+    if (!prediction?.placeId || !new RegExp(`^${number}\\b`).test(prediction.text?.text || '')) return null;
+    const details = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(prediction.placeId)}`, {
+      signal: local.signal, headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'location,formattedAddress,types' }
+    });
+    if (!details.ok) return null;
+    const place = await details.json(), lat = place?.location?.latitude, lon = place?.location?.longitude;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !(place.types || []).some(type => ['street_address', 'premise', 'subpremise'].includes(type))) return null;
+    if (near && distanceMetres([near.lat, near.lon], [lat, lon]) > 300) return null;
+    const matchedAddress = String(place.formattedAddress || '').replace(/,\s*(USA|United States)$/i, '').trim();
+    return { matchedAddress, coordinates: { lat, lon } };
+  } catch { return null; }
+  finally { clearTimeout(timer); signal?.removeEventListener('abort', stop); }
+}
+
 /**
  * The nearest outdoor Street View panorama, aimed at the house: { url, date, heading } or null.
  * Metadata requests are free; the image is only requested when the page shows it.

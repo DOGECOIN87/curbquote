@@ -260,17 +260,33 @@ export async function fromSolar(coordinates, styleId = DEFAULT_HOME_STYLE, signa
 }
 
 /**
- * Fetches building dimensions on demand. Google's Solar API answers first (it needs the Maps
- * key, so on builds without one this step is a no-op); OpenStreetMap is the fallback — relative
- * `api/footprint` when hosted, a direct Overpass lookup on static GitHub Pages builds, and the
- * same outlines read from OpenFreeMap's map tiles when either of those fails.
+ * Fetches building dimensions on demand. Google's Solar API and the open outlines (relative
+ * `api/footprint` when hosted, a direct Overpass lookup on static GitHub Pages builds, and the same
+ * outlines from OpenFreeMap's map tiles when those fail) are asked together. A traced outline that
+ * holds the address point is the home itself, so it wins; Solar's rectangle, rebuilt from a bounding
+ * box and the roof direction, comes next (in a test of 50 DC-area homes it landed within ±30% of the
+ * traced outline two times in three); a nearby outline is the last resort.
  */
 export async function fetchPublicFootprint(options = {}) {
   const { coordinates, styleId = DEFAULT_HOME_STYLE, signal } = options;
-  if (coordinates && hasAerialCoverage(coordinates)) {
-    const solar = await fromSolar(coordinates, styleId, signal).catch(() => null);
-    if (solar) return solar;
-  }
+  const solarPending = coordinates && hasAerialCoverage(coordinates) ? fromSolar(coordinates, styleId, signal).catch(() => null) : Promise.resolve(null);
+  const openPending = openFootprint(options).then(result => ({ result }), error => ({ error }));
+  const solar = await solarPending;
+  // With Solar's answer in hand, a slow open lookup gets a few more seconds, not the full timeout.
+  const open = solar ? await Promise.race([openPending, new Promise(resolve => setTimeout(resolve, 4000, {}))]) : await openPending;
+  if (open.result && holdsPoint(open.result, coordinates)) return open.result;
+  if (solar) return solar;
+  if (open.result) return open.result;
+  throw open.error || new Error('Public footprint data is unavailable here. Enter dimensions manually.');
+}
+/** Whether a footprint's outline holds the address point. */
+function holdsPoint(result, coordinates) {
+  const ring = result?.polygon?.coordinates?.[0];
+  if (!coordinates || !Array.isArray(ring) || ring.length < 4) return false;
+  return pointInRing(0, 0, toLocalMeters(ring, coordinates.lon, coordinates.lat));
+}
+async function openFootprint(options) {
+  const { coordinates, styleId = DEFAULT_HOME_STYLE, signal } = options;
   // Hosted, the server already falls back to the map tiles; the static site has no server.
   if (!STATIC_SITE) return lookupFootprint(options);
   const { fetchImpl = fetch } = options;

@@ -227,3 +227,18 @@ test('the automatic open-data lookup needs no confirmation, skips licensed provi
   assert.equal(res.code, 200);
   assert.equal(res.data.received.openOnly, true);
 });
+
+test('a traced outline holding the address point wins over the Solar rectangle; Solar wins over a nearby outline', async () => {
+  const { fetchPublicFootprint } = await import('../footprint-client.js');
+  const ring = (cx, cy, w, h) => [[-w, -h], [w, -h], [w, h], [-w, h], [-w, -h]].map(([x, y]) => [AUSTIN_CENTER.lon + (cx + x / 2) * DEG_LON_M, AUSTIN_CENTER.lat + (cy + y / 2) * DEG_LAT_M]);
+  const open = polygon => ({ polygon: { type: 'Polygon', coordinates: [polygon] }, areaSqFt: 1500, lengthFt: 50, widthFt: 30, source: { provider: 'OpenStreetMap / Overpass (ODbL)' } });
+  const solarInsights = { center: { latitude: AUSTIN_CENTER.lat, longitude: AUSTIN_CENTER.lon }, boundingBox: { sw: { latitude: AUSTIN_CENTER.lat - 6 * DEG_LAT_M, longitude: AUSTIN_CENTER.lon - 9 * DEG_LON_M }, ne: { latitude: AUSTIN_CENTER.lat + 6 * DEG_LAT_M, longitude: AUSTIN_CENTER.lon + 9 * DEG_LON_M } }, solarPotential: {} };
+  const answer = openRecord => async url => ({ ok: true, status: 200, json: async () => String(url).includes('map3d') ? { mapsKey: 'test-key-for-solar-footprints' } : String(url).includes('solar.googleapis') ? solarInsights : openRecord });
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = answer(open(ring(0, 0, 16, 10)));
+    assert.match((await fetchPublicFootprint({ coordinates: AUSTIN_CENTER, openOnly: true, fetchImpl: globalThis.fetch })).source.provider, /OpenStreetMap/);
+    globalThis.fetch = answer(open(ring(0, 25, 16, 10)));
+    assert.match((await fetchPublicFootprint({ coordinates: AUSTIN_CENTER, openOnly: true, fetchImpl: globalThis.fetch })).source.provider, /Solar/);
+  } finally { globalThis.fetch = original; }
+});

@@ -51,8 +51,14 @@ places Google doesn't cover, or if a request fails.
    demo, then redeploy. Without it, the Map Tiles key is tried.
 
 The key is public in the page by design, like the Map Tiles key, so the restrictions are what keep it safe.
-Typed addresses go to Google for suggestions; Street View, Solar and Aerial View receive only the
-address point or the matched address.
+Typed addresses go to Google for suggestions, and the matched address goes to Google once more to
+locate it (Places API: Autocomplete, then Place Details with the location field, about $0.008 a
+search). Census places an address along the street, often a house or two away; Google's point usually
+sits on the building, so the photo, 3D view and sizing find the right home. In a test of 60 DC-area
+homes, Census was never on the house (43 m away on average) and Google was on it 50 times, which took
+the share of homes sized from the right building from 20% to 85%. Census stays the fallback, and
+Google's point is used only for the same house number, a street address, and within 300 m of the
+Census point. Street View, Solar and Aerial View receive only the address point or the matched address.
 
 **Photo concepts** ("Show my choices on this photo", studio → Photo → Mark your walls) restyle the homeowner's own
 upload with an image model through the Vercel AI Gateway (`AI_IMAGE_MODEL`, default

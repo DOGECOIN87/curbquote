@@ -67,3 +67,25 @@ test('Street View offers only Google street imagery, never a business-uploaded i
     assert.match((await streetView([38.9801, -77.0901]))?.url || '', /pano=PANO/);
   } finally { globalThis.fetch = original; }
 });
+
+test('Google locates a street address on the building, but never swaps in a different address', async () => {
+  const { locateAddress } = await import('../google-maps.js');
+  const census = { lat: 38.98, lon: -77.09 };
+  const answer = ({ text = '5822 Bradley Blvd, Bethesda, MD 20817, USA', types = ['street_address'], location = { latitude: 38.98025, longitude: -77.0903 } } = {}) => async url => ({
+    ok: true, json: async () => String(url).includes('map3d') ? { mapsKey: 'test-key-for-places' }
+      : String(url).includes(':autocomplete') ? { suggestions: [{ placePrediction: { placeId: 'PLACE', text: { text } } }] }
+      : { location, formattedAddress: text, types }
+  });
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = answer();
+    assert.deepEqual(await locateAddress('5822 BRADLEY BLVD, BETHESDA, MD, 20817', { near: census }), { matchedAddress: '5822 Bradley Blvd, Bethesda, MD 20817', coordinates: { lat: 38.98025, lon: -77.0903 } });
+    globalThis.fetch = answer({ text: '5824 Bradley Blvd, Bethesda, MD 20817, USA' });
+    assert.equal(await locateAddress('5822 Bradley Blvd, Bethesda, MD 20817', { near: census }), null, 'a different house number is not this address');
+    globalThis.fetch = answer({ types: ['route'] });
+    assert.equal(await locateAddress('5822 Bradley Blvd, Bethesda, MD 20817', { near: census }), null, 'a street alone is not a location for the house');
+    globalThis.fetch = answer({ location: { latitude: 38.99, longitude: -77.09 } });
+    assert.equal(await locateAddress('5822 Bradley Blvd, Bethesda, MD 20817', { near: census }), null, 'over 300 m from the Census point is a different place');
+    assert.ok(await locateAddress('5822 Bradley Blvd, Bethesda, MD 20817'), 'without a Census match, Google alone may locate it');
+  } finally { globalThis.fetch = original; }
+});

@@ -2,7 +2,9 @@ import { isAddressMatch } from './address.js';
 import { aerialView, hasAerialCoverage, moveView, pointInView, DEFAULT_VIEW_METERS } from './property-view.js';
 import { setupProperty3D } from './property-3d.js';
 import { setupPropertyMap } from './property-map.js';
-import { streetView, flyoverAvailable, flyoverVideo } from './google-maps.js';
+import { streetView, flyoverAvailable, flyoverVideo, GOOGLE_ADDRESS_SOURCE } from './google-maps.js';
+/** What the pin on the photo is, by where the location came from. */
+const pinNote = location => location?.source === GOOGLE_ADDRESS_SOURCE ? 'The pin is Google’s location for this address.' : 'The pin is an approximate Census address point.';
 import { webgl2Available } from './cesium-runtime.js';
 
 /**
@@ -447,8 +449,8 @@ export function setupPropertyPreview({ onPhoto, getDimensions = () => ({}), onCo
       byId('aerial-width').textContent = `View width · ${Math.round(width)} m`;
       byId('aerial-zoom-in').disabled = width <= 60; byId('aerial-zoom-out').disabled = width >= 1200;
       status.textContent = has3d || view3d.hasLocal(match)
-        ? 'Aerial view ready. The pin is an approximate Census address point. Pan or tap the image to center the building.'
-        : 'Aerial view ready (optional 3D tiles are not connected here). The pin is an approximate Census address point. Pan or tap the image to center the building.';
+        ? `Aerial view ready. ${pinNote(match)} Pan or tap the image to center the building.`
+        : `Aerial view ready (optional 3D tiles are not connected here). ${pinNote(match)} Pan or tap the image to center the building.`;
     };
     timeout = setTimeout(error, 25000); img.src = next.url;
   }

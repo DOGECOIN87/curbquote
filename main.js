@@ -1,5 +1,6 @@
 import { DEFAULT_INPUT } from './estimate.js';
 import { DEFAULT_PROJECT, COLORS, PRODUCTS, TIERS, catalogRates, estimateProject } from './project.js';
+import { locateAddress, GOOGLE_ADDRESS_SOURCE } from './google-maps.js';
 import { readProjects, saveProject, deleteProject, savePhoto, loadPhoto, deletePhoto } from './storage.js';
 import { PhotoEditor } from './photo-editor.js';
 import { isAddressMatch, validateAddress, isAutomaticAddressReady } from './address.js';
@@ -1058,24 +1059,37 @@ async function lookupAddress({ automatic = false } = {}) {
   propertyPreview.searching();
   if (!automatic) propertyLookup?.lookup();
   try {
-    let payload;
-    // The static demo has no server, so it asks Census directly.
-    if (STATIC_SITE) payload = await lookupCensus(address, controller.signal);
-    else {
-      const response = await fetch(`api/geocode?${new URLSearchParams({ address })}`, {
-        headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal
-      });
-      try { payload = await response.json(); }
-      catch { throw new Error('Address lookup returned an unreadable response. Try again or estimate manually.'); }
-      if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Address lookup is unavailable. Try again or estimate manually.');
+    let payload, censusError = null;
+    try {
+      // The static demo has no server, so it asks Census directly.
+      if (STATIC_SITE) payload = await lookupCensus(address, controller.signal);
+      else {
+        const response = await fetch(`api/geocode?${new URLSearchParams({ address })}`, {
+          headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal
+        });
+        try { payload = await response.json(); }
+        catch { throw new Error('Address lookup returned an unreadable response. Try again or estimate manually.'); }
+        if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Address lookup is unavailable. Try again or estimate manually.');
+      }
+    } catch (error) {
+      if (controller.signal.aborted) throw error;
+      payload = null; censusError = error;
     }
-    if (!isAddressMatch(payload)) throw new Error('Address lookup returned incomplete location data. Try again or estimate manually.');
+    // Census places the address along the street, often a house or two from the building; Google's
+    // point for the same address usually sits on it, so the photo, 3D view and sizing find the right
+    // home. Google also finds addresses Census does not know. Census stays the fallback.
+    const google = await locateAddress(payload?.matchedAddress || address, { near: payload?.coordinates, signal: controller.signal });
     if (serial !== lookupSerial) return;
+    if (google) payload = payload ? { ...payload, coordinates: google.coordinates, source: GOOGLE_ADDRESS_SOURCE, censusCoordinates: payload.coordinates } : { ...google, source: GOOGLE_ADDRESS_SOURCE };
+    if (!payload) throw censusError;
+    if (!isAddressMatch(payload)) throw new Error('Address lookup returned incomplete location data. Try again or estimate manually.');
     setMatched(payload);
     propertyPreview.show(payload);
     autoFootprint(payload);
     if (automatic) propertyLookup?.lookup({ automatic: true });
-    addressStatus.textContent = `Approximate location matched: ${payload.matchedAddress}. This is not a building measurement or ownership check.`;
+    addressStatus.textContent = payload.source === GOOGLE_ADDRESS_SOURCE
+      ? `Location matched: ${payload.matchedAddress}. This is not a building measurement or ownership check.`
+      : `Approximate location matched: ${payload.matchedAddress}. This is not a building measurement or ownership check.`;
     addressStatus.className = 'field-help success';
     if (!footprintData && byId('footprint-status')) {
       byId('footprint-status').className = 'field-help';

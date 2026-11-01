@@ -269,15 +269,19 @@ export async function fromSolar(coordinates, styleId = DEFAULT_HOME_STYLE, signa
  */
 export async function fetchPublicFootprint(options = {}) {
   const { coordinates, styleId = DEFAULT_HOME_STYLE, signal } = options;
-  const solarPending = coordinates && hasAerialCoverage(coordinates) ? fromSolar(coordinates, styleId, signal).catch(() => null) : Promise.resolve(null);
+  const covered = Boolean(coordinates && hasAerialCoverage(coordinates)), open = options.openOnly || options.consented;
+  const solarPending = covered ? fromSolar(coordinates, styleId, signal).catch(() => null) : Promise.resolve(null);
   const openPending = openFootprint(options).then(result => ({ result }), error => ({ error }));
-  const solar = await solarPending;
-  // With Solar's answer in hand, a slow open lookup gets a few more seconds, not the full timeout.
-  const open = solar ? await Promise.race([openPending, new Promise(resolve => setTimeout(resolve, 4000, {}))]) : await openPending;
-  if (open.result && holdsPoint(open.result, coordinates)) return open.result;
-  if (solar) return solar;
-  if (open.result) return open.result;
-  throw open.error || new Error('Public footprint data is unavailable here. Enter dimensions manually.');
+  // The same outlines from OpenFreeMap's map tiles, read here too: the hosted lookup asks Overpass
+  // first, which is often busy for several seconds, and a traced outline should not lose to the
+  // Solar rectangle only because it came late.
+  const tilesPending = covered && open && !STATIC_SITE ? fromMapTiles(coordinates, styleId, signal, options.fetchImpl || fetch).catch(() => null) : Promise.resolve(null);
+  const [solar, tiles] = await Promise.all([solarPending, tilesPending]);
+  // With an answer in hand, a slow hosted lookup gets a few more seconds, not the full timeout.
+  const hosted = solar || tiles ? await Promise.race([openPending, new Promise(resolve => setTimeout(resolve, 4000, {}))]) : await openPending;
+  // A hosted record without an outline (a licensed provider's figures) cannot be checked, so it stands.
+  const holding = [hosted.result, tiles].find(result => result && (holdsPoint(result, coordinates) || (result === hosted.result && !result.polygon)));
+  return holding || solar || hosted.result || tiles || (() => { throw hosted.error || new Error('Public footprint data is unavailable here. Enter dimensions manually.'); })();
 }
 /** Whether a footprint's outline holds the address point. */
 function holdsPoint(result, coordinates) {

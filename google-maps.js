@@ -57,7 +57,8 @@ export const GOOGLE_ADDRESS_SOURCE = 'Google Maps address location';
 export async function locateAddress(address, { near = null, signal } = {}) {
   const key = await mapsKey(), text = String(address || '').trim(), number = text.match(/^\s*(\d+)/)?.[1];
   if (!key || !number) return null;
-  const local = new AbortController(), timer = setTimeout(() => local.abort(), 3000), stop = () => local.abort();
+  // The first call after the page loads also opens the connection, often while the page is busy.
+  const local = new AbortController(), timer = setTimeout(() => local.abort(), 6000), stop = () => local.abort();
   signal?.addEventListener('abort', stop);
   try {
     const headers = { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key };

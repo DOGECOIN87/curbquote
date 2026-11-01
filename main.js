@@ -1,6 +1,6 @@
 import { DEFAULT_INPUT } from './estimate.js';
 import { DEFAULT_PROJECT, COLORS, PRODUCTS, TIERS, catalogRates, estimateProject } from './project.js';
-import { locateAddress, GOOGLE_ADDRESS_SOURCE } from './google-maps.js';
+import { locateAddress, distanceMetres, GOOGLE_ADDRESS_SOURCE } from './google-maps.js';
 import { readProjects, saveProject, deleteProject, savePhoto, loadPhoto, deletePhoto } from './storage.js';
 import { PhotoEditor } from './photo-editor.js';
 import { isAddressMatch, validateAddress, isAutomaticAddressReady } from './address.js';
@@ -1060,6 +1060,8 @@ async function lookupAddress({ automatic = false } = {}) {
   if (!automatic) propertyLookup?.lookup();
   try {
     let payload, censusError = null;
+    // Google is asked at the same time as Census, so locating the house adds no wait.
+    const googlePending = locateAddress(address, { signal: controller.signal });
     try {
       // The static demo has no server, so it asks Census directly.
       if (STATIC_SITE) payload = await lookupCensus(address, controller.signal);
@@ -1078,7 +1080,9 @@ async function lookupAddress({ automatic = false } = {}) {
     // Census places the address along the street, often a house or two from the building; Google's
     // point for the same address usually sits on it, so the photo, 3D view and sizing find the right
     // home. Google also finds addresses Census does not know. Census stays the fallback.
-    const google = await locateAddress(payload?.matchedAddress || address, { near: payload?.coordinates, signal: controller.signal });
+    const found = await googlePending;
+    // Within 300 m of the Census point, or it is a different street or town.
+    const google = found && (!payload || distanceMetres([payload.coordinates.lat, payload.coordinates.lon], [found.coordinates.lat, found.coordinates.lon]) <= 300) ? found : null;
     if (serial !== lookupSerial) return;
     if (google) payload = payload ? { ...payload, coordinates: google.coordinates, source: GOOGLE_ADDRESS_SOURCE, censusCoordinates: payload.coordinates } : { ...google, source: GOOGLE_ADDRESS_SOURCE };
     if (!payload) throw censusError;

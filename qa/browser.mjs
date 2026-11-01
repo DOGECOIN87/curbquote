@@ -425,7 +425,8 @@ try {
     for (const [id,value] of Object.entries(values)) document.getElementById(id).value = value;
     document.getElementById('lengthFt').dispatchEvent(new Event('input',{bubbles:true}));
   });
-  await estimate(); await page.locator('#estimate-info').click();
+  // Open the breakdown even where it sits in the closed phone sheet, so wide layouts check its legend too.
+  await estimate(); await page.locator('#estimate-info').evaluate(button => button.click());
   for (const [width,height] of matrix) {
     await page.setViewportSize({width,height});
     const result = await page.evaluate(() => ({ width:innerWidth, document:document.documentElement.scrollWidth,

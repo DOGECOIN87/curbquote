@@ -19,6 +19,7 @@ import { setupLeadForm } from './lead-form.js';
 import { parseChangeRequest, describeChange } from './intent.js';
 import { setupAddressSuggestions } from './address-suggest.js';
 import { OFFICES, serviceArea } from './alco.js';
+import { findMarker, paintSiding } from './concept-recolour.js';
 
 const form = document.querySelector('#estimate-form');
 const errorEl = document.querySelector('#form-error');
@@ -57,7 +58,7 @@ let footprintData = null;
 // Typed size fields are never overwritten by the automatic open-data lookup.
 let measurementsTouched = false;
 // The studio's AI photo state (see "Your photo" below): concept, measurement, side counts and Undo.
-const photoAi = { available: false, busy: '', file: null, sent: null, concept: '', conceptKey: '', showing: 'photo', measured: null, sides: new Map(), backup: null };
+const photoAi = { available: false, busy: '', file: null, sent: null, concept: null, conceptKey: '', painted: '', showing: 'photo', measured: null, sides: new Map(), backup: null };
 // The inputs and source from before the homeowner confirmed a measured size, for Undo.
 let sizeBeforeConfirm = null;
 let manualInputsBackup = null;
@@ -195,18 +196,63 @@ function showConcept(view) {
   if (wizard.current !== 4) wizard.show(4);
   setStudioView('photo');
 }
+/**
+ * Which concept the current choices need. When the project changes the siding, the model paints it in
+ * a magenta marker and the page recolours it (concept-recolour.js), so the siding colour is left out:
+ * changing it repaints the same image instantly instead of making a new one.
+ */
+function conceptKey(design = conceptDesign()) {
+  return JSON.stringify(design.siding ? { ...design, siding: { product: design.siding.product } } : design);
+}
+/** The AI image as pixels, with where its marked siding is (or null when the siding is final as drawn). */
+async function decodeConcept(dataUrl, marked) {
+  // An <img> reads the data URL (the page's CSP allows data: images, not data: fetches).
+  const image = new Image(), canvas = document.createElement('canvas');
+  image.src = dataUrl; await image.decode();
+  canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(image, 0, 0);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height), marker = marked ? findMarker(pixels.data, pixels.width) : null;
+  return { pixels, marker };
+}
+/** Draws the concept, with its siding in the colour chosen now. */
+function paintConcept() {
+  const concept = photoAi.concept, canvas = byId('studio-concept-image');
+  if (!concept) return;
+  if (canvas.width !== concept.pixels.width || canvas.height !== concept.pixels.height) { canvas.width = concept.pixels.width; canvas.height = concept.pixels.height; }
+  const data = concept.marker ? paintSiding(concept.pixels.data, concept.marker, COLORS[selectedColor].hex) : concept.pixels.data;
+  canvas.getContext('2d').putImageData(new ImageData(data, concept.pixels.width, concept.pixels.height), 0, 0);
+  photoAi.painted = concept.marker ? selectedColor : 'final';
+}
 byId('studio-concept').addEventListener('click', () => {
-  const design = conceptDesign(), key = JSON.stringify(design);
+  const design = conceptDesign(), key = conceptKey(design);
   if (photoAi.concept && photoAi.conceptKey === key) { showConcept('concept'); return; }
   showConcept('photo');
   photoRequest('Making your concept. This usually takes 10 to 30 seconds…', async current => {
-    const body = await postPhoto('api/visualize', { image: photoForAi(), design }, 130000);
+    let body = await postPhoto('api/visualize', { image: photoForAi(), design, marker: Boolean(design.siding) }, 130000);
     if (!current()) return;
-    Object.assign(photoAi, { file: editor.file, concept: body.image, conceptKey: key });
-    byId('concept-download').href = body.image;
-    photoAiStatus('Your concept is ready. It’s illustrative and doesn’t change your estimate.');
+    let concept = await decodeConcept(body.image, Boolean(body.marker));
+    // Little or no marker: no siding to recolour (an all-brick house), so the image is final as drawn.
+    // Marker over most of the picture: the model tinted everything; ask once for the finished colours instead.
+    if (concept.marker && concept.marker.coverage < .005) concept.marker = null;
+    if (concept.marker && concept.marker.coverage > .6) {
+      body = await postPhoto('api/visualize', { image: photoForAi(), design }, 130000);
+      if (!current()) return;
+      concept = await decodeConcept(body.image, false);
+    }
+    Object.assign(photoAi, { file: editor.file, concept, conceptKey: key, painted: '' });
+    photoAiStatus(concept.marker ? 'Your concept is ready. Tap any siding colour to see it on your photo instantly. It’s illustrative and doesn’t change your estimate.' : 'Your concept is ready. It’s illustrative and doesn’t change your estimate.');
     showConcept('concept');
   });
+});
+byId('concept-download').addEventListener('click', event => {
+  event.preventDefault();
+  byId('studio-concept-image').toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob), link = document.createElement('a');
+    link.href = url; link.download = 'my-alco-concept.jpg'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, 'image/jpeg', .92);
 });
 for (const button of document.querySelectorAll('[data-concept-view]')) button.addEventListener('click', () => showConcept(button.dataset.conceptView));
 byId('studio-measure').addEventListener('click', () => {
@@ -311,15 +357,16 @@ function drawPhotoMeasure(context, width, height) {
 function paintPhotoAi() {
   const photo = Boolean(editor.bitmap);
   // A new or removed photo drops the concept and measurement made from the old one; the side counts stay.
-  if (photoAi.file && photoAi.file !== editor.file) Object.assign(photoAi, { file: null, concept: '', conceptKey: '', showing: 'photo', measured: null });
+  if (photoAi.file && photoAi.file !== editor.file) Object.assign(photoAi, { file: null, concept: null, conceptKey: '', painted: '', showing: 'photo', measured: null });
   byId('photo-ai').hidden = !photoAi.available || !photo;
-  const busy = Boolean(photoAi.busy), stale = photoAi.concept && photoAi.conceptKey !== JSON.stringify(conceptDesign());
+  const busy = Boolean(photoAi.busy), stale = photoAi.concept && photoAi.conceptKey !== conceptKey();
   byId('studio-concept').disabled = byId('studio-measure').disabled = busy;
   byId('studio-concept').textContent = stale ? 'Update my choices' : 'See my choices';
   byId('studio-measure').textContent = photoAi.measured && photoAi.file === editor.file ? 'Measure again' : 'Measure my photo';
   byId('photo-busy').hidden = !busy; byId('photo-busy-text').textContent = photoAi.busy;
   const concept = photo && photoAi.showing === 'concept' && Boolean(photoAi.concept);
-  if (concept && byId('studio-concept-image').src !== photoAi.concept) byId('studio-concept-image').src = photoAi.concept;
+  // A siding colour tapped while the concept shows repaints it at once; nothing is sent.
+  if (concept && photoAi.painted !== (photoAi.concept.marker ? selectedColor : 'final')) paintConcept();
   byId('studio-concept-image').hidden = !concept;
   byId('studio-photo-canvas').hidden = !photo || concept;
   byId('concept-view').hidden = !photo || !photoAi.concept;

@@ -6,6 +6,8 @@
  * fallback, primary again) and a check on every returned image keep it working when one model
  * fails. Only the homeowner's upload is used (Google imagery may not be modified). Nothing is
  * stored; the picture is illustrative and never feeds the estimate. GET says whether it is available.
+ * With `marker`, the siding comes back in a magenta marker that the page recolours instantly for any
+ * siding colour (concept-recolour.js), so changing the colour needs no new image.
  */
 import { z } from 'zod';
 import { hasAgentCredentials } from '../lib/agent.mjs';
@@ -13,6 +15,7 @@ import { ChainError, editPhoto, modelChain, readDataUrl } from '../lib/image-ai.
 import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
 import { COLORS, PRODUCTS } from '../project.js';
 import { ROOF_COLORS, TRIM_COLORS } from '../house-spec.js';
+import { SIDING_MARKER } from '../concept-recolour.js';
 
 // Chosen from a comparison on three real Alco photos (November 2026), each result scored by two
 // vision models for the changes made, colour, the house kept, the scene kept and realism: GPT Image 2
@@ -37,7 +40,9 @@ const text = max => z.string().trim().max(max).regex(/^[\w\s,.'()&/-]*$/);
 const legacySchema = z.object({ siding: text(80), color: text(40), trim: text(40).optional(), roof: text(80).optional() }).strict();
 const requestSchema = z.object({
   image: z.string().max(MAX_IMAGE_CHARS).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/),
-  design: z.union([designSchema, legacySchema])
+  design: z.union([designSchema, legacySchema]),
+  // The page recolours the siding itself (concept-recolour.js): the model paints it a magenta marker.
+  marker: z.literal(true).optional()
 }).strict();
 // Image models cost more than text: a few concepts per visitor per 10 minutes.
 const limiter = createRequestLimiter({ limit: 4 });
@@ -54,13 +59,15 @@ export const COLOR_LOOKS = Object.freeze({
 const shade = ({ name, hex }, look) => `${name.toLowerCase()}, ${look} (${hex})`;
 
 /** One line per change the homeowner chose, in the order a contractor would describe them. */
-export function designChanges(design) {
+export function designChanges(design, { marker = false } = {}) {
   if (typeof design.siding === 'string') {
     return [`Wall siding: ${design.color.toLowerCase()} ${design.siding.toLowerCase()}.`, design.trim && `Trim: ${design.trim.toLowerCase()}.`, design.roof && `Roof: ${design.roof.toLowerCase()}.`].filter(Boolean);
   }
   const trim = design.trim && TRIM_COLORS[design.trim], frames = trim && ['black', 'bronze'].includes(design.trim) ? trim.name.toLowerCase() : 'white';
   return [
-    design.siding && `Wall siding: replace the siding on every sided wall with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding in ${shade(COLORS[design.siding.color], COLOR_LOOKS.siding[design.siding.color])}. The new colour must be clearly visible on every sided wall, in sun and in shade. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`,
+    design.siding && (marker
+      ? `Wall siding: replace the siding on every sided wall with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding painted a flat, vivid magenta (${SIDING_MARKER}), with the boards' real texture, shadows and light. The magenta is a marker so the siding can be recoloured later: use it on every sided wall, in sun and in shade, and nowhere else in the photo. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`
+      : `Wall siding: replace the siding on every sided wall with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding in ${shade(COLORS[design.siding.color], COLOR_LOOKS.siding[design.siding.color])}. The new colour must be clearly visible on every sided wall, in sun and in shade. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`),
     design.roof && `Roof: new CertainTeed architectural asphalt shingles in ${shade(ROOF_COLORS[design.roof.color], COLOR_LOOKS.roof[design.roof.color])}, on the same roof shape.`,
     trim && `Trim: paint the window, door, corner and fascia trim ${shade(trim, COLOR_LOOKS.trim[design.trim])}.`,
     design.windows && `Windows: new ${PRODUCTS.windows[design.windows.product].name} windows in the same openings, sizes and grid pattern, with ${frames} frames.`,
@@ -70,10 +77,10 @@ export function designChanges(design) {
 }
 
 /** The instruction for the image model: make the chosen changes, keep the house and the photo as they are. */
-export function restylePrompt(design) {
+export function restylePrompt(design, options) {
   return [
     'Edit this photo of a house to show a finished exterior renovation. Make only these changes:',
-    ...designChanges(design).map(line => `- ${line}`),
+    ...designChanges(design, options).map(line => `- ${line}`),
     'Keep everything else exactly as it is: the same house, its shape, size and proportions, every window and door opening, the camera angle and framing, the time of day and lighting, the sky, trees, landscaping, driveway, cars, people and neighbouring buildings. Do not add or remove windows, doors, rooms, porches, shutters or stories.',
     'The result must look like a real, unretouched photograph taken at the same moment, with the same framing as the original, and no text, labels, borders or watermarks.'
   ].join('\n');
@@ -96,8 +103,10 @@ export function createVisualizeHandler({
     } catch { return res.status(400).json({ code: 'INVALID_REQUEST', error: 'This photo or design could not be read. Use a JPEG, PNG or WebP photo at least 200 pixels across.' }); }
     if (!allow(clientKey(req))) { res.setHeader('Retry-After', '600'); return res.status(429).json({ code: 'RATE_LIMIT', error: 'Photo concept limit reached. Try again in a few minutes.' }); }
     try {
-      const result = await edit({ models, prompt: restylePrompt(body.design), image });
-      return res.status(200).json({ image: `data:${result.mediaType};base64,${result.base64}`, model: result.model });
+      // The marker only applies when the siding changes; without it the concept is final as it comes.
+      const marker = Boolean(body.marker && typeof body.design.siding === 'object');
+      const result = await edit({ models, prompt: restylePrompt(body.design, { marker }), image });
+      return res.status(200).json({ image: `data:${result.mediaType};base64,${result.base64}`, model: result.model, ...(marker && { marker: SIDING_MARKER }) });
     } catch (error) {
       if (!(error instanceof ChainError)) console.warn('photo concept failed', error?.name);
       return res.status(502).json({ code: 'AI_FAILED', error: 'The photo concept could not be made right now. Try again in a minute; your colour preview still works.' });

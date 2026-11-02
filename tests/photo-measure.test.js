@@ -41,6 +41,19 @@ test('photo measuring: sizes are left out when the photo cannot support them', (
   assert.equal(measureReading({ ...reading, stories: 1.5 }, size).stories, 2);
 });
 
+test('photo measuring: real readings of Alco photos, with a dormer and a door set back behind the garage', () => {
+  const photo = { width: 1200, height: 800 };
+  // A two-story house seen from the back: the small gable is a dormer's, not the roof's, so no gable rise.
+  const back = measureReading({ ...reading, side: 'back', windows: 7, garageDoors: 0, frontGables: 1, garageDoor: null,
+    wall: { top: 250, left: 130, bottom: 775, right: 815 }, entryDoor: { top: 530, left: 358, bottom: 745, right: 420 }, gable: { top: 198, left: 218, bottom: 265, right: 305 } }, photo);
+  assert.deepEqual([back.scale, back.wallFt, back.storyHeightFt, back.gableRiseFt], ['front door', 32, 8, null]);
+  // A ranch whose front door stands behind the garage: the doors disagree, so the garage (a 9.8 ft story) sets
+  // the height and the front's length is not read; the counts stay.
+  const ranch = measureReading({ ...reading, stories: 1, windows: 3, garageDoors: 1, frontGables: 0, gable: null,
+    wall: { top: 300, left: 58, bottom: 650, right: 920 }, entryDoor: { top: 415, left: 345, bottom: 560, right: 375 }, garageDoor: { top: 435, left: 445, bottom: 685, right: 825 } }, photo);
+  assert.deepEqual([ranch.scale, ranch.wallFt, ranch.storyHeightFt, ranch.windows], ['garage door', null, 10, 3]);
+});
+
 test('photo measuring route: off without AI, validated, rate-limited, refuses non-houses, and fails gracefully', async () => {
   assert.deepEqual((await call(createMeasurePhotoHandler({ configured: () => false }), { method: 'GET' })).body, { available: false });
   assert.equal((await call(createMeasurePhotoHandler({ configured: () => false }), { method: 'POST', body: JSON.stringify({ image: photo }) })).code, 503);

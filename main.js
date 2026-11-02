@@ -230,7 +230,7 @@ function paintPhotoMeasure() {
   byId('photo-measure').hidden = !m;
   if (!m) return;
   const side = SIDE_NAMES[m.side] || 'This side', ft = n => `${n} ft`, sides = photoAi.sides.size, totals = sideTotals();
-  byId('photo-measure-basis').textContent = `${side} of the house, ${m.view === 'straight-on' ? 'seen straight on' : m.view === 'unclear' ? 'angle unclear' : `seen ${m.view === 'corner' ? 'from a corner' : 'at an angle'}`}. ${m.scale ? `Sizes are scaled from the ${m.scale} (standard sizes).` : 'No door was clear enough to scale from, so only counts are read.'}`;
+  byId('photo-measure-basis').textContent = `${side} of the house, ${m.view === 'straight-on' ? 'seen straight on' : m.view === 'unclear' ? 'angle unclear' : `seen ${m.view === 'corner' ? 'from a corner' : 'at an angle'}`}. ${m.scale ? `Sizes are scaled from the ${m.scale} (standard sizes)${m.depthsDiffer ? '; the doors stand at different depths, so the wall’s length isn’t read' : ''}.` : 'No door gave a reliable scale, so only counts are read.'}`;
   const wallLabel = ['left side', 'right side'].includes(m.side) ? 'Side wall' : 'Front wall';
   const rows = [
     ['Stories', String(m.stories)],

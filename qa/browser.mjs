@@ -18,7 +18,7 @@ const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
 const aiRequests = [];
 const photoReading = {
   houseExterior: true, view: 'straight-on', side: 'front', stories: 2, windows: 7, entryDoors: 1, garageDoors: 0, frontGables: 1,
-  wall: { top: 192, left: 95, bottom: 840, right: 905 }, entryDoor: { top: 600, left: 470, bottom: 840, right: 520 }, garageDoor: null, gable: { top: 12, left: 380, bottom: 192, right: 620 },
+  wall: { top: 192, left: 95, bottom: 840, right: 905 }, entryDoor: { top: 600, left: 470, bottom: 840, right: 520 }, garageDoor: null, gable: { top: 12, left: 360, bottom: 192, right: 640 },
   masonryPercent: 10, currentSiding: 'vinyl', roofShape: 'gable', confidence: 'high', note: 'Clear photo.'
 };
 const server = createAppServer({
@@ -530,7 +530,7 @@ try {
   await page.waitForFunction(() => !document.querySelector('#studio-concept-image').hidden);
   // Only the work in the project changes on the photo, in the homeowner's colour and products.
   const conceptPrompt = aiRequests.at(-1).prompt, scopes = await page.evaluate(() => Object.fromEntries(['siding', 'windows', 'doors', 'roofing', 'gutters'].map(key => [key, document.getElementById(`scope-${key}`).checked])));
-  assert.equal(/Wall siding: .*James Hardie fiber cement lap siding in coastal slate \(#637c8a\)/.test(conceptPrompt), scopes.siding, conceptPrompt);
+  assert.equal(/Wall siding: .*James Hardie fiber cement lap siding in coastal slate, a medium blue-grey \(#637c8a\)/.test(conceptPrompt), scopes.siding, conceptPrompt);
   assert.equal(/Windows: new Marvin fiberglass windows/.test(conceptPrompt), scopes.windows, conceptPrompt);
   assert.equal(/Roof:/.test(conceptPrompt), scopes.roofing); assert.equal(/Gutters:/.test(conceptPrompt), scopes.gutters);
   assert.match(conceptPrompt, /Keep everything else exactly as it is/);

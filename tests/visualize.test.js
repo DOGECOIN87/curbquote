@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createVisualizeHandler, designChanges, restylePrompt } from '../api/visualize.js';
+import { COLOR_LOOKS, createVisualizeHandler, designChanges, restylePrompt } from '../api/visualize.js';
+import { COLORS } from '../project.js';
+import { ROOF_COLORS, TRIM_COLORS } from '../house-spec.js';
 import { ChainError, editPhoto, imageSize, modelChain, usableImage } from '../lib/image-ai.mjs';
 
 const call = async (handler, req) => { const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } }; await handler(req, res); return res; };
@@ -22,13 +24,17 @@ test('image headers: PNG, JPEG (after APP segments) and WebP sizes; anything els
 test('photo concepts: every Alco choice becomes one plain instruction, built from the catalog', () => {
   const lines = designChanges(design);
   assert.equal(lines.length, 6);
-  assert.match(lines[0], /James Hardie fiber cement lap siding in deep navy \(#3e4f63\).*Leave any brick/);
-  assert.match(lines[1], /CertainTeed architectural asphalt shingles in onyx black \(#2a2c2f\)/);
-  assert.match(lines[2], /trim classic white/); assert.match(lines[3], /Marvin fiberglass windows .* white frames/);
+  assert.match(lines[0], /James Hardie fiber cement lap siding in deep navy, a deep navy blue \(#3e4f63\)\. The new colour must be clearly visible.*Leave any brick/);
+  assert.match(lines[1], /CertainTeed architectural asphalt shingles in onyx black, black \(#2a2c2f\)/);
+  assert.match(lines[2], /trim classic white, bright white/);
+  // Every catalog colour has a plain description, so a new colour cannot reach the model as a bare name.
+  assert.deepEqual(Object.keys(COLOR_LOOKS.siding).sort(), Object.keys(COLORS).sort());
+  assert.deepEqual(Object.keys(COLOR_LOOKS.roof).sort(), Object.keys(ROOF_COLORS).sort());
+  assert.deepEqual(Object.keys(COLOR_LOOKS.trim).sort(), Object.keys(TRIM_COLORS).filter(key => TRIM_COLORS[key].hex).sort()); assert.match(lines[3], /Marvin fiberglass windows .* white frames/);
   assert.match(lines[4], /ProVia steel door with a deep teal/); assert.match(lines[5], /seamless gutters .* in classic white/);
   // Only what the homeowner chose changes; the rest of the photo is kept.
   const sidingOnly = restylePrompt({ siding: { product: 'vinyl', color: 'sage' } });
-  assert.match(sidingOnly, /CertainTeed vinyl lap siding in sage/); assert.doesNotMatch(sidingOnly, /Roof:|Trim:|Windows:|Gutters:/); assert.match(sidingOnly, /Keep everything else exactly as it is/);
+  assert.match(sidingOnly, /CertainTeed vinyl lap siding in sage, a soft grey-green/); assert.doesNotMatch(sidingOnly, /Roof:|Trim:|Windows:|Gutters:/); assert.match(sidingOnly, /Keep everything else exactly as it is/);
   assert.match(designChanges({ siding: 'Vinyl lap siding', color: 'Sage' })[0], /sage vinyl lap siding/, 'the older page format still reads');
 });
 

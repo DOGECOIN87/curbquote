@@ -73,6 +73,15 @@ demo. Google imagery is never sent: the Maps Platform terms forbid analysing or 
   `AI_IMAGE_FALLBACK_MODEL` (default `google/gemini-3.1-flash-lite-image`, about 5 seconds and $0.034),
   then the first again, within 100 seconds. An image is shown only if it is a real picture framed like
   the photo (within about 25% of its shape); otherwise the next model runs.
+- **Instant siding colours.** When the siding is in the project, the page asks for the siding in a
+  vivid magenta marker (`marker: true`). `concept-recolour.js` finds the marked pixels once, then
+  repaints them in any siding colour in milliseconds, keeping the boards' shadows and texture, so tapping
+  a colour costs nothing and needs no new image. One image is made per set of the other choices (siding
+  product, shingle colour, trim, windows, door, gutters); changing one of those offers "Update my
+  choices". If the image has almost no marker (an all-brick house) it is shown as drawn; if the marker
+  covers most of the picture, the page asks once for the finished colours instead. Pre-making every
+  combination would take 15,120 images per photo (about $300–750), so this keeps a customer to about
+  $0.02–0.05 for the first image.
 - **How the image models were chosen** (November 2026): three real Alco project photos, each restyled
   with a full set of Alco choices by every candidate, each result scored 0–10 by two vision models
   (Claude Opus 5.5 and GPT-6 Sol) for the changes made, colour, the house kept, the scene kept and

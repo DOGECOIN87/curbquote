@@ -36,6 +36,10 @@ test('photo concepts: every Alco choice becomes one plain instruction, built fro
   const sidingOnly = restylePrompt({ siding: { product: 'vinyl', color: 'sage' } });
   assert.match(sidingOnly, /CertainTeed vinyl lap siding in sage, a soft grey-green/); assert.doesNotMatch(sidingOnly, /Roof:|Trim:|Windows:|Gutters:/); assert.match(sidingOnly, /Keep everything else exactly as it is/);
   assert.match(designChanges({ siding: 'Vinyl lap siding', color: 'Sage' })[0], /sage vinyl lap siding/, 'the older page format still reads');
+  // With the marker, the siding is painted magenta for the page to recolour; the other choices are unchanged.
+  const marked = designChanges(design, { marker: true });
+  assert.match(marked[0], /lap siding painted a flat, vivid magenta \(#ff00ff\).*nowhere else in the photo/); assert.doesNotMatch(marked[0], /navy/);
+  assert.deepEqual(marked.slice(1), lines.slice(1));
 });
 
 test('photo concepts: off without AI, validated, rate-limited, and only the homeowner photo goes to the models', async () => {
@@ -47,7 +51,11 @@ test('photo concepts: off without AI, validated, rate-limited, and only the home
   assert.equal(ok.code, 200); assert.equal(ok.body.image, 'data:image/png;base64,iVBORw0KGgo=');
   assert.deepEqual(sent.models, ['test/a', 'test/b']); assert.equal(sent.image.mediaType, 'image/jpeg'); assert.deepEqual(sent.image.size, { width: 1280, height: 853 });
   assert.match(sent.prompt, /deep navy[\s\S]*onyx black[\s\S]*Keep everything else/);
-  for (const bad of [{ image: 'https://example.com/x.jpg', design }, { image: photo, design: { ...design, trim: '<script>' } }, { image: photo, design: { siding: { product: 'brick', color: 'sage' } } }, { image: photo, design: {} }, { image: photo, design, extra: 1 }, { image: 'data:image/jpeg;base64,AAAA', design }])
+  const markedReply = await call(handler, { method: 'POST', headers: {}, socket: {}, body: JSON.stringify({ image: photo, design, marker: true }) });
+  assert.equal(markedReply.body.marker, '#ff00ff'); assert.match(sent.prompt, /vivid magenta/);
+  const sidingOff = await call(handler, { method: 'POST', headers: {}, socket: {}, body: JSON.stringify({ image: photo, design: { roof: { color: 'onyx' } }, marker: true }) });
+  assert.equal(sidingOff.body.marker, undefined, 'no siding change, no marker'); assert.doesNotMatch(sent.prompt, /magenta/);
+  for (const bad of [{ image: photo, design, marker: 'yes' }, { image: 'https://example.com/x.jpg', design }, { image: photo, design: { ...design, trim: '<script>' } }, { image: photo, design: { siding: { product: 'brick', color: 'sage' } } }, { image: photo, design: {} }, { image: photo, design, extra: 1 }, { image: 'data:image/jpeg;base64,AAAA', design }])
     assert.equal((await call(handler, { method: 'POST', body: JSON.stringify(bad) })).code, 400, JSON.stringify(bad).slice(0, 80));
   assert.equal((await call(createVisualizeHandler({ configured: () => true, allow: () => false }), { method: 'POST', headers: {}, socket: {}, body: JSON.stringify({ image: photo, design }) })).code, 429);
   const failed = createVisualizeHandler({ configured: () => true, allow: () => true, edit: async () => { throw new ChainError(['test/a: timed out']); } });

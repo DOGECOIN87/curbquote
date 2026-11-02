@@ -60,11 +60,29 @@ the share of homes sized from the right building from 20% to 85%. Census stays t
 Google's point is used only for the same house number, a street address, and within 300 m of the
 Census point. Street View, Solar and Aerial View receive only the address point or the matched address.
 
-**Photo concepts** ("Show my choices on this photo", studio → Photo → Mark your walls) restyle the homeowner's own
-upload with an image model through the Vercel AI Gateway (`AI_IMAGE_MODEL`, default
-`google/gemini-2.5-flash-image`). They use the same AI Gateway credentials as the assistant, are
-rate-limited, store nothing, and are not available on the static Pages demo. Google imagery is never
-sent: the Maps Platform terms forbid modifying it.
+**Your photo (AI).** When the homeowner uploads a photo, the studio's "Your photo" card offers two
+things. Both use the same AI Gateway credentials as the assistant, are rate-limited per visitor, store
+nothing, send the photo only when the homeowner presses the button, and are off on the static Pages
+demo. Google imagery is never sent: the Maps Platform terms forbid analysing or modifying it.
+
+- **See my choices** (`api/visualize`) restyles the photo with the project's Alco choices: siding
+  product and colour, CertainTeed shingle colour, trim, windows, entry door and gutters, only for the
+  work that is in the project. The page sends catalog keys and the server writes the instruction, so
+  every request reads the same way. Each request tries a chain of models: `AI_IMAGE_MODEL` (default
+  `google/gemini-2.5-flash-image`, about $0.04 an image), then `AI_IMAGE_FALLBACK_MODEL` (default
+  `openai/gpt-image-2`), then the first again, within 100 seconds. An image is shown only if it is a
+  real picture framed like the photo (within about 25% of its shape); otherwise the next model runs.
+- **Measure my photo** (`api/measure-photo`) asks a vision model (`AI_VISION_MODEL`, default
+  `google/gemini-3-flash`; fallback `AI_VISION_FALLBACK_MODEL`, default `openai/gpt-5.4-mini`; well
+  under a cent a photo) to find the wall facing the camera, the front door, any garage door and a front
+  gable, and to count stories, windows and doors. The feet are worked out in code from standard door
+  sizes (80 in entry door, 7 ft garage door): wall length only for a wall seen straight on, heights and
+  gable rise when a door gives the scale, and nothing outside sensible ranges. The homeowner chooses
+  **Use in my estimate** (and can undo it). A mapped building outline keeps the house's length and
+  width; window and door counts add up across photos of different sides; brick or stone is used once
+  two sides are measured. Expect about ±10–15%.
+- Failures are logged by model name and reason only (`photo concept attempt failed (...)`), never
+  with the photo.
 
 ## 1. Free government services (nothing to set up)
 

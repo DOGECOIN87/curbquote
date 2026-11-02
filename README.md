@@ -51,6 +51,10 @@ the studio is a bottom sheet, and "Your project" opens over it. Details: [docs/2
      concept model, and additions are shown, not priced yet. A visual cost-share bar explains how
      the illustrative range is divided. On phones the total offers a one-tap jump to the studio.
    - Try siding colours on the example house, or on your own photo after you mark its walls.
+   - Upload a photo of your home: **See my choices** shows it, photo-real, with your Alco siding,
+     shingles, trim, windows, door and gutters (an AI concept), and **Measure my photo** reads its
+     stories, windows, doors and wall sizes (scaled from the front door) for you to use in the estimate.
+     The photo is sent to the AI service only on those buttons. Setup: docs/SETUP.md.
 5. **Keep it.** Save projects on this device, then download or print the summary for a contractor.
 
 ## Quick start

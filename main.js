@@ -56,6 +56,8 @@ let manualStyleOverride = false;
 let footprintData = null;
 // Typed size fields are never overwritten by the automatic open-data lookup.
 let measurementsTouched = false;
+// The studio's AI photo state (see "Your photo" below): concept, measurement, side counts and Undo.
+const photoAi = { available: false, busy: '', file: null, sent: null, concept: '', conceptKey: '', showing: 'photo', measured: null, sides: new Map(), backup: null };
 // The inputs and source from before the homeowner confirmed a measured size, for Undo.
 let sizeBeforeConfirm = null;
 let manualInputsBackup = null;
@@ -142,33 +144,188 @@ remodel = setupRemodel3D({
   }
 });
 /**
- * "Show my choices on this photo": the homeowner's own photo, restyled by an image model on the server
- * (api/visualize). Hidden on the static site and wherever AI is not connected.
+ * The studio's "Your photo" card. "See my choices on my photo" sends the homeowner's own photo and
+ * their Alco choices (option keys) to api/visualize for a photo-real concept; "Measure my photo" sends
+ * it to api/measure-photo, which reads stories, windows, doors and wall sizes scaled from standard
+ * door sizes. The homeowner chooses whether a measurement goes into the estimate, and can undo it.
+ * The photo leaves the browser only on these two buttons. Hidden on the static site and wherever AI
+ * is not connected.
  */
-const conceptButton = byId('photo-concept'), conceptResult = byId('photo-concept-result');
-if (!STATIC_SITE) fetch('api/visualize', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(body => { conceptButton.hidden = !body.available; }).catch(() => {});
-async function photoForConcept(file) {
-  const bitmap = await createImageBitmap(file), scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas'); canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
-  return canvas.toDataURL('image/jpeg', .85);
+if (!STATIC_SITE) fetch('api/visualize', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(body => { photoAi.available = Boolean(body.available); paintPhotoAi(); }).catch(() => {});
+/** The photo as both routes receive it: the decoded upload, longest side 1280 px, JPEG. Made once per photo. */
+function photoForAi() {
+  if (photoAi.sent?.file === editor.file) return photoAi.sent.dataUrl;
+  const bitmap = editor.bitmap, scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height)), canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  photoAi.sent = { file: editor.file, dataUrl: canvas.toDataURL('image/jpeg', .85) };
+  return photoAi.sent.dataUrl;
 }
-conceptButton.addEventListener('click', async () => {
-  if (!editor.file) return;
-  const p = projectOptions(), status = byId('photo-status');
-  const design = { siding: PRODUCTS.siding[p.sidingProduct].name, color: COLORS[selectedColor].name, roof: `${ROOF_COLORS[remodelDesign.roof].name} ${ROOF_MATERIALS[remodelDesign.roofMaterial].name}` };
-  if (remodelDesign.trim !== 'default') design.trim = TRIM_COLORS[remodelDesign.trim].name;
-  conceptButton.disabled = true; conceptButton.setAttribute('aria-busy', 'true'); status.textContent = 'Making a photo-real concept of your choices. This can take up to a minute…';
-  try {
-    const response = await fetch('api/visualize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: await photoForConcept(editor.file), design }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.image) throw new Error(body.error || 'The photo concept could not be made right now.');
-    conceptResult.querySelector('img').src = body.image; conceptResult.hidden = false;
-    status.textContent = 'Concept ready below. It is illustrative and does not change your estimate.';
-  } catch (error) { status.textContent = error.message; }
-  finally { conceptButton.disabled = !editor.file; conceptButton.removeAttribute('aria-busy'); }
+/** The homeowner's Alco choices as catalog keys: only the work they chose changes on the photo. */
+function conceptDesign() {
+  const p = projectOptions(), design = {};
+  if (p.siding) design.siding = { product: p.sidingProduct, color: selectedColor };
+  if (p.roofing) design.roof = { color: remodelDesign.roof };
+  if (TRIM_COLORS[remodelDesign.trim]?.hex) design.trim = remodelDesign.trim;
+  if (p.windows) design.windows = { product: p.windowProduct };
+  if (p.doors) design.door = { product: p.doorProduct };
+  if (p.gutters) design.gutters = true;
+  return design;
+}
+async function postPhoto(path, body, timeoutMs) {
+  let response;
+  try { response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) }); }
+  catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'That took longer than it should. Try again in a minute.' : 'Your connection dropped. Check it and try again.'); }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'That didn’t work just now. Try again in a minute.');
+  return data;
+}
+const photoAiStatus = text => { byId('photo-ai-status').textContent = text; };
+/** A request for the photo on screen; its answer is dropped if the homeowner changed photos meanwhile. */
+async function photoRequest(busyText, run) {
+  if (!editor.file || photoAi.busy) return;
+  const file = editor.file;
+  photoAi.busy = busyText; photoAiStatus(''); paintPhotoAi();
+  try { await run(() => file === editor.file); }
+  catch (error) { if (file === editor.file) photoAiStatus(error.message); }
+  finally { photoAi.busy = ''; paintPhotoAi(); }
+}
+function showConcept(view) {
+  photoAi.showing = photoAi.concept ? view : 'photo';
+  if (wizard.current !== 4) wizard.show(4);
+  setStudioView('photo');
+}
+byId('studio-concept').addEventListener('click', () => {
+  const design = conceptDesign(), key = JSON.stringify(design);
+  if (photoAi.concept && photoAi.conceptKey === key) { showConcept('concept'); return; }
+  showConcept('photo');
+  photoRequest('Making your concept. This usually takes 10 to 30 seconds…', async current => {
+    const body = await postPhoto('api/visualize', { image: photoForAi(), design }, 130000);
+    if (!current()) return;
+    Object.assign(photoAi, { file: editor.file, concept: body.image, conceptKey: key });
+    byId('concept-download').href = body.image;
+    photoAiStatus('Your concept is ready. It’s illustrative and doesn’t change your estimate.');
+    showConcept('concept');
+  });
 });
-byId('photo-upload').addEventListener('change', () => { conceptResult.hidden = true; setTimeout(() => { conceptButton.disabled = !editor.file; }, 300); });
+for (const button of document.querySelectorAll('[data-concept-view]')) button.addEventListener('click', () => showConcept(button.dataset.conceptView));
+byId('studio-measure').addEventListener('click', () => {
+  showConcept('photo');
+  photoRequest('Measuring your photo…', async current => {
+    const { measured } = await postPhoto('api/measure-photo', { image: photoForAi() }, 70000);
+    if (!current()) return;
+    Object.assign(photoAi, { file: editor.file, measured });
+    // Window and door counts add up across sides; a second photo of the same side replaces the first.
+    photoAi.sides.set(measured.side === 'unclear' ? `photo ${editor.serial}` : measured.side, { windows: measured.windows, doors: measured.entryDoors, masonry: measured.masonryPercent });
+    photoAiStatus('');
+    mirrorPhoto();
+  });
+});
+const SIDE_NAMES = { front: 'Front', back: 'Back', 'left side': 'Left side', 'right side': 'Right side', unclear: 'This side' };
+const sideTotals = () => [...photoAi.sides.values()].reduce((sum, side) => ({ windows: sum.windows + side.windows, doors: sum.doors + side.doors, masonry: sum.masonry + side.masonry / photoAi.sides.size }), { windows: 0, doors: 0, masonry: 0 });
+/** A mapped building outline (or a size confirmed in the 3D view) is more exact than a photo, so it keeps the house's length and width. */
+const outlineSized = () => Boolean(footprintData);
+function paintPhotoMeasure() {
+  const m = photoAi.measured;
+  byId('photo-measure').hidden = !m;
+  if (!m) return;
+  const side = SIDE_NAMES[m.side] || 'This side', ft = n => `${n} ft`, sides = photoAi.sides.size, totals = sideTotals();
+  byId('photo-measure-basis').textContent = `${side} of the house, ${m.view === 'straight-on' ? 'seen straight on' : m.view === 'unclear' ? 'angle unclear' : `seen ${m.view === 'corner' ? 'from a corner' : 'at an angle'}`}. ${m.scale ? `Sizes are scaled from the ${m.scale} (standard sizes).` : 'No door was clear enough to scale from, so only counts are read.'}`;
+  const wallLabel = ['left side', 'right side'].includes(m.side) ? 'Side wall' : 'Front wall';
+  const rows = [
+    ['Stories', String(m.stories)],
+    m.storyHeightFt && ['Wall height', `${ft(m.storyHeightFt)} per story`],
+    m.wallFt && [wallLabel, outlineSized() ? `${ft(m.wallFt)} (your mapped outline is kept)` : ft(m.wallFt)],
+    m.gableRiseFt && ['Gable rise', ft(m.gableRiseFt)],
+    ['Windows', sides > 1 ? `${m.windows} here, ${totals.windows} on ${sides} sides` : `${m.windows} on this side`],
+    ['Entry doors', sides > 1 ? `${m.entryDoors} here, ${totals.doors} on ${sides} sides` : `${m.entryDoors} on this side`],
+    m.garageDoors && ['Garage doors', String(m.garageDoors)],
+    ['Brick or stone', sides > 1 ? `about ${Math.round(totals.masonry / 5) * 5}% across ${sides} sides` : `${m.masonryPercent}% of this side`]
+  ].filter(Boolean);
+  byId('photo-measure-list').replaceChildren(...rows.flatMap(([term, value]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = term; dd.textContent = value; return [dt, dd]; }));
+  byId('photo-measure-note').textContent = `${m.note ? `${m.note} ` : ''}${sides < 2 ? 'Add a photo of another side to count its windows and doors too. ' : ''}A photo is a guide (about ±10–15%); Alco confirms every measurement on site.`;
+  byId('photo-measure-undo').hidden = !photoAi.backup;
+}
+/** Puts the measurement into the estimate inputs; the values before the first use are kept for Undo. */
+function applyPhotoMeasure() {
+  const m = photoAi.measured;
+  if (!m) return;
+  photoAi.backup ??= { inputs: readInputs() };
+  const set = (id, value) => { byId(id).value = String(value); }, totals = sideTotals(), used = [`${m.stories}-story`];
+  set('stories', m.stories);
+  if (m.storyHeightFt) { set('storyHeightFt', m.storyHeightFt); used.push(`${m.storyHeightFt} ft per story`); }
+  if (m.gableRiseFt) set('gableRiseFt', m.gableRiseFt);
+  if (m.wallFt && !outlineSized()) {
+    const id = ['left side', 'right side'].includes(m.side) ? 'widthFt' : 'lengthFt';
+    set(id, Math.min(350, Math.max(10, m.wallFt))); set('footprintSqFt', 0); used.push(`a ${m.wallFt} ft ${id === 'widthFt' ? 'side' : 'front'}`);
+  }
+  if (totals.windows > 0) { set('existingWindows', Math.min(150, totals.windows)); set('replaceWindows', Math.min(150, totals.windows)); used.push(`${totals.windows} window${totals.windows === 1 ? '' : 's'}`); }
+  if (totals.doors > 0) { set('existingDoors', Math.min(50, totals.doors)); set('replaceDoors', Math.min(Math.max(1, Number(byId('replaceDoors').value) || 1), totals.doors)); }
+  // One side's brick says little about the whole house, so masonry waits for a second side.
+  if (photoAi.sides.size > 1) set('masonryPercent', Math.round(totals.masonry / 5) * 5);
+  measurementsTouched = true;
+  syncProjectControls({ microResponse: true }); paintInstant();
+  if (hasCalculated) calculate();
+  refreshReport();
+  photoAiStatus(`Your estimate now uses ${used.slice(0, -1).join(', ')}${used.length > 1 ? ' and ' : ''}${used.at(-1)} from your photo. Adjust anything in Home details.`);
+  paintPhotoMeasure();
+}
+function undoPhotoMeasure() {
+  if (!photoAi.backup) return;
+  const { inputs } = photoAi.backup;
+  photoAi.backup = null;
+  for (const [key, value] of Object.entries(inputs)) if (form.elements.namedItem(key)) form.elements.namedItem(key).value = value;
+  syncProjectControls({ microResponse: true }); paintInstant();
+  if (hasCalculated) calculate();
+  refreshReport();
+  photoAiStatus('Your estimate is back to the values from before your photo.');
+  paintPhotoMeasure();
+}
+byId('photo-measure-apply').addEventListener('click', applyPhotoMeasure);
+byId('photo-measure-undo').addEventListener('click', undoPhotoMeasure);
+/** Outlines what the measurement read on the photo: the wall, the door it scaled from, and the gable. */
+function drawPhotoMeasure(context, width, height) {
+  const m = photoAi.measured;
+  if (!m || photoAi.file !== editor.file) return;
+  // Labels keep a readable size on screen: the canvas is scaled down to fit, more so on phones.
+  const box0 = byId('studio-photo-canvas').getBoundingClientRect(), shown = Math.min(box0.width, box0.height * width / height) || width;
+  const perCss = Math.max(1, width / shown), unit = 1.5 * perCss, font = Math.round(12.5 * perCss);
+  const label = (text, x, y) => {
+    context.font = `600 ${font}px Inter, system-ui, sans-serif`;
+    const w = context.measureText(text).width + font, h = font * 1.6, left = Math.min(width - w - 4, Math.max(4, x - w / 2)), top = Math.min(height - h - 4, Math.max(4, y));
+    context.fillStyle = 'rgba(19,36,28,.88)'; context.beginPath(); context.roundRect(left, top, w, h, h / 2); context.fill();
+    context.fillStyle = '#fff'; context.textBaseline = 'middle'; context.fillText(text, left + font / 2, top + h / 2);
+  };
+  const box = (b, color, dash, text, where = 'below') => {
+    if (!b) return;
+    const x = b.left * width, y = b.top * height, w = (b.right - b.left) * width, h = (b.bottom - b.top) * height;
+    context.save(); context.lineWidth = unit * 1.4; context.strokeStyle = color; context.setLineDash(dash ? [unit * 4, unit * 3] : []); context.strokeRect(x, y, w, h); context.restore();
+    if (text) label(text, x + w / 2, where === 'above' ? y - font * 2 : y + h + font * .4);
+  };
+  box(m.boxes.wall, '#8fcd4f', false, m.wallFt ? `${m.wallFt} ft` : '');
+  box(m.boxes.gable, '#8fcd4f', true, m.gableRiseFt ? `${m.gableRiseFt} ft rise` : '', 'above');
+  box(m.boxes.entryDoor, '#ffffff', false, m.scale?.includes('front') ? '6 ft 8 in door' : '');
+  box(m.boxes.garageDoor, '#ffffff', false, m.scale?.includes('garage') ? '7 ft garage door' : '');
+}
+/** The card, the busy veil and the concept toggle, from the current photo and requests. */
+function paintPhotoAi() {
+  const photo = Boolean(editor.bitmap);
+  // A new or removed photo drops the concept and measurement made from the old one; the side counts stay.
+  if (photoAi.file && photoAi.file !== editor.file) Object.assign(photoAi, { file: null, concept: '', conceptKey: '', showing: 'photo', measured: null });
+  byId('photo-ai').hidden = !photoAi.available || !photo;
+  const busy = Boolean(photoAi.busy), stale = photoAi.concept && photoAi.conceptKey !== JSON.stringify(conceptDesign());
+  byId('studio-concept').disabled = byId('studio-measure').disabled = busy;
+  byId('studio-concept').textContent = stale ? 'Update my choices' : 'See my choices';
+  byId('studio-measure').textContent = photoAi.measured && photoAi.file === editor.file ? 'Measure again' : 'Measure my photo';
+  byId('photo-busy').hidden = !busy; byId('photo-busy-text').textContent = photoAi.busy;
+  const concept = photo && photoAi.showing === 'concept' && Boolean(photoAi.concept);
+  if (concept && byId('studio-concept-image').src !== photoAi.concept) byId('studio-concept-image').src = photoAi.concept;
+  byId('studio-concept-image').hidden = !concept;
+  byId('studio-photo-canvas').hidden = !photo || concept;
+  byId('concept-view').hidden = !photo || !photoAi.concept;
+  for (const button of document.querySelectorAll('[data-concept-view]')) button.setAttribute('aria-pressed', String(button.dataset.conceptView === (concept ? 'concept' : 'photo')));
+  paintPhotoMeasure();
+}
 const projectDialog = byId('projects-dialog');
 byId('photo-upload').addEventListener('change', () => { projectLoadSerial++; });
 
@@ -282,7 +439,7 @@ function paintMaterialCard() {
   byId('material-card-product').textContent = p[surface] ? product : `${product} · not in your project`;
   byId('material-card-shown').textContent = shown;
 }
-function paintStudio() { paintPanel(); paintMaterialBar(); paintMaterialCard(); }
+function paintStudio() { paintPanel(); paintMaterialBar(); paintMaterialCard(); paintPhotoAi(); }
 function setSurface(kind) { surface = kind; paintMaterialBar(); paintMaterialCard(); }
 /**
  * Floats each hotspot over the surface the 3D view found for it, or hides it when that surface faces away
@@ -375,16 +532,22 @@ function paintPhotoView() {
   studioAerial.hidden = !aerialSrc;
   if (aerialSrc && studioAerial.src !== aerialSrc) studioAerial.src = aerialSrc;
   byId('studio-photo-empty').hidden = photo || Boolean(aerialSrc);
-  const note = photo ? (editor.areas.length ? 'Your marked walls show your siding colour.' : 'Mark the walls on your photo to try your colours on it.') : aerialSrc ? 'Aerial photo of your address. Upload your own photo to see your choices on it.' : '';
-  byId('studio-photo-note').hidden = !note;
+  // Once there is an AI concept the bar is just the Photo / Choices switch, so it covers less of a phone-sized picture.
+  const hasConcept = photo && Boolean(photoAi.concept), concept = hasConcept && photoAi.showing === 'concept';
+  const note = hasConcept || (photoAi.measured && photoAi.file === editor.file) ? '' : photo ? (editor.areas.length ? 'Your marked walls show your siding colour.' : 'Mark the walls on your photo to try your colours on it.') : aerialSrc ? 'Aerial photo of your address. Upload your own photo to see your choices on it.' : '';
+  byId('studio-photo-note').hidden = !note && !hasConcept && !photo;
   byId('studio-photo-note-text').textContent = note;
-  byId('studio-mark-walls').hidden = !photo;
+  byId('studio-photo-note-text').hidden = !note;
+  byId('studio-mark-walls').hidden = !photo || concept;
+  byId('concept-download').hidden = !concept;
+  paintPhotoAi();
 }
 function mirrorPhoto() {
   if (editor.bitmap) {
     const source = byId('photo-canvas'), mirror = byId('studio-photo-canvas'), context = mirror.getContext('2d');
     if (mirror.width !== source.width || mirror.height !== source.height) { mirror.width = source.width; mirror.height = source.height; }
     context.clearRect(0, 0, mirror.width, mirror.height); context.drawImage(source, 0, 0);
+    drawPhotoMeasure(context, mirror.width, mirror.height);
   }
   // A photo chosen from the studio opens straight into the Photo view.
   if (photoFromStudio && editor.bitmap) { photoFromStudio = false; setStudioView('photo'); } else paintPhotoView();
@@ -1299,7 +1462,7 @@ async function restoreProject(project) {
   propertyLookup?.restore(project.propertyData);
   addressStatus.textContent = 'Saved address restored. Refreshing the aerial location…'; addressStatus.className = 'field-help';
   scheduleAddressLookup();
-  editor.reset(); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close(); wizard.show(4);
+  editor.reset(); photoAi.sides.clear(); photoAi.backup = null; photoAiStatus(''); syncProjectControls(); hasCalculated = true; calculate(); projectDialog.close(); wizard.show(4);
   assistant?.restore(project.planning);
   try { const photo = await loadPhoto(project.id); if (serial === projectLoadSerial && photo) { await editor.setPhoto(photo.blob,photo.areas); if (serial === projectLoadSerial) showStudioTab('photo'); } }
   catch { if (serial === projectLoadSerial) notify('Estimate restored. The saved photo could not be opened.'); }
@@ -1309,7 +1472,7 @@ byId('new-project').addEventListener('click', () => {
   projectLoadSerial++; cancelAddressLookup(); activeProjectId = null; projectName = '';
   propertyLookup?.clear();
   lookupButton.disabled = false; lookupButton.removeAttribute('aria-busy');
-  form.reset(); measurementsTouched = false; selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset();
+  form.reset(); measurementsTouched = false; selectedColor = DEFAULT_PROJECT.color; selectedHomeStyle = DEFAULT_PROJECT.homeStyle; manualStyleOverride = false; resetFootprintState(); byId('footprint-consent')?.setAttribute('aria-pressed', 'false'); addressEl.value = ''; editor.reset(); photoAi.sides.clear(); photoAi.backup = null; photoAiStatus('');
   addressStatus.textContent = 'Your property view loads as you type a complete U.S. address. Location is approximate.'; addressStatus.className = 'field-help';
   remodelDesign = { ...DEFAULT_DESIGN, split: 100 }; remodel.setSplit(100); for (const [id, key] of ADDITIONS) byId(id).checked = DEFAULT_DESIGN[key]; syncRemodelControls();
   setCatalogRates(); syncProjectControls(); hasCalculated = true; calculate(); showStudioTab('remodel'); projectDialog.close(); wizard.show(1); notify('New project started with clearly labeled example measurements.');

@@ -286,9 +286,6 @@ body[data-active-step="1"] :is(.site-footer,.help-drawer,.error-message){margin-
 .measure-confirm{display:grid;gap:8px;max-width:100%;padding:12px 12px 12px 15px}
 .view-top-left>:is(.measure-chip,.measure-confirm){width:100%}
 .measure-chip:has(+.measure-confirm:not([hidden])){display:none}
-.photo-concept{margin:12px 0 0}
-.photo-concept img{display:block;width:100%;height:auto;border-radius:var(--r)}
-.photo-concept figcaption{margin-top:6px;font-size:12.5px;color:var(--muted)}
 .measure-photo{margin:0 0 2px}
 .measure-photo img{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;border-radius:10px}
 .measure-photo figcaption{margin-top:4px;font-size:11px;color:var(--glass-muted)}
@@ -872,6 +869,36 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
 .studio-photo-empty p{margin:0 0 6px;font-size:14px}
 .studio-photo-note{position:absolute;right:16px;bottom:var(--controls-bottom,22px);left:16px;z-index:5;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 12px;width:fit-content;max-width:calc(100% - 32px);margin:0 auto;padding:6px 8px 6px 14px;border-radius:14px;background:rgba(255,255,255,.95);color:var(--studio-text);font-size:13px;box-shadow:var(--studio-float)}
 .studio-photo-note .link-button{min-height:44px;color:var(--studio-link);font-size:13.5px}
+.studio-photo-note a.link-button{display:inline-flex;align-items:center}
+/* "Your photo" / "Your choices" under a finished AI concept, and the veil while one is made. */
+.concept-view{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 6px}
+.concept-view button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--studio-text);font-size:13.5px;font-weight:500}
+.concept-view button:hover:not([aria-pressed=true]){background:var(--studio-grey)}
+.concept-view button[aria-pressed=true]{background:var(--forest);color:#fff}
+.concept-view .link-button{margin-left:6px}
+.photo-busy{position:absolute;inset:0;z-index:6;display:grid;place-content:center;justify-items:center;gap:14px;padding:24px;background:rgba(19,36,28,.6);color:#fff;font-size:14.5px;line-height:1.45;text-align:center}
+.photo-busy-spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:photo-spin 1s linear infinite}
+@keyframes photo-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.photo-busy-spinner{animation-duration:3s}}
+/* The studio's "Your photo" card: an AI concept and a measurement from the homeowner's own photo. */
+.photo-ai{margin:0 0 20px;padding:14px;border:1px solid var(--studio-line);border-radius:14px;background:var(--studio-pale)}
+.photo-ai h3{margin:0;color:var(--studio-text);font-size:15.5px;font-weight:600}
+.photo-ai-lead{margin:3px 0 10px;color:var(--studio-muted);font-size:13px;line-height:1.45}
+/* Compact buttons that still meet the 44 px touch size; side by side wherever the card is wide enough. */
+.photo-ai-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.photo-ai :is(.primary-button,.outline-button){min-height:44px;padding:0 12px;font-size:14px;white-space:normal;text-align:center}
+.photo-ai-status{margin:10px 0 0;color:var(--studio-text);font-size:13.5px;line-height:1.45}
+.photo-ai-status:empty{display:none}
+.photo-measure{margin-top:14px;padding-top:14px;border-top:1px solid var(--studio-pale-2)}
+.photo-measure h4{margin:0;color:var(--studio-text);font-size:14.5px;font-weight:600}
+.photo-measure-basis,.photo-measure-note{margin:4px 0 0;color:var(--studio-muted);font-size:12.5px;line-height:1.5}
+.photo-measure-list{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;margin:10px 0}
+.photo-measure-list dt{color:var(--studio-muted);font-size:13.5px}
+.photo-measure-list dd{margin:0;color:var(--studio-text);font-size:13.5px;font-weight:500;text-align:right}
+.photo-measure-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin-top:12px}
+.photo-measure-actions .primary-button{flex:1 1 auto}
+.photo-measure-actions .link-button{min-height:44px;color:var(--studio-link);font-size:13.5px}
+.photo-ai-privacy{margin:12px 0 0;color:var(--studio-muted);font-size:12px;line-height:1.5}
 /* The material bar: surface tabs, five colour swatches and the material for the chosen surface. */
 .material-bar{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 6px 8px 8px;border-radius:14px;background:#fff;box-shadow:var(--studio-float)}
 .material-tabs{display:flex;flex:none;max-width:100%;overflow-x:auto;scrollbar-width:none;padding:2px;border-radius:999px;background:#f2f3f1}
@@ -1000,6 +1027,13 @@ body[data-active-step="5"] .result-panel{display:block!important;max-width:760px
   .rail-section :is(label,.sub-heading,.mini-heading,legend){color:var(--rail-text)}
   .rail-section :is(.unit,.field-help,.micro-note,.choice-hint,.privacy-hint,.legend-note){color:var(--rail-muted)}
   .rail-section .choice-hint strong{color:#fff}
+  .rail-section .photo-ai{border-color:var(--rail-card-line);background:var(--rail-card)}
+  .rail-section .photo-ai :is(h3,h4,.photo-ai-status,.photo-measure-list dd){color:#fff}
+  .rail-section .photo-ai :is(.photo-ai-lead,.photo-measure-basis,.photo-measure-note,.photo-ai-privacy,.photo-measure-list dt){color:var(--rail-muted)}
+  .rail-section .photo-measure{border-color:var(--rail-line)}
+  .rail-section .photo-ai .outline-button{border-color:rgba(255,255,255,.45);background:transparent;color:#fff}
+  .rail-section .photo-ai .outline-button:hover:not(:disabled){background:rgba(255,255,255,.08)}
+  .rail-section .photo-measure-actions .link-button{color:#c4e6a6}
   .rail-section .field-help.success{color:#c4e6a6}
   .rail-section .field-help.error{color:#ffb8a6}
   .rail-section .field-grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}

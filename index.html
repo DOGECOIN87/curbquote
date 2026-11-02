@@ -290,6 +290,20 @@
             </details>
           </section>
           <section class="form-section pricing-section wizard-step rail-section" data-step="4" aria-labelledby="pricing-heading" hidden>
+            <section id="photo-ai" class="photo-ai" aria-labelledby="photo-ai-heading" hidden>
+              <h3 id="photo-ai-heading">Your photo</h3>
+              <p class="photo-ai-lead">See your choices on it, or measure it to size your estimate.</p>
+              <div class="photo-ai-actions"><button type="button" id="studio-concept" class="primary-button">See my choices</button><button type="button" id="studio-measure" class="outline-button">Measure my photo</button></div>
+              <p id="photo-ai-status" class="photo-ai-status" role="status" aria-live="polite"></p>
+              <div id="photo-measure" class="photo-measure" hidden>
+                <h4 id="photo-measure-heading">Measured from your photo</h4>
+                <p id="photo-measure-basis" class="photo-measure-basis"></p>
+                <dl id="photo-measure-list" class="photo-measure-list"></dl>
+                <p id="photo-measure-note" class="photo-measure-note"></p>
+                <div class="photo-measure-actions"><button type="button" id="photo-measure-apply" class="primary-button">Use in my estimate</button><button type="button" id="photo-measure-undo" class="link-button" hidden>Undo</button><button type="button" id="photo-measure-another" class="link-button" data-photo-upload>Add another side</button></div>
+              </div>
+              <p class="photo-ai-privacy">Your photo is sent to our AI service only when you choose one of these, and it isn’t stored. Concepts are illustrative; Alco confirms every measurement on site.</p>
+            </section>
             <div class="rail-head"><h2 id="pricing-heading">Make your choices</h2><p>Pick materials, quality and color.</p></div>
             <div class="field-grid field-grid-3 choice-grid">
               <div class="choice-field" id="choice-field-siding"><label for="sidingProduct">Siding material</label><select id="sidingProduct"><option value="fiber" selected>James Hardie fiber cement</option><option value="vinyl">CertainTeed vinyl siding</option></select><p class="choice-hint" id="siding-product-hint"></p></div>
@@ -361,14 +375,19 @@
             </div>
             <div id="studio-photo" class="studio-photo" hidden>
               <canvas id="studio-photo-canvas" class="studio-photo-canvas" role="img" aria-label="Your home photo, with any walls you marked shown in your siding colour" hidden></canvas>
+              <img id="studio-concept-image" class="studio-photo-canvas" alt="AI concept: your photo with your Alco choices. Illustrative, not a promise of the finished home." hidden>
+              <div id="photo-busy" class="photo-busy" role="status" aria-live="polite" hidden><span class="photo-busy-spinner" aria-hidden="true"></span><span id="photo-busy-text"></span></div>
               <img id="studio-aerial" class="studio-aerial" alt="Aerial photo of the matched address, from USGS imagery" referrerpolicy="no-referrer" hidden>
               <div id="studio-photo-empty" class="studio-photo-empty">
                 <svg width="40" height="40" aria-hidden="true"><use href="#icon-image"/></svg>
                 <strong>See your choices on your own photo</strong>
-                <p>Upload a clear photo of the front of your home. It stays in this browser.</p>
+                <p>Upload a clear photo of the front of your home, taken straight on from the street. You can then see your Alco choices on it and measure it for your estimate.</p>
                 <button type="button" class="primary-button" data-photo-upload>Upload home photo</button>
               </div>
-              <p id="studio-photo-note" class="studio-photo-note" hidden><span id="studio-photo-note-text"></span> <button type="button" id="studio-mark-walls" class="link-button">Mark your walls <span aria-hidden="true">↗</span></button></p>
+              <div id="studio-photo-note" class="studio-photo-note" hidden>
+                <span id="studio-photo-note-text"></span> <button type="button" id="studio-mark-walls" class="link-button">Mark your walls <span aria-hidden="true">↗</span></button>
+                <div id="concept-view" class="concept-view" role="group" aria-label="Photo shown" hidden><button type="button" data-concept-view="photo" aria-pressed="false">Your photo</button><button type="button" data-concept-view="concept" aria-pressed="true">Your choices</button><a id="concept-download" class="link-button" download="my-alco-concept.png" href="#">Save image</a></div>
+              </div>
             </div>
             <div class="canvas-controls">
               <div class="dock-split-pills compare-pill" role="group" aria-label="Compare Before and After" data-step="3 4">
@@ -629,9 +648,7 @@
               <p id="photo-status" class="studio-help" role="status"></p>
               <div class="photo-tools"><button type="button" id="finish-area" class="outline-button" disabled>Finish area</button><button type="button" id="undo-area" class="outline-button" disabled>Undo</button><button type="button" id="clear-areas" class="outline-button" disabled>Clear areas</button><button type="button" id="remove-photo" class="outline-button" disabled>Remove photo</button></div>
               <button type="button" id="download-preview" class="outline-button wide-button" disabled>Download color preview ↓</button>
-              <button type="button" id="photo-concept" class="primary-button wide-button" hidden disabled>Show my choices on this photo</button>
-              <figure id="photo-concept-result" class="photo-concept" hidden><img alt="AI concept of your photo with your chosen siding, colour, trim and roof"><figcaption>AI concept from your photo with your choices. Illustrative, not a promise of the finished home.</figcaption></figure>
-              <p class="studio-help">Select wall areas yourself; no automatic measurement or AI detection. The color overlay is illustrative. JPEG, PNG or WebP, up to 12 MB. Photos stay in your browser.</p>
+              <p class="studio-help">Select wall areas yourself. The color overlay is illustrative. JPEG, PNG or WebP, up to 12 MB. Your photo stays in this browser unless you ask the studio for an AI concept or measurement.</p>
             </div>
           </section>
           <div class="result-footer" hidden><span class="tiny-orbit" aria-hidden="true">◉</span><span>Built for transparency, not guesswork.</span></div>

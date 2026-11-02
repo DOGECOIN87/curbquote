@@ -8,10 +8,22 @@ import { resolveAddress } from '../lib/geocode.mjs';
 import { createAppServer } from '../lib/web.mjs';
 import { createPropertyHandler } from '../api/property.js';
 import { createMap3DHandler } from '../api/map3d.js';
+import { createVisualizeHandler } from '../api/visualize.js';
+import { createMeasurePhotoHandler } from '../api/measure-photo.js';
 import { resolveProperty } from '../lib/property.mjs';
 import { propertyEnv, providerObject, propertyRecord } from './fixtures/property.mjs';
 const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output');
+// The AI photo routes with fixed answers: what the page sends is recorded, and the reading is of an
+// 800 x 500 photo in which the 80-inch door is 120 px tall (1/18 ft per px): a 36 ft front, 9 ft stories.
+const aiRequests = [];
+const photoReading = {
+  houseExterior: true, view: 'straight-on', side: 'front', stories: 2, windows: 7, entryDoors: 1, garageDoors: 0, frontGables: 1,
+  wall: { top: 192, left: 95, bottom: 840, right: 905 }, entryDoor: { top: 600, left: 470, bottom: 840, right: 520 }, garageDoor: null, gable: { top: 12, left: 380, bottom: 192, right: 620 },
+  masonryPercent: 10, currentSiding: 'vinyl', roofShape: 'gable', confidence: 'high', note: 'Clear photo.'
+};
 const server = createAppServer({
+  photoHandler: createVisualizeHandler({ configured: () => true, allow: () => true, edit: async ({ prompt, image }) => { aiRequests.push({ route: 'visualize', prompt, image }); return { mediaType: 'image/png', base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', model: 'fixture' }; } }),
+  measureHandler: createMeasurePhotoHandler({ configured: () => true, allow: () => true, read: async ({ image }) => { aiRequests.push({ route: 'measure', image }); return { reading: photoReading, model: 'fixture' }; } }),
   mapHandler: createMap3DHandler({ env: {} }),
   // Automatic open-data sizing runs after every match; a fixed outage keeps the default example dimensions here.
   dimensionsHandler: async (req, res) => { res.setHeader('Cache-Control', 'no-store'); return res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }); },
@@ -498,6 +510,34 @@ try {
   const preview=await previewDownload;const png=await readFile(await preview.path());
   assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   checks.push('Photo selection tints only marked wall areas and exports an actual PNG preview');
+  await page.locator('[data-goto="4"]').click(); await page.locator('#view-photo').click();
+  assert.equal(await page.locator('#photo-ai').isVisible(), true, 'the Your photo card shows once a photo is loaded and AI is connected');
+  const rangeBeforePhoto = await page.locator('#total-range').textContent();
+  await page.locator('#studio-measure').click();
+  await page.waitForFunction(() => !document.querySelector('#photo-measure').hidden);
+  assert.equal(aiRequests.at(-1).route, 'measure');
+  assert.deepEqual(aiRequests.at(-1).image.size, { width: 800, height: 500 }); assert.equal(aiRequests.at(-1).image.mediaType, 'image/jpeg', 'the photo is sent as a downsized JPEG, without the wall tint');
+  const measuredText = await page.locator('#photo-measure-list').textContent();
+  for (const text of ['Stories2', 'Wall height9 ft per story', 'Front wall36 ft', 'Gable rise5 ft', 'Windows7 on this side']) assert.ok(measuredText.includes(text), `${text} in ${measuredText}`);
+  assert.match(await page.locator('#photo-measure-basis').textContent(), /scaled from the front door/);
+  await page.locator('#photo-measure-apply').click();
+  assert.deepEqual(await page.evaluate(() => ['lengthFt', 'stories', 'storyHeightFt', 'gableRiseFt', 'existingWindows', 'replaceWindows'].map(id => document.getElementById(id).value)), ['36', '2', '9', '5', '7', '7']);
+  assert.notEqual(await page.locator('#total-range').textContent(), rangeBeforePhoto);
+  assert.match(await page.locator('#photo-ai-status').textContent(), /36 ft front and 7 windows from your photo/);
+  await page.locator('#photo-measure-undo').click();
+  assert.equal(await page.locator('#total-range').textContent(), rangeBeforePhoto, 'Undo restores the estimate from before the photo');
+  await page.locator('#studio-concept').click();
+  await page.waitForFunction(() => !document.querySelector('#studio-concept-image').hidden);
+  // Only the work in the project changes on the photo, in the homeowner's colour and products.
+  const conceptPrompt = aiRequests.at(-1).prompt, scopes = await page.evaluate(() => Object.fromEntries(['siding', 'windows', 'doors', 'roofing', 'gutters'].map(key => [key, document.getElementById(`scope-${key}`).checked])));
+  assert.equal(/Wall siding: .*James Hardie fiber cement lap siding in coastal slate \(#637c8a\)/.test(conceptPrompt), scopes.siding, conceptPrompt);
+  assert.equal(/Windows: new Marvin fiberglass windows/.test(conceptPrompt), scopes.windows, conceptPrompt);
+  assert.equal(/Roof:/.test(conceptPrompt), scopes.roofing); assert.equal(/Gutters:/.test(conceptPrompt), scopes.gutters);
+  assert.match(conceptPrompt, /Keep everything else exactly as it is/);
+  assert.equal(await page.locator('#studio-photo-canvas').isVisible(), false);
+  await page.locator('[data-concept-view="photo"]').click();
+  assert.equal(await page.locator('#studio-photo-canvas').isVisible(), true); assert.equal(await page.locator('#studio-concept-image').isVisible(), false);
+  checks.push('Your photo: a measurement read from the photo (door-scaled) goes into the estimate on request and undoes; the AI concept gets the Alco choices and only the downsized photo');
   await page.locator('[data-goto="4"]').click(); await page.locator('[data-save-project]:visible').click();
   await page.locator('#save-project-form button[type="submit"]').click();
   await page.waitForFunction(()=>!document.querySelector('#projects-dialog').open);

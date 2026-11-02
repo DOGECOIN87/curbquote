@@ -22,6 +22,9 @@
       "maxDuration": 10
     },
     "api/visualize.js": {
+      "maxDuration": 120
+    },
+    "api/measure-photo.js": {
       "maxDuration": 60
     },
     "api/render.js": {

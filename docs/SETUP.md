@@ -69,12 +69,33 @@ demo. Google imagery is never sent: the Maps Platform terms forbid analysing or 
   product and colour, CertainTeed shingle colour, trim, windows, entry door and gutters, only for the
   work that is in the project. The page sends catalog keys and the server writes the instruction, so
   every request reads the same way. Each request tries a chain of models: `AI_IMAGE_MODEL` (default
-  `google/gemini-2.5-flash-image`, about $0.04 an image), then `AI_IMAGE_FALLBACK_MODEL` (default
-  `openai/gpt-image-2`), then the first again, within 100 seconds. An image is shown only if it is a
-  real picture framed like the photo (within about 25% of its shape); otherwise the next model runs.
+  `openai/gpt-image-2`, about 15 seconds and $0.02–0.05 an image, returned as JPEG), then
+  `AI_IMAGE_FALLBACK_MODEL` (default `google/gemini-3.1-flash-lite-image`, about 5 seconds and $0.034),
+  then the first again, within 100 seconds. An image is shown only if it is a real picture framed like
+  the photo (within about 25% of its shape); otherwise the next model runs.
+- **How the image models were chosen** (November 2026): three real Alco project photos, each restyled
+  with a full set of Alco choices by every candidate, each result scored 0–10 by two vision models
+  (Claude Opus 5.5 and GPT-6 Sol) for the changes made, colour, the house kept, the scene kept and
+  realism (out of 50, averaged):
+
+  | Model | Score | Time | Cost an image |
+  | --- | --- | --- | --- |
+  | `openai/gpt-image-2` | 41.0 | about 15 s | $0.02–0.05 |
+  | `google/gemini-3.1-flash-image` | 39.5 | about 10 s | $0.068 |
+  | `google/gemini-3.1-flash-lite-image` | 39.3 | about 5 s | $0.034 |
+  | `openai/gpt-image-2.5-sunburst` | 38.9 | 15–27 s | $0.02–0.05 |
+  | `google/gemini-nano-banana-2.1` | 38.7 | about 20 s | $0.046 |
+  | `google/gemini-3-pro-image` | 37.6 | about 20 s | $0.14 |
+  | `google/gemini-2.5-flash-image` (used before) | 34.2 | about 9 s | $0.040 |
+  | `bfl/flux-kontext-pro` | 34.2 | about 6 s | $0.040 |
+
+  `bytedance/seedream-5.0-pro` scored about 42 on two photos but took 50–63 seconds and drew the wrong
+  siding pattern. Gemini 2.5 Flash Image once added a person and two cars to the photo. All of them
+  sometimes blur a house number or add window grids; the concept is labelled illustrative.
 - **Measure my photo** (`api/measure-photo`) asks a vision model (`AI_VISION_MODEL`, default
-  `google/gemini-3-flash`; fallback `AI_VISION_FALLBACK_MODEL`, default `openai/gpt-5.4-mini`; well
-  under a cent a photo) to find the wall facing the camera, the front door, any garage door and a front
+  `google/gemini-3-flash`, about $0.006 and 9 seconds a photo; fallback `AI_VISION_FALLBACK_MODEL`,
+  default `google/gemini-3.1-flash-lite`, about $0.001 and 3 seconds; the OpenAI and Anthropic models
+  tried placed doors and walls poorly) to find the wall facing the camera, the front door, any garage door and a front
   gable, and to count stories, windows and doors. The feet are worked out in code from standard door
   sizes (80 in entry door, 7 ft garage door): wall length only for a wall seen straight on, heights and
   gable rise when a door gives the scale, and nothing outside sensible ranges. The homeowner chooses

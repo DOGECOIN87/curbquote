@@ -14,7 +14,9 @@ import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
 import { MAX_IMAGE_CHARS } from './visualize.js';
 
 export const DEFAULT_VISION_MODEL = 'google/gemini-3-flash';
-export const DEFAULT_FALLBACK_VISION_MODEL = 'openai/gpt-5.4-mini';
+// Chosen from a comparison on real Alco photos (November 2026): Gemini models place boxes accurately
+// (their native 0–1000 form); the OpenAI and Anthropic models tried often misplaced the doors and walls.
+export const DEFAULT_FALLBACK_VISION_MODEL = 'google/gemini-3.1-flash-lite';
 const requestSchema = z.object({ image: z.string().max(MAX_IMAGE_CHARS).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) }).strict();
 // Readings cost a fraction of a cent, but each one is a model call: a handful per visitor per 10 minutes.
 const limiter = createRequestLimiter({ limit: 8 });

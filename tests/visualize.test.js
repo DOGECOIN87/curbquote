@@ -59,7 +59,7 @@ test('model chain: primary, fallback, then the primary again; a failed or unusab
   const image = { data: 'x', mediaType: 'image/jpeg', size: { width: 1280, height: 853 } }, calls = [], logs = [];
   // Gemini answers through generateText; other models through generateImage.
   const text = async ({ model }) => { calls.push(model); if (model === 'google/one') return { files: [file(1024, 1024)] }; throw Object.assign(new Error('x'), { statusCode: 503 }); };
-  const picture = async ({ model, prompt }) => { calls.push(model); assert.deepEqual(prompt.images, ['x']); return { images: [file(1536, 1024)] }; };
+  const picture = async ({ model, prompt, providerOptions }) => { calls.push(model); assert.deepEqual(prompt.images, ['x']); assert.equal(providerOptions.openai.output_format, 'jpeg', 'OpenAI images come back as JPEG'); return { images: [file(1536, 1024)] }; };
   const result = await editPhoto({ models: ['google/one', 'openai/two', 'google/one'], prompt: 'p', image, text, picture, log: line => logs.push(line) });
   assert.equal(result.model, 'openai/two', 'a square crop of a 3:2 photo is not shown'); assert.equal(result.attempts, 2); assert.deepEqual(calls, ['google/one', 'openai/two']);
   assert.match(logs[0], /google\/one: no usable image/);

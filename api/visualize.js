@@ -14,8 +14,13 @@ import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
 import { COLORS, PRODUCTS } from '../project.js';
 import { ROOF_COLORS, TRIM_COLORS } from '../house-spec.js';
 
-export const DEFAULT_IMAGE_MODEL = 'google/gemini-2.5-flash-image';
-export const DEFAULT_FALLBACK_IMAGE_MODEL = 'openai/gpt-image-2';
+// Chosen from a comparison on three real Alco photos (November 2026), each result scored by two
+// vision models for the changes made, colour, the house kept, the scene kept and realism: GPT Image 2
+// scored best (about 15 s, $0.02-0.05), Gemini 3.1 Flash-Lite Image close behind and fastest (about
+// 5 s, $0.034), from another provider. Gemini 2.5 Flash Image, used before, scored lowest and once
+// added a person and two cars to the photo. docs/SETUP.md has the table.
+export const DEFAULT_IMAGE_MODEL = 'openai/gpt-image-2';
+export const DEFAULT_FALLBACK_IMAGE_MODEL = 'google/gemini-3.1-flash-lite-image';
 // About 2 MB of JPEG once encoded; the page downsizes photos to 1280 px before sending.
 export const MAX_IMAGE_CHARS = 2800000;
 const keyOf = table => z.enum(Object.keys(table));

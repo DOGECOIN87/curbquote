@@ -54,8 +54,9 @@ export default async (req, res) => {
       const c = await concept(model, image, design);
       const row = { model, s: Math.round(c.ms / 100) / 10, cost: c.cost, usable: Boolean(c.usable), size: c.file && imageSize(Buffer.from(c.file.base64, 'base64')), kb: c.file && Math.round(c.file.base64.length * .75 / 1024) };
       if (c.file) row.scores = await Promise.all(judges.map(j => judge(j, image, c.file, design).then(o => ({ judge: j, ...o })).catch(e => ({ judge: j, error: String(e?.message || e).slice(0, 120) }))));
+      console.log('BENCH ' + JSON.stringify({ photo: n, ...row }));
       return row;
-    } catch (error) { return { model, error: String(error?.message || error).slice(0, 300), status: error?.statusCode }; }
+    } catch (error) { const row = { model, error: String(error?.message || error).slice(0, 300), status: error?.statusCode }; console.log('BENCH ' + JSON.stringify({ photo: n, ...row })); return row; }
   }));
   return res.status(200).json({ photo: n, input: image.size, rows });
 };

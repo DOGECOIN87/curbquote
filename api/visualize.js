@@ -39,7 +39,14 @@ const limiter = createRequestLimiter({ limit: 4 });
 
 // Each door's look matches the colour the 3D house shows for it (DOOR_HEX in house-spec.js).
 const DOOR_LOOKS = { steel: 'a deep teal painted finish', fiberglass: 'a medium oak wood-grain finish', wood: 'a rich dark walnut stain' };
-const shade = ({ name, hex }) => `${name.toLowerCase()} (${hex})`;
+// Plain descriptions beside each colour's name and hex: image models follow "a medium blue-grey" far
+// better than "coastal slate" or a hex code alone. One per catalog colour (a test checks they match).
+export const COLOR_LOOKS = Object.freeze({
+  siding: { sage: 'a soft grey-green', cream: 'a warm off-white ivory', slate: 'a medium blue-grey', charcoal: 'a dark charcoal grey', terracotta: 'a muted orange-brown', white: 'a soft warm white', navy: 'a deep navy blue', forest: 'a dark muted green', greige: 'a warm grey-beige', barn: 'a deep brick red', butter: 'a soft pale yellow', iron: 'a near-black' },
+  roof: { charcoal: 'dark grey', weathered: 'mottled grey-brown', slate: 'blue-grey', clay: 'reddish brown', onyx: 'black', forest: 'dark green', sand: 'light tan-brown' },
+  trim: { white: 'bright white', cream: 'cream', black: 'black', bronze: 'dark bronze brown' }
+});
+const shade = ({ name, hex }, look) => `${name.toLowerCase()}, ${look} (${hex})`;
 
 /** One line per change the homeowner chose, in the order a contractor would describe them. */
 export function designChanges(design) {
@@ -48,9 +55,9 @@ export function designChanges(design) {
   }
   const trim = design.trim && TRIM_COLORS[design.trim], frames = trim && ['black', 'bronze'].includes(design.trim) ? trim.name.toLowerCase() : 'white';
   return [
-    design.siding && `Wall siding: replace the siding on the walls with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding in ${shade(COLORS[design.siding.color])}. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`,
-    design.roof && `Roof: new CertainTeed architectural asphalt shingles in ${shade(ROOF_COLORS[design.roof.color])}, on the same roof shape.`,
-    trim && `Trim: paint the window, door, corner and fascia trim ${shade(trim)}.`,
+    design.siding && `Wall siding: replace the siding on every sided wall with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding in ${shade(COLORS[design.siding.color], COLOR_LOOKS.siding[design.siding.color])}. The new colour must be clearly visible on every sided wall, in sun and in shade. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`,
+    design.roof && `Roof: new CertainTeed architectural asphalt shingles in ${shade(ROOF_COLORS[design.roof.color], COLOR_LOOKS.roof[design.roof.color])}, on the same roof shape.`,
+    trim && `Trim: paint the window, door, corner and fascia trim ${shade(trim, COLOR_LOOKS.trim[design.trim])}.`,
     design.windows && `Windows: new ${PRODUCTS.windows[design.windows.product].name} windows in the same openings, sizes and grid pattern, with ${frames} frames.`,
     design.door && `Front door: a new ${PRODUCTS.doors[design.door.product].name} with ${DOOR_LOOKS[design.door.product]}, in the same opening.`,
     design.gutters && `Gutters: new seamless gutters and downspouts along the eaves, in ${trim ? trim.name.toLowerCase() : 'white'}.`

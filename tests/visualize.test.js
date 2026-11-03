@@ -55,6 +55,7 @@ test('photo concepts: off without AI, validated, rate-limited, and only the home
   assert.equal(markedReply.body.marker, '#ff00ff'); assert.match(sent.prompt, /vivid magenta/);
   const sidingOff = await call(handler, { method: 'POST', headers: {}, socket: {}, body: JSON.stringify({ image: photo, design: { roof: { color: 'onyx' } }, marker: true }) });
   assert.equal(sidingOff.body.marker, undefined, 'no siding change, no marker'); assert.doesNotMatch(sent.prompt, /magenta/);
+  assert.equal((await call(handler, { method: 'POST', headers: {}, socket: {}, body: JSON.stringify({ image: photo, design: { roof: { color: 'onyx' } }, marker: false }) })).code, 200, 'marker: false is fine');
   for (const bad of [{ image: photo, design, marker: 'yes' }, { image: 'https://example.com/x.jpg', design }, { image: photo, design: { ...design, trim: '<script>' } }, { image: photo, design: { siding: { product: 'brick', color: 'sage' } } }, { image: photo, design: {} }, { image: photo, design, extra: 1 }, { image: 'data:image/jpeg;base64,AAAA', design }])
     assert.equal((await call(handler, { method: 'POST', body: JSON.stringify(bad) })).code, 400, JSON.stringify(bad).slice(0, 80));
   assert.equal((await call(createVisualizeHandler({ configured: () => true, allow: () => false }), { method: 'POST', headers: {}, socket: {}, body: JSON.stringify({ image: photo, design }) })).code, 429);

@@ -229,7 +229,9 @@ byId('studio-concept').addEventListener('click', () => {
   if (photoAi.concept && photoAi.conceptKey === key) { showConcept('concept'); return; }
   showConcept('photo');
   photoRequest('Making your concept. This usually takes 10 to 30 seconds…', async current => {
-    let body = await postPhoto('api/visualize', { image: photoForAi(), design, marker: Boolean(design.siding) }, 130000);
+    let body;
+    try { body = await postPhoto('api/visualize', { image: photoForAi(), design, ...(design.siding && { marker: true }) }, 130000); photoAi.failed = false; }
+    catch (error) { photoAi.failed = true; throw error; }
     if (!current()) return;
     let concept = await decodeConcept(body.image, Boolean(body.marker));
     // Little or no marker: no siding to recolour (an all-brick house), so the image is final as drawn.
@@ -357,7 +359,7 @@ function drawPhotoMeasure(context, width, height) {
 function paintPhotoAi() {
   const photo = Boolean(editor.bitmap);
   // A new or removed photo drops the concept and measurement made from the old one; the side counts stay.
-  if (photoAi.file && photoAi.file !== editor.file) Object.assign(photoAi, { file: null, concept: null, conceptKey: '', painted: '', showing: 'photo', measured: null });
+  if (photoAi.file !== editor.file) Object.assign(photoAi, { file: editor.file, concept: null, conceptKey: '', painted: '', showing: 'photo', measured: null, failed: false });
   byId('photo-ai').hidden = !photoAi.available || !photo;
   const busy = Boolean(photoAi.busy), stale = photoAi.concept && photoAi.conceptKey !== conceptKey();
   byId('studio-concept').disabled = byId('studio-measure').disabled = busy;
@@ -390,7 +392,7 @@ const CALLOUTS = { 2: 'Confirm your home details to refine this range.', 3: 'You
 const ROW_FIELDS = { siding: 'lengthFt', windows: 'replaceWindows', doors: 'replaceDoors', roofing: 'gableRiseFt', gutters: 'lengthFt' };
 const compactQuery = matchMedia('(max-width: 1023.98px), (max-height: 599.98px)');
 const studioCanvas = byId('studio-canvas'), studioPanel = byId('project-panel');
-let surface = 'siding', projectName = '', photoFromStudio = false, sheetOpener = null;
+let surface = 'siding', projectName = '', photoFromStudio = false, photoIntent = '', sheetOpener = null;
 const displayName = () => projectName || 'Example home';
 function paintStepContext(step) {
   for (const node of document.querySelectorAll('[data-step-number]')) node.textContent = String(Math.min(step, 4));
@@ -581,11 +583,13 @@ function paintPhotoView() {
   byId('studio-photo-empty').hidden = photo || Boolean(aerialSrc);
   // Once there is an AI concept the bar is just the Photo / Choices switch, so it covers less of a phone-sized picture.
   const hasConcept = photo && Boolean(photoAi.concept), concept = hasConcept && photoAi.showing === 'concept';
-  const note = hasConcept || (photoAi.measured && photoAi.file === editor.file) ? '' : photo ? (editor.areas.length ? 'Your marked walls show your siding colour.' : 'Mark the walls on your photo to try your colours on it.') : aerialSrc ? 'Aerial photo of your address. Upload your own photo to see your choices on it.' : '';
-  byId('studio-photo-note').hidden = !note && !hasConcept && !photo;
+  // Marking walls by hand is only offered when the AI cannot draw the choices (not connected, or it failed just now).
+  const manual = photo && (!photoAi.available || photoAi.failed);
+  const note = hasConcept || (photoAi.measured && photoAi.file === editor.file) ? '' : photo ? (!manual ? '' : editor.areas.length ? 'Your marked walls show your siding colour.' : photoAi.failed ? 'Your concept couldn’t be made just now. Try See my choices again, or mark your walls by hand.' : 'Mark the walls on your photo to try your colours on it.') : aerialSrc ? 'Aerial photo of your address. Upload your own photo to see your choices on it.' : '';
+  byId('studio-photo-note').hidden = !note && !hasConcept && !manual;
   byId('studio-photo-note-text').textContent = note;
   byId('studio-photo-note-text').hidden = !note;
-  byId('studio-mark-walls').hidden = !photo || concept;
+  byId('studio-mark-walls').hidden = !manual || concept;
   byId('concept-download').hidden = !concept;
   paintPhotoAi();
 }
@@ -597,17 +601,23 @@ function mirrorPhoto() {
     drawPhotoMeasure(context, mirror.width, mirror.height);
   }
   // A photo chosen from the studio opens straight into the Photo view.
-  if (photoFromStudio && editor.bitmap) { photoFromStudio = false; setStudioView('photo'); } else paintPhotoView();
+  if (photoFromStudio && editor.bitmap) {
+    photoFromStudio = false; setStudioView('photo');
+    // The AI starts by itself, so nobody marks walls by hand: a concept of the choices, or a measurement for "Add another side".
+    const intent = photoIntent; photoIntent = '';
+    if (photoAi.available) byId(intent === 'measure' ? 'studio-measure' : 'studio-concept').click();
+  } else paintPhotoView();
 }
 byId('view-3d').addEventListener('click', () => setStudioView('3d'));
 byId('view-photo').addEventListener('click', () => setStudioView('photo'));
 // One hidden file picker serves every "Upload home photo" button; the buttons are what keyboards and screen readers reach.
 for (const button of document.querySelectorAll('[data-photo-upload]')) button.addEventListener('click', () => {
   photoFromStudio = Boolean(button.closest('#estimate-form'));
+  photoIntent = photoFromStudio ? button.dataset.photoIntent || 'concept' : '';
   setSheet(false);
   byId('photo-upload').click();
 });
-byId('photo-upload').addEventListener('cancel', () => { photoFromStudio = false; });
+byId('photo-upload').addEventListener('cancel', () => { photoFromStudio = false; photoIntent = ''; });
 byId('studio-mark-walls').addEventListener('click', () => { wizard.show(5); showStudioTab('photo'); byId('photo-panel').scrollIntoView({ block: 'start', behavior: 'instant' }); byId('photo-canvas').focus(); });
 byId('estimate-info').addEventListener('click', () => {
   const open = byId('estimate-breakdown').hidden;

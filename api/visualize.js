@@ -42,7 +42,7 @@ const requestSchema = z.object({
   image: z.string().max(MAX_IMAGE_CHARS).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/),
   design: z.union([designSchema, legacySchema]),
   // The page recolours the siding itself (concept-recolour.js): the model paints it a magenta marker.
-  marker: z.literal(true).optional()
+  marker: z.boolean().optional()
 }).strict();
 // Image models cost more than text: a few concepts per visitor per 10 minutes.
 const limiter = createRequestLimiter({ limit: 4 });

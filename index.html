@@ -292,7 +292,7 @@
           <section class="form-section pricing-section wizard-step rail-section" data-step="4" aria-labelledby="pricing-heading" hidden>
             <section id="photo-ai" class="photo-ai" aria-labelledby="photo-ai-heading" hidden>
               <h3 id="photo-ai-heading">Your photo</h3>
-              <p class="photo-ai-lead">See your choices on it, or measure it to size your estimate.</p>
+              <p class="photo-ai-lead">Your choices go on it automatically, and siding colours change instantly. You can also measure it to size your estimate. <button type="button" id="photo-ai-change" class="link-button" data-photo-upload>Use a different photo</button></p>
               <div class="photo-ai-actions"><button type="button" id="studio-concept" class="primary-button">See my choices</button><button type="button" id="studio-measure" class="outline-button">Measure my photo</button></div>
               <p id="photo-ai-status" class="photo-ai-status" role="status" aria-live="polite"></p>
               <div id="photo-measure" class="photo-measure" hidden>
@@ -300,9 +300,9 @@
                 <p id="photo-measure-basis" class="photo-measure-basis"></p>
                 <dl id="photo-measure-list" class="photo-measure-list"></dl>
                 <p id="photo-measure-note" class="photo-measure-note"></p>
-                <div class="photo-measure-actions"><button type="button" id="photo-measure-apply" class="primary-button">Use in my estimate</button><button type="button" id="photo-measure-undo" class="link-button" hidden>Undo</button><button type="button" id="photo-measure-another" class="link-button" data-photo-upload>Add another side</button></div>
+                <div class="photo-measure-actions"><button type="button" id="photo-measure-apply" class="primary-button">Use in my estimate</button><button type="button" id="photo-measure-undo" class="link-button" hidden>Undo</button><button type="button" id="photo-measure-another" class="link-button" data-photo-upload data-photo-intent="measure">Add another side</button></div>
               </div>
-              <p class="photo-ai-privacy">Your photo is sent to our AI service only when you choose one of these, and it isn’t stored. Concepts are illustrative; Alco confirms every measurement on site.</p>
+              <p class="photo-ai-privacy">A photo you upload here is sent to our AI service to draw your choices and, if you ask, to measure it. It isn’t stored. Concepts are illustrative; Alco confirms every measurement on site.</p>
             </section>
             <div class="rail-head"><h2 id="pricing-heading">Make your choices</h2><p>Pick materials, quality and color.</p></div>
             <div class="field-grid field-grid-3 choice-grid">
@@ -381,7 +381,7 @@
               <div id="studio-photo-empty" class="studio-photo-empty">
                 <svg width="40" height="40" aria-hidden="true"><use href="#icon-image"/></svg>
                 <strong>See your choices on your own photo</strong>
-                <p>Upload a clear photo of the front of your home, taken straight on from the street. You can then see your Alco choices on it and measure it for your estimate.</p>
+                <p>Upload a clear photo of the front of your home, taken straight on from the street. Your Alco choices go on it automatically, with nothing to draw, and you can measure it for your estimate.</p>
                 <button type="button" class="primary-button" data-photo-upload>Upload home photo</button>
               </div>
               <div id="studio-photo-note" class="studio-photo-note" hidden>
@@ -648,7 +648,7 @@
               <p id="photo-status" class="studio-help" role="status"></p>
               <div class="photo-tools"><button type="button" id="finish-area" class="outline-button" disabled>Finish area</button><button type="button" id="undo-area" class="outline-button" disabled>Undo</button><button type="button" id="clear-areas" class="outline-button" disabled>Clear areas</button><button type="button" id="remove-photo" class="outline-button" disabled>Remove photo</button></div>
               <button type="button" id="download-preview" class="outline-button wide-button" disabled>Download color preview ↓</button>
-              <p class="studio-help">Select wall areas yourself. The color overlay is illustrative. JPEG, PNG or WebP, up to 12 MB. Your photo stays in this browser unless you ask the studio for an AI concept or measurement.</p>
+              <p class="studio-help">Select wall areas yourself. The color overlay is illustrative. JPEG, PNG or WebP, up to 12 MB. A photo uploaded here stays in this browser; one uploaded in the studio is sent to our AI service to draw your choices.</p>
             </div>
           </section>
           <div class="result-footer" hidden><span class="tiny-orbit" aria-hidden="true">◉</span><span>Built for transparency, not guesswork.</span></div>

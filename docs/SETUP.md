@@ -62,8 +62,9 @@ Census point. Street View, Solar and Aerial View receive only the address point 
 
 **Your photo (AI).** When the homeowner uploads a photo, the studio's "Your photo" card offers two
 things. Both use the same AI Gateway credentials as the assistant, are rate-limited per visitor, store
-nothing, send the photo only when the homeowner presses the button, and are off on the static Pages
-demo. Google imagery is never sent: the Maps Platform terms forbid analysing or modifying it.
+nothing, and are off on the static Pages demo. A photo uploaded in the studio starts its concept by
+itself (one image, about $0.02–0.05), so nobody has to mark walls; "Add another side" measures the new
+photo instead. Marking walls by hand is offered only when AI is not connected or a concept failed. Google imagery is never sent: the Maps Platform terms forbid analysing or modifying it.
 
 - **See my choices** (`api/visualize`) restyles the photo with the project's Alco choices: siding
   product and colour, CertainTeed shingle colour, trim, windows, entry door and gutters, only for the

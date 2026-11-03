@@ -563,6 +563,17 @@ try {
   assert.match(await page.locator('#photo-status').textContent(),/1 wall area/);
   assert.equal(await page.locator('#color-name').textContent(),'Coastal slate');
   checks.push('Saved photos and wall selections restore from local browser storage');
+  // A photo chosen in the studio gets its AI concept by itself: nothing asks the homeowner to draw walls.
+  const callsBefore = aiRequests.length;
+  await page.locator('[data-goto="4"]').click(); await page.locator('#view-photo').click();
+  const chooser = page.waitForEvent('filechooser'); await page.locator('#photo-ai-change').click();
+  await (await chooser).setFiles({ name: 'second-home.png', mimeType: 'image/png', buffer: Buffer.from(imageBase64, 'base64') });
+  await page.waitForFunction(() => !document.querySelector('#studio-concept-image').hidden, undefined, { timeout: 10000 }).catch(async () => {
+    throw new Error(`No automatic concept: ${JSON.stringify(await page.evaluate(() => ({ status: document.querySelector('#photo-ai-status').textContent, busy: !document.querySelector('#photo-busy').hidden, view: document.querySelector('#studio-canvas').dataset.view, step: document.body.dataset.activeStep, photo: !document.querySelector('#studio-photo-canvas').hidden })))} after ${aiRequests.length - callsBefore} AI requests`);
+  });
+  assert.equal(aiRequests.length, callsBefore + 1); assert.equal(aiRequests.at(-1).route, 'visualize');
+  assert.equal(await page.locator('#studio-mark-walls').isVisible(), false, 'no prompt to mark walls by hand');
+  checks.push('A photo chosen in the studio gets its AI concept automatically, with no wall drawing asked for');
   await page.locator('#open-projects').click();
   await page.getByRole('button',{name:'Delete',exact:true}).click();
   await page.getByRole('button',{name:'Confirm delete',exact:true}).click();

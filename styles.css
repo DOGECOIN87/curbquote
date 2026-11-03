@@ -884,6 +884,7 @@ button.swatch[aria-pressed=true]{box-shadow:0 0 0 2px var(--ink)}
 .photo-ai{margin:0 0 20px;padding:14px;border:1px solid var(--studio-line);border-radius:14px;background:var(--studio-pale)}
 .photo-ai h3{margin:0;color:var(--studio-text);font-size:15.5px;font-weight:600}
 .photo-ai-lead{margin:3px 0 10px;color:var(--studio-muted);font-size:13px;line-height:1.45}
+.photo-ai-lead .link-button{min-height:44px;color:var(--studio-link);font-size:13px}
 /* Compact buttons that still meet the 44 px touch size; side by side wherever the card is wide enough. */
 .photo-ai-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .photo-ai :is(.primary-button,.outline-button){min-height:44px;padding:0 12px;font-size:14px;white-space:normal;text-align:center}
@@ -1033,7 +1034,7 @@ body[data-active-step="5"] .result-panel{display:block!important;max-width:760px
   .rail-section .photo-measure{border-color:var(--rail-line)}
   .rail-section .photo-ai .outline-button{border-color:rgba(255,255,255,.45);background:transparent;color:#fff}
   .rail-section .photo-ai .outline-button:hover:not(:disabled){background:rgba(255,255,255,.08)}
-  .rail-section .photo-measure-actions .link-button{color:#c4e6a6}
+  .rail-section :is(.photo-measure-actions,.photo-ai-lead) .link-button{color:#c4e6a6}
   .rail-section .field-help.success{color:#c4e6a6}
   .rail-section .field-help.error{color:#ffb8a6}
   .rail-section .field-grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}

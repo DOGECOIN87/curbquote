@@ -762,7 +762,9 @@ function syncProjectControls({ microResponse = false } = {}) {
   for (const button of document.querySelectorAll('[data-color]')) button.setAttribute('aria-pressed', String(button.dataset.color === selectedColor));
   for (const card of document.querySelectorAll('[data-archetype]')) card.setAttribute('aria-pressed', String(card.dataset.archetype === selectedHomeStyle));
   const badgeText = modelGuardrailLabel(footprintData);
-  if (byId('step3-studio-badge')) byId('step3-studio-badge').textContent = badgeText;
+  // "Style variant — approximate, not your …": phones show it up to the comma; the rest stays for screen readers.
+  const fold = badgeText.indexOf(', ');
+  if (byId('step3-studio-badge')) byId('step3-studio-badge').replaceChildren(fold < 0 ? badgeText : badgeText.slice(0, fold), ...(fold < 0 ? [] : [Object.assign(document.createElement('span'), { className: 'badge-more', textContent: badgeText.slice(fold) })]));
   if (byId('studio-model-badge')) byId('studio-model-badge').textContent = badgeText;
   if (byId('footprint-source-pill')) {
     byId('footprint-source-pill').textContent = footprintData?.source?.provider || 'Manual dimensions';

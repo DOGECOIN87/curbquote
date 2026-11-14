@@ -15,4 +15,6 @@
   Don't add `unsafe-eval` or `unsafe-inline` to the CSP; allow a specific inline style by hash.
 - Browser code must also work in the static GitHub Pages build (`config.js` `STATIC_SITE`): use relative URLs, and
   give anything that calls `api/` a static fallback.
-- Before pushing, run `npm run check` (137 Node tests) and, for UI changes, `npm run test:browser` (62 checks: 42 main, 13 map, 7 remodel) plus `npm run test:exterior` (9 checks). In the cloud container, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/opt/pw-browsers/chromium` (the pinned Playwright does not find the preinstalled browser).
+- Branding lives in `skins/<name>/` (names, logo, colours, offices, catalog); never name a company in
+  shared code, CSS or `index.html`. See `docs/26-skins.md`.
+- Before pushing, run `npm run check` (146 Node tests) and, for UI changes, `npm run test:browser` (62 checks: 42 main, 13 map, 7 remodel) plus `npm run test:exterior` (9 checks). In the cloud container, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/opt/pw-browsers/chromium` (the pinned Playwright does not find the preinstalled browser).

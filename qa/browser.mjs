@@ -103,7 +103,7 @@ try {
   assert.equal(await page.locator('#service-area').isVisible(), true);
   assert.equal(await page.locator('#service-area').textContent(), 'Alco Products serves Washington, DC. Questions? Call (301) 593-1691.');
   assert.equal(await page.locator('#service-area').getAttribute('data-status'), 'served');
-  assert.deepEqual(await page.locator('[data-alco-tel]').evaluateAll(links => [...new Set(links.map(link => link.getAttribute('href')))]), ['tel:3015931691']);
+  assert.deepEqual(await page.locator('[data-brand-tel]').evaluateAll(links => [...new Set(links.map(link => link.getAttribute('href')))]), ['tel:3015931691']);
   checks.push('A complete typed address automatically loads aerial imagery after one debounce; street fragments make no lookup');
   const webgl2 = await page.evaluate(() => Boolean(document.createElement('canvas').getContext('webgl2')));
   assert.equal(await page.locator('#aerial-3d-toggle').isVisible(), webgl2);

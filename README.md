@@ -70,6 +70,12 @@ npm run test:exterior  # real local exterior model, Google 3D measuring pass, co
 npm run test:layouts   # every step at 27 device shapes, 280 px fold covers to 3440 px ultrawide (about 30 min)
 ```
 
+## Skins
+
+The company's name, logo, colours, offices, service area and product lines live in one folder in
+`skins/`. `npm run skin -- <name>` switches; `SKIN=<name> npm run dev` previews. Details:
+[docs/26](docs/26-skins.md).
+
 ## Configuration
 
 **Step-by-step setup for every service, with links: [docs/SETUP.md](docs/SETUP.md).**

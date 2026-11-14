@@ -72,8 +72,10 @@ The November 2026 complaint was that phones were crowded with overlapping window
 - **3D label:** one line ("Style variant — approximate"); the rest of the sentence stays for screen
   readers.
 - **Price and send:** the button says "Send to Alco" on phones, so the price beside it stays on one
-  line; on a phone on its side the price wraps rather than being cut off.
+  line; on a phone on its side the price stays on one line, slightly smaller, instead of being cut off.
 - **Project sheet:** the "Illustrative sample estimate" label no longer slides under the price.
+  (A later layout sweep showed the taller card covered the sheet's Continue on a phone on its
+  side, so there the label keeps its old, closer spacing.)
 - **Phone on its side:** the choices panel shows one select per row instead of three cut-off ones,
   and the found-address cards keep to a readable width.
 

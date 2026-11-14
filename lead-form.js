@@ -1,15 +1,17 @@
 /**
- * "Send to Alco Products": the homeowner's contact details and estimate summary go to `api/lead`, which
- * forwards them to Alco's inbox. Without a webhook, and on the static site, the same message is written
+ * "Send to <company>": the homeowner's contact details and estimate summary go to `api/lead`, which
+ * forwards them to the company's inbox. Without a webhook, and on the static site, the same message is written
  * into an email to `LEAD_EMAIL` for the homeowner to send.
  */
 import { STATIC_LEAD, STATIC_SITE } from './config.js';
-import { OFFICES } from './alco.js';
+import { BRAND } from './brand.js';
+import { OFFICES } from './service-area.js';
 
 const MAIL_LIMIT = 1800;   // Long mailto links are cut off by some email apps.
 const PHONE_PATTERN = /^[\d\s()+.-]*$/;
-const INTRO = 'Alco Products gets your estimate summary and contact details, reviews the measurements and gets back to you. Nothing is sent until you press Send.';
-const MAIL_INTRO = 'This writes an email to Alco Products with your estimate summary and contact details. Nothing is sent until you send it from your email app.';
+const COMPANY = BRAND.company.name;
+const INTRO = `${COMPANY} gets your estimate summary and contact details, reviews the measurements and gets back to you. Nothing is sent until you press Send.`;
+const MAIL_INTRO = `This writes an email to ${COMPANY} with your estimate summary and contact details. Nothing is sent until you send it from your email app.`;
 
 /** The email version of a request, shortened to fit a mailto link. */
 export function mailtoLink(address, { contact, estimate = {}, brief }) {
@@ -20,7 +22,7 @@ export function mailtoLink(address, { contact, estimate = {}, brief }) {
   return `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.phone, fetchImpl = (...args) => fetch(...args) }) {
+export function setupLeadForm({ getRequest, getPhone = () => OFFICES[0].phone, fetchImpl = (...args) => fetch(...args) }) {
   const byId = id => document.getElementById(id);
   const dialog = byId('lead-dialog'), form = byId('lead-form'), intro = byId('lead-intro'), status = byId('lead-status'), submit = byId('lead-submit');
   let destination = null;
@@ -39,7 +41,7 @@ export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.ph
   function say(text = '', tone = '') { status.textContent = text; status.dataset.tone = tone; }
   function present({ configured, email }) {
     form.hidden = !configured && !email;
-    intro.textContent = configured ? INTRO : email ? MAIL_INTRO : `Online requests are not set up yet. Call Alco Products on ${getPhone()}; your downloaded summary has everything they need.`;
+    intro.textContent = configured ? INTRO : email ? MAIL_INTRO : `Online requests are not set up yet. Call ${COMPANY} on ${getPhone()}; your downloaded summary has everything they need.`;
     submit.textContent = configured ? 'Send' : 'Write the email';
   }
   function invalid(field, message) {
@@ -54,7 +56,7 @@ export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.ph
     if (!name.value.trim()) return invalid(name, 'Enter your name.');
     if (!email.value.trim() || !email.checkValidity()) return invalid(email, 'Enter a valid email address.');
     if (!PHONE_PATTERN.test(phone.value.trim())) return invalid(phone, 'Use only numbers, spaces and ( ) + - . in the phone number.');
-    if (!consent.checked) { say('Tick the box so Alco Products may contact you.', 'warn'); consent.focus(); return true; }
+    if (!consent.checked) { say(`Tick the box so ${COMPANY} may contact you.`, 'warn'); consent.focus(); return true; }
     return false;
   }
 
@@ -92,16 +94,16 @@ export function setupLeadForm({ getRequest, getPhone = () => OFFICES.bethesda.ph
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.sent) {
         form.hidden = true;
-        intro.textContent = `Sent. Alco Products will contact you at ${contact.email}. You can close this window.`;
+        intro.textContent = `Sent. ${COMPANY} will contact you at ${contact.email}. You can close this window.`;
         say();
         byId('close-lead').focus();
       } else if (typeof data.email === 'string') {
         destination = { configured: false, email: data.email };
         present(destination);
         say(`${data.error || 'Could not send.'} You can email it instead.`, 'warn');
-      } else say(data.error || `Could not send. Call Alco Products on ${getPhone()}.`, 'warn');
+      } else say(data.error || `Could not send. Call ${COMPANY} on ${getPhone()}.`, 'warn');
     } catch {
-      say(`Could not send. Check your connection or call Alco Products on ${getPhone()}.`, 'warn');
+      say(`Could not send. Check your connection or call ${COMPANY} on ${getPhone()}.`, 'warn');
     } finally {
       submit.disabled = false;
     }

@@ -18,7 +18,8 @@ import { fetchPublicFootprint } from './footprint-client.js';
 import { setupLeadForm } from './lead-form.js';
 import { parseChangeRequest, describeChange } from './intent.js';
 import { setupAddressSuggestions } from './address-suggest.js';
-import { OFFICES, serviceArea } from './alco.js';
+import { OFFICES, serviceArea } from './service-area.js';
+import { BRAND, THEME } from './brand.js';
 import { findMarker, paintSiding } from './concept-recolour.js';
 
 const form = document.querySelector('#estimate-form');
@@ -35,16 +36,16 @@ let lastResult = null;
 let hasCalculated = false;
 let generatedAt = '';
 let matched = null;
-// Every match goes through here, so the service-area note and Alco's phone numbers follow the address.
-let office = OFFICES.bethesda;
+// Every match goes through here, so the service-area note and the company's phone numbers follow the address.
+let office = OFFICES[0];
 function setMatched(location) {
   matched = location;
   const area = location && location.source !== EXTERIOR_EXAMPLE.source ? serviceArea(location.matchedAddress) : null;
   const note = byId('service-area');
   note.textContent = area?.message || ''; note.hidden = !area?.message; note.dataset.status = area?.status || '';
-  office = area?.office || OFFICES.bethesda;
-  for (const link of document.querySelectorAll('[data-alco-tel]')) link.href = `tel:${office.tel}`;
-  for (const phone of document.querySelectorAll('[data-alco-phone]')) phone.textContent = office.phone;
+  office = area?.office || OFFICES[0];
+  for (const link of document.querySelectorAll('[data-brand-tel]')) link.href = `tel:${office.tel}`;
+  for (const phone of document.querySelectorAll('[data-brand-phone]')) phone.textContent = office.phone;
 }
 let lookupSerial = 0;
 let lookupController = null;
@@ -146,7 +147,7 @@ remodel = setupRemodel3D({
 });
 /**
  * The studio's "Your photo" card. "See my choices on my photo" sends the homeowner's own photo and
- * their Alco choices (option keys) to api/visualize for a photo-real concept; "Measure my photo" sends
+ * their catalog choices (option keys) to api/visualize for a photo-real concept; "Measure my photo" sends
  * it to api/measure-photo, which reads stories, windows, doors and wall sizes scaled from standard
  * door sizes. The homeowner chooses whether a measurement goes into the estimate, and can undo it.
  * The photo leaves the browser only on these two buttons. Hidden on the static site and wherever AI
@@ -162,7 +163,7 @@ function photoForAi() {
   photoAi.sent = { file: editor.file, dataUrl: canvas.toDataURL('image/jpeg', .85) };
   return photoAi.sent.dataUrl;
 }
-/** The homeowner's Alco choices as catalog keys: only the work they chose changes on the photo. */
+/** The homeowner's choices as catalog keys: only the work they chose changes on the photo. */
 function conceptDesign() {
   const p = projectOptions(), design = {};
   if (p.siding) design.siding = { product: p.sidingProduct, color: selectedColor };
@@ -252,7 +253,7 @@ byId('concept-download').addEventListener('click', event => {
   byId('studio-concept-image').toBlob(blob => {
     if (!blob) return;
     const url = URL.createObjectURL(blob), link = document.createElement('a');
-    link.href = url; link.download = 'my-alco-concept.jpg'; link.click();
+    link.href = url; link.download = `my-${BRAND.id}-concept.jpg`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }, 'image/jpeg', .92);
 });
@@ -291,7 +292,7 @@ function paintPhotoMeasure() {
     ['Brick or stone', sides > 1 ? `about ${Math.round(totals.masonry / 5) * 5}% across ${sides} sides` : `${m.masonryPercent}% of this side`]
   ].filter(Boolean);
   byId('photo-measure-list').replaceChildren(...rows.flatMap(([term, value]) => { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = term; dd.textContent = value; return [dt, dd]; }));
-  byId('photo-measure-note').textContent = `${m.note ? `${m.note} ` : ''}${sides < 2 ? 'Add a photo of another side to count its windows and doors too. ' : ''}A photo is a guide (about ±10–15%); Alco confirms every measurement on site.`;
+  byId('photo-measure-note').textContent = `${m.note ? `${m.note} ` : ''}${sides < 2 ? 'Add a photo of another side to count its windows and doors too. ' : ''}A photo is a guide (about ±10–15%); ${BRAND.company.short} confirms every measurement on site.`;
   byId('photo-measure-undo').hidden = !photoAi.backup;
 }
 /** Puts the measurement into the estimate inputs; the values before the first use are kept for Undo. */
@@ -341,7 +342,7 @@ function drawPhotoMeasure(context, width, height) {
   const label = (text, x, y) => {
     context.font = `600 ${font}px Inter, system-ui, sans-serif`;
     const w = context.measureText(text).width + font, h = font * 1.6, left = Math.min(width - w - 4, Math.max(4, x - w / 2)), top = Math.min(height - h - 4, Math.max(4, y));
-    context.fillStyle = 'rgba(19,36,28,.88)'; context.beginPath(); context.roundRect(left, top, w, h, h / 2); context.fill();
+    context.fillStyle = `${THEME['--forest']}e0`; context.beginPath(); context.roundRect(left, top, w, h, h / 2); context.fill();
     context.fillStyle = '#fff'; context.textBaseline = 'middle'; context.fillText(text, left + font / 2, top + h / 2);
   };
   const box = (b, color, dash, text, where = 'below') => {
@@ -350,8 +351,8 @@ function drawPhotoMeasure(context, width, height) {
     context.save(); context.lineWidth = unit * 1.4; context.strokeStyle = color; context.setLineDash(dash ? [unit * 4, unit * 3] : []); context.strokeRect(x, y, w, h); context.restore();
     if (text) label(text, x + w / 2, where === 'above' ? y - font * 2 : y + h + font * .4);
   };
-  box(m.boxes.wall, '#8fcd4f', false, m.wallFt ? `${m.wallFt} ft` : '');
-  box(m.boxes.gable, '#8fcd4f', true, m.gableRiseFt ? `${m.gableRiseFt} ft rise` : '', 'above');
+  box(m.boxes.wall, THEME['--studio-lime'], false, m.wallFt ? `${m.wallFt} ft` : '');
+  box(m.boxes.gable, THEME['--studio-lime'], true, m.gableRiseFt ? `${m.gableRiseFt} ft rise` : '', 'above');
   box(m.boxes.entryDoor, '#ffffff', false, m.scale?.includes('front') ? '6 ft 8 in door' : '');
   box(m.boxes.garageDoor, '#ffffff', false, m.scale?.includes('garage') ? '7 ft garage door' : '');
 }
@@ -830,7 +831,7 @@ function readInputs() {
 function refreshReport() {
   byId('print-report-content').textContent = lastResult ? buildEstimateSummary(lastResult, {
     address: addressEl.value.trim(), matchedAddress: matched?.matchedAddress, generatedAt, propertyData: propertyLookup?.context(), footprintData
-  }) : 'ALCO PRODUCTS / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.';
+  }) : `${BRAND.company.name.toUpperCase()} / No valid estimate\nReturn to the estimator and correct the home details before calculating or printing.`;
   byId('save-summary').disabled = !lastResult;
   byId('print-summary').disabled = !lastResult;
   byId('send-lead').disabled = !lastResult;

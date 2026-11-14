@@ -1,3 +1,5 @@
+import { THEME } from './brand.js';
+
 const THREE_BASE = new URL('./vendor/three/', import.meta.url).href;
 
 function seeded(seed) {
@@ -1091,8 +1093,8 @@ export function setupRemodel3D({ stage, previewStage = null, welcomeStage = null
     // A crisp seam with a handle at the golden section of the height.
     const handleY = Math.round(height * 0.618);
     for (const [x, y, w, h, color] of [
-      [beforeWidth - 2, 0, 4, height, '#ffffff'], [beforeWidth - 1, 0, 2, height, '#102303'],
-      [beforeWidth - 14, handleY - 14, 28, 28, '#102303'], [beforeWidth - 12, handleY - 12, 24, 24, '#ffffff'], [beforeWidth - 4, handleY - 6, 2, 12, '#102303'], [beforeWidth + 2, handleY - 6, 2, 12, '#102303']
+      [beforeWidth - 2, 0, 4, height, '#ffffff'], [beforeWidth - 1, 0, 2, height, THEME['--brand-900']],
+      [beforeWidth - 14, handleY - 14, 28, 28, THEME['--brand-900']], [beforeWidth - 12, handleY - 12, 24, 24, '#ffffff'], [beforeWidth - 4, handleY - 6, 2, 12, THEME['--brand-900']], [beforeWidth + 2, handleY - 6, 2, 12, THEME['--brand-900']]
     ]) { renderer.setScissor(Math.max(0, x), Math.max(0, y), w, h); renderer.setClearColor(color, 1); renderer.clearColor(); }
     renderer.setScissorTest(false);
   }

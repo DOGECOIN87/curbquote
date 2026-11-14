@@ -1,26 +1,17 @@
 import { DEFAULT_INPUT, estimateExterior, InputError } from './estimate.js';
+import { BRAND } from './brand.js';
 
-// The product lines Alco Products installs (alcoproductsinc.com, October 2026), in the order offered.
-// The rates are authored examples, never Alco's prices: they stay labelled illustrative until Alco's
-// price book replaces them.
-export const CATALOG_VERSION = 'alco-products-2026-10-v2';
-export const PRODUCTS = Object.freeze({
-  siding: Object.freeze({ fiber: { name: 'James Hardie fiber cement', rates: [10, 20] }, vinyl: { name: 'CertainTeed vinyl siding', rates: [7, 14] } }),
-  windows: Object.freeze({ fiberglass: { name: 'Marvin fiberglass', rates: [900, 1800] }, wood: { name: 'Marvin wood-clad', rates: [1000, 2200] }, vinyl: { name: 'Vytex vinyl', rates: [500, 1300] } }),
-  doors: Object.freeze({ fiberglass: { name: 'ProVia fiberglass door', rates: [1800, 4200] }, steel: { name: 'ProVia steel door', rates: [1200, 3000] }, wood: { name: 'Marvin wood door', rates: [2500, 6000] } }),
-  // Alco installs CertainTeed asphalt shingles and seamless gutters (alcoproductsinc.com). Example rates
-  // from DC-metro cost guides (October 2026): architectural shingles with one layer torn off, per
-  // roofing square; seamless gutters with downspouts, per foot. Sources: docs/02-estimation.md.
-  roofing: Object.freeze({ architectural: { name: 'CertainTeed architectural shingles', rates: [550, 900] } }),
-  gutters: Object.freeze({ seamless: { name: 'Seamless gutters', rates: [14, 26] } })
-});
+// The product lines and example rates come from the skin in use (skins/<name>/skin.js), default first.
+// The rates stay labelled illustrative until the company's price book replaces them.
+export const CATALOG_VERSION = BRAND.catalog.version;
+export const PRODUCTS = Object.freeze(Object.fromEntries(Object.entries(BRAND.catalog.products).map(([trade, lines]) => [trade, Object.freeze(lines)])));
 // The project's priced trades, in display order: the option that switches each on, its product
 // choice, and its rate-input prefix and unit.
 export const TRADES = Object.freeze([
   ['siding', 'sidingProduct', 'siding', 'PerSqFt'], ['windows', 'windowProduct', 'window', 'Each'], ['doors', 'doorProduct', 'door', 'Each'],
   ['roofing', 'roofProduct', 'roof', 'PerSquare'], ['gutters', 'gutterProduct', 'gutter', 'PerFt']
 ]);
-// Engineered wood left the catalog with the move to Alco's lines; projects saved with it reopen as fiber cement.
+// Engineered wood left the studio's choices; projects saved with it reopen as fiber cement.
 const RETIRED_PRODUCTS = Object.freeze({ sidingProduct: { engineered: 'fiber' } });
 export const TIERS = Object.freeze({ standard: { name: 'Standard', multiplier: 1 }, enhanced: { name: 'Enhanced', multiplier: 1.25 }, premium: { name: 'Premium', multiplier: 1.6 } });
 export const COLORS = Object.freeze({

@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { OFFICES, addressParts, officeFor, serviceArea } from '../alco.js';
+import { OFFICES, addressParts, officeFor, serviceArea } from '../service-area.js';
+
+// These run against the skin in use, Alco Products: its offices and service area are in skins/alco/skin.js.
+const [bethesda, tysons] = OFFICES;
 
 test('matched addresses split into city, state and ZIP in Census and Google formats', () => {
   assert.deepEqual(addressParts('4600 SILVER HILL RD, WASHINGTON, DC, 20233'), { city: 'Washington', state: 'DC', zip: '20233' });
@@ -23,9 +26,9 @@ test('DC and the listed communities are served, other DC-area ZIPs are "call to 
 });
 
 test('Virginia addresses route to the Tysons office and everywhere else to North Bethesda', () => {
-  assert.equal(officeFor('VA'), OFFICES.tysons);
-  assert.equal(officeFor('MD'), OFFICES.bethesda);
-  assert.equal(officeFor('DC'), OFFICES.bethesda);
+  assert.equal(officeFor('VA'), tysons);
+  assert.equal(officeFor('MD'), bethesda);
+  assert.equal(officeFor('DC'), bethesda);
   const area = serviceArea('1 Main St, Arlington, VA 22201');
   assert.equal(area.office.phone, '(703) 534-3349');
   assert.match(area.message, /serves Arlington\. Questions\? Call \(703\) 534-3349\./);

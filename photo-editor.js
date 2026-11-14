@@ -2,6 +2,8 @@
  * Local photo color concept tool. Walls are selected by the homeowner, never inferred. `onDraw` runs
  * after every repaint and after the photo is removed, so another view can mirror the canvas.
  */
+import { THEME } from './brand.js';
+
 export class PhotoEditor {
   constructor({ canvas, input, status, finish, undo, clear, download, remove, onDraw }) {
     Object.assign(this, { canvas, input, status, finish, undo, clear, download, remove, onDraw });
@@ -87,11 +89,11 @@ export class PhotoEditor {
       ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .35; ctx.fillRect(0, 0, width, height); ctx.restore();
     }
     if (!guides) return;
-    ctx.lineWidth = Math.max(2, width / 500); ctx.strokeStyle = '#89C63F';
+    ctx.lineWidth = Math.max(2, width / 500); ctx.strokeStyle = THEME['--lime'];
     for (const area of this.areas) { this.path(area); ctx.stroke(); }
     if (this.points.length) {
       ctx.beginPath(); this.points.forEach((p, i) => { if (i) ctx.lineTo(p.x * width, p.y * height); else ctx.moveTo(p.x * width, p.y * height); }); ctx.stroke();
-      ctx.fillStyle = '#89C63F';
+      ctx.fillStyle = THEME['--lime'];
       for (const p of this.points) { ctx.beginPath(); ctx.arc(p.x * width, p.y * height, Math.max(4, width / 200), 0, Math.PI * 2); ctx.fill(); }
     }
     if (cursor) { ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(this.cursor.x * width, this.cursor.y * height, Math.max(6, width / 100), 0, Math.PI * 2); ctx.stroke(); }

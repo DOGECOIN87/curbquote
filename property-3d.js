@@ -9,6 +9,7 @@ import { exteriorForLocation } from './exterior-catalog.js';
 import { setupExterior3D } from './property-exterior.js';
 import { solarOutline } from './google-maps.js';
 import { FEET_PER_METER, findRoof, measureOutline, setupScreenMeasure } from './measure-overlay.js';
+import { THEME } from './brand.js';
 export { webgl2Available } from './cesium-runtime.js';
 
 const HEIGHT_TIMEOUT = 15000;
@@ -111,7 +112,7 @@ function setupGoogle3D({ stage, onFailure, onOrbitChange, onFramed, onPick, getP
         if (active) onFailure?.(refused());
       });
       marker = widget.scene.primitives.add(new Cesium.PointPrimitiveCollection()).add({
-        pixelSize: 14, color: Cesium.Color.fromCssColorString('#89C63F'), outlineColor: Cesium.Color.fromCssColorString('#102303'), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
+        pixelSize: 14, color: Cesium.Color.fromCssColorString(THEME['--lime']), outlineColor: Cesium.Color.fromCssColorString(THEME['--brand-900']), outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY
       });
       // Any manual interaction should stop the locked orbit.
       widget.canvas.addEventListener('pointerdown', cancelOrbit);

@@ -7,7 +7,7 @@ import { map3dConfig, mapsConfig } from '../api/map3d.js';
 import { leadConfig } from '../api/lead.js';
 
 // GitHub Pages serves files only: no API routes and no response headers. The page asks Census directly
-// (JSONP), reads the 3D credential and Alco's lead email from config.js, and carries its security policy in meta tags.
+// (JSONP), reads the 3D credential and the company's lead email from config.js, and carries its security policy in meta tags.
 const CENSUS = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress';
 export function pagesPolicy() {
   return SECURITY_HEADERS['Content-Security-Policy']

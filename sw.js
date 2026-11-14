@@ -2,8 +2,10 @@
     network first so a deploy shows at once; the cached copy answers only when the network fails. Fonts,
     brand images, models and vendor runtimes are served from the cache and refreshed in the background.
     API calls, other origins and anything but GET always go to the network. */
-const CACHE = 'curbquote-v0.18.0';
-const SHELL = ['./', 'styles.css', 'main.js', 'manifest.webmanifest', 'assets/brand/icon-192.png', 'assets/brand/icon-512.png', 'assets/brand/alco-logo.webp', 'assets/brand/alco-logo.png'];
+// lib/skin.mjs fills in the two marks below when this file is served or built: the skin's fingerprint,
+// so a rebrand clears what phones have cached, and the skin's logo and icons.
+const CACHE = 'curbquote-v0.19.0' + /*skin*/'';
+const SHELL = ['./', 'styles.css', 'skin.css', 'main.js', 'brand.js', 'manifest.webmanifest'/*brand-files*/];
 const scope = new URL(self.registration.scope);
 
 self.addEventListener('install', event => {

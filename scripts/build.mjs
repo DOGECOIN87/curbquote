@@ -1,15 +1,20 @@
 import { mkdir, copyFile, cp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PUBLIC_ASSETS, CESIUM_FILES, CESIUM_PREFIX, CESIUM_SOURCE, MAPLIBRE_FILES, MAPLIBRE_PREFIX, MAPLIBRE_SOURCE, THREE_FILES, THREE_PREFIX, THREE_SOURCE, isCesiumFile, patchCesium, projectRoot } from '../lib/web.mjs';
+import { skinAsset } from '../lib/skin.mjs';
+import { BRAND } from '../brand.js';
+import { PUBLIC_ASSETS, publicAssets, CESIUM_FILES, CESIUM_PREFIX, CESIUM_SOURCE, MAPLIBRE_FILES, MAPLIBRE_PREFIX, MAPLIBRE_SOURCE, THREE_FILES, THREE_PREFIX, THREE_SOURCE, isCesiumFile, patchCesium, projectRoot } from '../lib/web.mjs';
 
-export async function buildPublicAssets(destination = join(projectRoot, 'dist')) {
+/** The public site for the skin in use. Another `skin` builds that skin's look, for previews and checks. */
+export async function buildPublicAssets(destination = join(projectRoot, 'dist'), skin = BRAND) {
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true });
-  for (const file of PUBLIC_ASSETS) {
+  for (const file of publicAssets(skin)) {
     const target = join(destination, file);
     await mkdir(dirname(target), { recursive: true });
-    await copyFile(join(projectRoot, file), target);
+    // The skin in use makes the page, the colour stylesheet, the manifest, the worker and the brand images.
+    const made = await skinAsset(file, skin);
+    if (made) await writeFile(target, made); else await copyFile(join(projectRoot, file), target);
   }
   await mkdir(join(destination, MAPLIBRE_PREFIX), { recursive: true });
   for (const file of MAPLIBRE_FILES) await copyFile(join(MAPLIBRE_SOURCE, file === 'LICENSE.txt' ? file : `dist/${file}`), join(destination, MAPLIBRE_PREFIX, file));

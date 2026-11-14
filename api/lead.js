@@ -1,10 +1,11 @@
 /**
- * "Send to Alco Products": the homeowner's contact details and their estimate brief, posted as JSON
+ * "Send to <company>": the homeowner's contact details and their estimate brief, posted as JSON
  * to `LEAD_WEBHOOK_URL` (a CRM form, Zapier, Make or a similar inbox). Nothing is stored here. With
  * no webhook, GET tells the page to offer an email to `LEAD_EMAIL` instead.
  */
 import { z } from 'zod';
 import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
+import { BRAND } from '../brand.js';
 
 const text = max => z.string().trim().max(max);
 const requestSchema = z.object({
@@ -47,7 +48,7 @@ export function createLeadHandler({ env = process.env, fetchImpl = fetch, allow 
     if (req.headers?.origin) {
       let origin;
       try { origin = new URL(req.headers.origin).host; } catch { /* rejected below */ }
-      if (origin !== req.headers.host) return res.status(403).json({ error: 'Send your request from the Alco Products page.', code: 'ORIGIN_DENIED' });
+      if (origin !== req.headers.host) return res.status(403).json({ error: `Send your request from the ${BRAND.company.name} page.`, code: 'ORIGIN_DENIED' });
     }
     if (!String(req.headers?.['content-type'] || '').toLowerCase().startsWith('application/json')) {
       return res.status(415).json({ error: 'Send a JSON request.', code: 'INVALID_REQUEST' });
@@ -63,7 +64,7 @@ export function createLeadHandler({ env = process.env, fetchImpl = fetch, allow 
     if (!webhook) return res.status(503).json({ error: 'Sending is not set up yet.', code: 'LEAD_NOT_CONFIGURED', email });
     if (!allow(clientKey(req))) {
       res.setHeader('Retry-After', '600');
-      return res.status(429).json({ error: 'Too many requests. Please call Alco Products instead.', code: 'RATE_LIMIT' });
+      return res.status(429).json({ error: `Too many requests. Please call ${BRAND.company.name} instead.`, code: 'RATE_LIMIT' });
     }
     try {
       const response = await fetchImpl(webhook, {
@@ -76,7 +77,7 @@ export function createLeadHandler({ env = process.env, fetchImpl = fetch, allow 
       if (!response.ok) throw new Error(`Webhook HTTP ${response.status}`);
       return res.status(200).json({ sent: true });
     } catch {
-      return res.status(502).json({ error: 'Your request could not be delivered. Please try again or call Alco Products.', code: 'LEAD_DELIVERY_FAILED', email });
+      return res.status(502).json({ error: `Your request could not be delivered. Please try again or call ${BRAND.company.name}.`, code: 'LEAD_DELIVERY_FAILED', email });
     }
   };
 }

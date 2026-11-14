@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AddressLookupError } from '../address.js';
 import { FootprintLookupError, footprintAvailability, resolveFootprint } from '../lib/footprint.mjs';
 import { clientKey, createRequestLimiter } from '../lib/rate-limit.mjs';
+import { BRAND } from '../brand.js';
 
 const requestSchema = z.object({
   address: z.string().min(6).max(120).optional(),
@@ -29,7 +30,7 @@ export function createFootprintHandler({ resolve = resolveFootprint, available =
     if (req.headers?.origin) {
       let origin;
       try { origin = new URL(req.headers.origin).host; } catch { /* rejected below */ }
-      if (origin !== req.headers.host) return res.status(403).json({ error: 'Use footprint lookup from the Alco Products page.', code: 'ORIGIN_DENIED' });
+      if (origin !== req.headers.host) return res.status(403).json({ error: `Use footprint lookup from the ${BRAND.company.name} page.`, code: 'ORIGIN_DENIED' });
     }
     if (!String(req.headers?.['content-type'] || '').toLowerCase().startsWith('application/json')) {
       return res.status(415).json({ error: 'Send a JSON footprint request.', code: 'INVALID_REQUEST' });

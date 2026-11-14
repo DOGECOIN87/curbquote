@@ -78,7 +78,7 @@ test('public build serves browser modules while keeping backend, research and pr
   for (const file of ['three.module.js', 'three.core.js', 'LICENSE.txt']) assert.equal((await fetch(`${base}/vendor/three/${file}`)).status, 200);
   assert.equal((await fetch(`${base}/vendor/three/three.webgpu.js`)).status, 404);
   // The header logo is a WebP with a PNG fallback; an unknown type used to fail as a 500.
-  assert.equal((await fetch(`${base}/assets/brand/alco-logo.webp`)).headers.get('content-type'), 'image/webp');
+  assert.equal((await fetch(`${base}/assets/brand/logo.webp`)).headers.get('content-type'), 'image/webp');
   // Installable app: the manifest, its icons and a service worker that is never served stale.
   const manifest = await fetch(`${base}/manifest.webmanifest`);
   assert.match(manifest.headers.get('content-type'), /^application\/manifest\+json/);

@@ -1,6 +1,7 @@
 /** One complete report shared by downloads and print, including the exact price snapshot. */
 import { propertySourceLines } from './property-data.js';
 import { resolveHomeStyle } from './home-styles.js';
+import { BRAND } from './brand.js';
 const TRADE_KEYS = ['siding', 'windows', 'doors', 'roofing', 'gutters'];
 export function buildEstimateSummary(result, { address = '', matchedAddress = '', generatedAt = new Date().toISOString(), propertyData, footprintData } = {}) {
   const { inputs: i, geometry: g, assumptions: a, pricing: p } = result;
@@ -13,7 +14,7 @@ export function buildEstimateSummary(result, { address = '', matchedAddress = ''
     `Footprint source: ${singleLine(footprintData.source?.provider || 'Public building outline')} (${Math.round(footprintData.areaSqFt)} sq ft ground outline — style variant, approximate, not a survey)`
   ] : [];
   return [
-    'ALCO PRODUCTS / CURBQUOTE PRELIMINARY ESTIMATE',
+    `${BRAND.company.name.toUpperCase()} / CURBQUOTE PRELIMINARY ESTIMATE`,
     `Generated: ${generatedAt}`,
     `Calculation model: ${result.modelVersion}`,
     `Pricing: ${p.version}${p.customized ? ' (edited)' : ''} — illustrative example rates, not contractor pricing`,

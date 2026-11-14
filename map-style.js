@@ -1,4 +1,5 @@
 import { AERIAL_ENDPOINT, hasAerialCoverage } from './property-view.js';
+import { THEME } from './brand.js';
 
 export const MAP_DATA_URL = 'https://tiles.openfreemap.org/planet';
 export const MAP_GLYPHS_URL = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
@@ -25,7 +26,7 @@ export function propertyMapStyle(location) {
       { id: 'roads', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation', filter: ['!=', ['get', 'class'], 'rail'], paint: { 'line-color': '#f8faf0', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 2, 20, 13], 'line-opacity': .5 } },
       { id: 'building-fill', type: 'fill', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': '#779a76', 'fill-opacity': .22 } },
       { id: 'building-outline', type: 'line', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, paint: { 'line-color': '#d4ffac', 'line-width': 1.6, 'line-opacity': .9 } },
-      { id: 'housenumber', type: 'symbol', source: 'openmaptiles', 'source-layer': 'housenumber', minzoom: 15, layout: { 'text-field': ['get', 'housenumber'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': false, 'text-ignore-placement': false }, paint: { 'text-color': '#102303', 'text-halo-color': '#fff', 'text-halo-width': 1.6, 'text-halo-blur': 0.5 } },
+      { id: 'housenumber', type: 'symbol', source: 'openmaptiles', 'source-layer': 'housenumber', minzoom: 15, layout: { 'text-field': ['get', 'housenumber'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': false, 'text-ignore-placement': false }, paint: { 'text-color': THEME['--brand-900'], 'text-halo-color': '#fff', 'text-halo-width': 1.6, 'text-halo-blur': 0.5 } },
       // Key-free 3D fallback: OpenStreetMap building heights where mapped, a one-story guess otherwise.
       { id: 'building-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, layout: { visibility: 'none' }, paint: {
         'fill-extrusion-color': ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 6], 0, '#e9eee2', 40, '#b5c6a6'],
@@ -33,11 +34,11 @@ export function propertyMapStyle(location) {
         'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
         'fill-extrusion-opacity': .94, 'fill-extrusion-vertical-gradient': true
       } },
-      { id: 'selected-fill', type: 'fill', source: 'selected', paint: { 'fill-color': '#89C63F', 'fill-opacity': .3 } },
-      { id: 'selected-outline', type: 'line', source: 'selected', paint: { 'line-color': '#89C63F', 'line-width': 4 } },
+      { id: 'selected-fill', type: 'fill', source: 'selected', paint: { 'fill-color': THEME['--lime'], 'fill-opacity': .3 } },
+      { id: 'selected-outline', type: 'line', source: 'selected', paint: { 'line-color': THEME['--lime'], 'line-width': 4 } },
       { id: 'street-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'transportation_name', minzoom: 14, layout: { 'symbol-placement': 'line', 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name'], ''], 'text-font': ['Noto Sans Regular'], 'text-size': 11 }, paint: { 'text-color': '#173d36', 'text-halo-color': '#fffff0', 'text-halo-width': 2 } },
-      { id: 'address-halo', type: 'circle', source: 'address', paint: { 'circle-radius': 16, 'circle-color': '#89C63F', 'circle-opacity': .2, 'circle-stroke-color': '#89C63F', 'circle-stroke-width': 1 } },
-      { id: 'address-point', type: 'circle', source: 'address', paint: { 'circle-radius': 5, 'circle-color': '#89C63F', 'circle-stroke-color': '#102303', 'circle-stroke-width': 2 } }
+      { id: 'address-halo', type: 'circle', source: 'address', paint: { 'circle-radius': 16, 'circle-color': THEME['--lime'], 'circle-opacity': .2, 'circle-stroke-color': THEME['--lime'], 'circle-stroke-width': 1 } },
+      { id: 'address-point', type: 'circle', source: 'address', paint: { 'circle-radius': 5, 'circle-color': THEME['--lime'], 'circle-stroke-color': THEME['--brand-900'], 'circle-stroke-width': 2 } }
     ]
   };
 }

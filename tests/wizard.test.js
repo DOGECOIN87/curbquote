@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { setupWizard } from '../wizard.js';
+import { renderPage } from '../lib/skin.mjs';
+
+// The page as served: index.html with the names of the skin in use (Alco Products) filled in.
+const page = async () => renderPage(await readFile(new URL('../index.html', import.meta.url), 'utf8'));
 
 // The wizard only touches `window` when it scrolls after a focus-changing move.
 globalThis.window = { scrollTo() {}, addEventListener: globalThis.addEventListener };
@@ -62,7 +66,7 @@ test('data-step-link controls inside a step and on the estimate screen move the 
 });
 
 test('the studio is the last step: Send to Alco Products, Save and Download sit in its panel', async () => {
-  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const html = await page();
   assert.doesNotMatch(html, /data-goto="5"/, 'four steps in the progress bar');
   assert.match(html, /data-send-lead>Send to Alco Products/);
   assert.match(html, /data-save-project/);
@@ -77,7 +81,7 @@ test('the studio is the last step: Send to Alco Products, Save and Download sit 
 
 test('inline Step 3 3D preview, split slider, Step 4 rate summary and caveats card stay wired without eyebrows or tofu glyphs', async () => {
   const [html, css] = await Promise.all([
-    readFile(new URL('../index.html', import.meta.url), 'utf8'),
+    page(),
     readFile(new URL('../styles.css', import.meta.url), 'utf8')
   ]);
   assert.match(html, /class="view-pair-callout"/);

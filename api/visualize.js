@@ -1,6 +1,6 @@
 /**
- * A photo-real concept of the homeowner's own exterior photo with their Alco choices (siding product
- * and colour, CertainTeed shingles, trim, windows, entry door, gutters), made by an image model
+ * A photo-real concept of the homeowner's own exterior photo with their catalog choices (siding product
+ * and colour, shingles, trim, windows, entry door, gutters), made by an image model
  * through the Vercel AI Gateway. The page sends option keys, never free text, and the instruction is
  * built here from the catalog, so every request reads the same way. A chain of models (primary,
  * fallback, primary again) and a check on every returned image keep it working when one model
@@ -68,7 +68,7 @@ export function designChanges(design, { marker = false } = {}) {
     design.siding && (marker
       ? `Wall siding: replace the siding on every sided wall with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding painted a flat, vivid magenta (${SIDING_MARKER}), with the boards' real texture, shadows and light. The magenta is a marker so the siding can be recoloured later: use it on every sided wall, in sun and in shade, and nowhere else in the photo. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`
       : `Wall siding: replace the siding on every sided wall with ${PRODUCTS.siding[design.siding.product].name.replace(/ siding$/, '')} lap siding in ${shade(COLORS[design.siding.color], COLOR_LOOKS.siding[design.siding.color])}. The new colour must be clearly visible on every sided wall, in sun and in shade. Leave any brick, stone, stucco, foundation and chimney masonry as it is.`),
-    design.roof && `Roof: new CertainTeed architectural asphalt shingles in ${shade(ROOF_COLORS[design.roof.color], COLOR_LOOKS.roof[design.roof.color])}, on the same roof shape.`,
+    design.roof && `Roof: new ${PRODUCTS.roofing.architectural.name.replace(/ shingles$/, '')} asphalt shingles in ${shade(ROOF_COLORS[design.roof.color], COLOR_LOOKS.roof[design.roof.color])}, on the same roof shape.`,
     trim && `Trim: paint the window, door, corner and fascia trim ${shade(trim, COLOR_LOOKS.trim[design.trim])}.`,
     design.windows && `Windows: new ${PRODUCTS.windows[design.windows.product].name} windows in the same openings, sizes and grid pattern, with ${frames} frames.`,
     design.door && `Front door: a new ${PRODUCTS.doors[design.door.product].name} with ${DOOR_LOOKS[design.door.product]}, in the same opening.`,

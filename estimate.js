@@ -1,4 +1,6 @@
 /** Transparent, deterministic arithmetic, not a calibrated property estimator. */
+import { BRAND } from './brand.js';
+
 export const MODEL_VERSION = 'manual-geometry-v2';
 export const PRICE_VERSION = 'illustrative-usd-v1';
 export const ASSUMPTIONS = Object.freeze({
@@ -10,20 +12,20 @@ export const ASSUMPTIONS = Object.freeze({
   // long sides of a gabled roof, every side of a hipped one (no gable ends); downspouts are in the rate.
   eaveOverhangFt: 1, roofWasteFraction: 0.12, roofVariation: 0.12
 });
+const RATES = BRAND.catalog.products;
 export const DEFAULT_INPUT = Object.freeze({
   lengthFt: 48, widthFt: 34, stories: 2, storyHeightFt: 9,
   gables: 2, gableRiseFt: 6, masonryPercent: 20,
   existingWindows: 12, existingDoors: 2,
   replaceWindows: 6, replaceDoors: 1,
   yearBuilt: 1998,
-  // The default products' standard-tier rates: James Hardie siding, Marvin fiberglass windows, ProVia fiberglass door.
-  sidingLowPerSqFt: 10, sidingHighPerSqFt: 20,
-  windowLowEach: 900, windowHighEach: 1800,
-  doorLowEach: 1800, doorHighEach: 4200,
-  // CertainTeed architectural shingles with one layer torn off, per roofing square (100 sq ft of roof),
-  // and seamless gutters with downspouts, per foot of gutter. DC-metro example rates, October 2026.
-  roofLowPerSquare: 550, roofHighPerSquare: 900,
-  gutterLowPerFt: 14, gutterHighPerFt: 26,
+  // The default products' standard-tier rates, from the catalog of the skin in use: siding per sq ft,
+  // windows and doors each, shingles per roofing square (100 sq ft of roof) and gutters per foot.
+  sidingLowPerSqFt: RATES.siding.fiber.rates[0], sidingHighPerSqFt: RATES.siding.fiber.rates[1],
+  windowLowEach: RATES.windows.fiberglass.rates[0], windowHighEach: RATES.windows.fiberglass.rates[1],
+  doorLowEach: RATES.doors.fiberglass.rates[0], doorHighEach: RATES.doors.fiberglass.rates[1],
+  roofLowPerSquare: RATES.roofing.architectural.rates[0], roofHighPerSquare: RATES.roofing.architectural.rates[1],
+  gutterLowPerFt: RATES.gutters.seamless.rates[0], gutterHighPerFt: RATES.gutters.seamless.rates[1],
   // The mapped outline's own area when one sized the home (0: length x width). An L-shaped home's
   // bounding rectangle can hold half again its real roof; the walls still follow length and width.
   footprintSqFt: 0

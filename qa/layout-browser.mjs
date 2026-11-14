@@ -1,12 +1,14 @@
 // Every step at device shapes from a 280 px fold cover screen to a 3440 px ultrawide: nothing scrolls
 // sideways, no visible control is covered by another, the step's main action can be reached and pressed,
 // and on Steps 2–4 the house keeps a usable share of the screen. `--report` lists problems without failing.
+// `SKIN=example npm run test:layouts` sweeps another skin, whose logo and names take different room.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { createAppServer } from '../lib/web.mjs';
+import { loadSkin } from '../lib/skin.mjs';
 
 export const SHAPES = Object.freeze([
   ['fold cover, narrow', 280, 653], ['small phone', 320, 568], ['fold cover', 344, 882], ['compact phone', 360, 640],
@@ -68,8 +70,8 @@ async function houseShare(page) {
   });
 }
 
-export async function auditLayouts({ shapes = SHAPES, outputDir = null } = {}) {
-  const server = createAppServer({ dimensionsHandler: async (req, res) => res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }) });
+export async function auditLayouts({ shapes = SHAPES, outputDir = null, skin } = {}) {
+  const server = createAppServer({ skin, dimensionsHandler: async (req, res) => res.status(503).json({ error: 'Synthetic open footprint outage.', code: 'FOOTPRINT_UPSTREAM_UNAVAILABLE' }) });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined, args: ['--enable-unsafe-swiftshader'] });
   const report = [];
@@ -104,9 +106,10 @@ export async function auditLayouts({ shapes = SHAPES, outputDir = null } = {}) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)) {
-  const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output', 'layouts');
+  const skin = process.env.SKIN ? await loadSkin(process.env.SKIN) : undefined;
+  const outputDir = resolve(process.env.QA_OUTPUT_DIR || 'qa-output', skin ? `layouts-${skin.id}` : 'layouts');
   await mkdir(outputDir, { recursive: true });
-  const report = await auditLayouts({ outputDir });
+  const report = await auditLayouts({ outputDir, skin });
   if (process.argv.includes('--report')) console.log(JSON.stringify(report, null, 1));
   else {
     assert.deepEqual(report, [], 'Layout problems');

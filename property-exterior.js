@@ -1,5 +1,6 @@
 import { loadCesium } from './cesium-runtime.js';
 import { exteriorForLocation } from './exterior-catalog.js';
+import { THEME } from './brand.js';
 
 /** Key-free local exterior. Closing cancels pending work and frees the GPU context. */
 export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange }) {
@@ -106,7 +107,7 @@ export function setupExterior3D({ stage, onFailure, onViewChange, onOrbitChange 
       if (!current()) return null;
       widget = new Cesium.CesiumWidget(container, { baseLayer: false, globe: false, skyBox: false, skyAtmosphere: false, requestRenderMode: true, showRenderLoopErrors: false, msaaSamples: 1 });
       const scene = widget.scene;
-      scene.backgroundColor = Cesium.Color.fromCssColorString('#102303');
+      scene.backgroundColor = Cesium.Color.fromCssColorString(THEME['--brand-900']);
       scene.screenSpaceCameraController.enableInputs = false;
       scene.fog.enabled = false;
       // Keep the model in a local frame. Source orthometric heights are not ellipsoid heights.
